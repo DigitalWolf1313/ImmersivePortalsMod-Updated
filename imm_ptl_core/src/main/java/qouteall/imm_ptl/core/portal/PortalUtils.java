@@ -79,7 +79,7 @@ public class PortalUtils {
     
     public static record PortalAwareRaytraceResult(
         Level world,
-        BlockHitResult hitResult,
+        @NotNull BlockHitResult hitResult,
         List<Portal> portalsPassingThrough
     ) {}
     
@@ -116,7 +116,24 @@ public class PortalUtils {
         Entity entity,
         @NotNull List<Portal> portalsPassingThrough
     ) {
-        if (portalsPassingThrough.size() > 5) {
+        return portalAwareRayTraceFull(
+            world, startingPoint, direction, maxDistance,
+            entity,
+            ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
+            portalsPassingThrough, 5
+        );
+    }
+    
+    @Nullable
+    public static PortalAwareRaytraceResult portalAwareRayTraceFull(
+        Level world, Vec3 startingPoint, Vec3 direction, double maxDistance,
+        Entity entity,
+        ClipContext.Block clipContextBlock,
+        ClipContext.Fluid clipContextFluid,
+        @NotNull List<Portal> portalsPassingThrough,
+        int maxPortalLayer
+    ) {
+        if (portalsPassingThrough.size() > maxPortalLayer) {
             return null;
         }
         
@@ -136,8 +153,8 @@ public class PortalUtils {
         ClipContext context = new ClipContext(
             startingPoint,
             endingPoint,
-            ClipContext.Block.OUTLINE,
-            ClipContext.Fluid.NONE,
+            clipContextBlock,
+            clipContextFluid,
             entity
         );
         BlockHitResult blockHitResult = world.clip(context);
@@ -180,15 +197,17 @@ public class PortalUtils {
             if (restDistance < 0) {
                 return null;
             }
-            return portalAwareRayTrace(
+            return portalAwareRayTraceFull(
                 portal.getDestinationWorld(),
                 newStartingPoint,
                 newDirection,
                 restDistance,
                 entity,
+                clipContextBlock, clipContextFluid,
                 Stream.concat(
                     portalsPassingThrough.stream(), Stream.of(portal)
-                ).collect(Collectors.toList())
+                ).collect(Collectors.toList()),
+                maxPortalLayer
             );
         }
         else {
