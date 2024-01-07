@@ -21,7 +21,7 @@ public interface MixinContainer {
     ) {
         if (!cir.getReturnValue()) {
             PortalUtils.PortalAwareRaytraceResult result = PortalUtils.portalAwareRayTrace(player, 32);
-            if (result != null && result.hitResult().getBlockPos().equals(blockEntity.getBlockPos())) {
+            if (result != null && result.hitResult().getBlockPos().distManhattan(blockEntity.getBlockPos()) < 8) {
                 cir.setReturnValue(true);
             }
         }
