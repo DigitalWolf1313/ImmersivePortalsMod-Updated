@@ -1,14 +1,17 @@
 package qouteall.imm_ptl.core.mixin.common.container_gui;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import qouteall.imm_ptl.core.portal.PortalUtils;
+import qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer;
 
+@SuppressWarnings("ALL")
 @Mixin(Container.class)
 public interface MixinContainer {
     @Inject(
@@ -20,10 +23,13 @@ public interface MixinContainer {
         BlockEntity blockEntity, Player player, int distance, CallbackInfoReturnable<Boolean> cir
     ) {
         if (!cir.getReturnValue()) {
-            PortalUtils.PortalAwareRaytraceResult result = PortalUtils.portalAwareRayTrace(player, 32);
-            if (result != null && result.hitResult().getBlockPos().distManhattan(blockEntity.getBlockPos()) < 8) {
+            BlockPos targetPos = blockEntity.getBlockPos();
+            Level targetWorld = blockEntity.getLevel();
+            
+            if (BlockManipulationServer.validateReach(player, targetWorld, targetPos)) {
                 cir.setReturnValue(true);
             }
         }
     }
+    
 }
