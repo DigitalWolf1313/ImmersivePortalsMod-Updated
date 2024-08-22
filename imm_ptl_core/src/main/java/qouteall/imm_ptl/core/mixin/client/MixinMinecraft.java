@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -23,11 +24,16 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.miscellaneous.ClientPerformanceMonitor;
+import qouteall.imm_ptl.core.miscellaneous.IPortalInitialScreen;
+import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.imm_ptl.core.portal.animation.ClientPortalAnimationManagement;
 import qouteall.imm_ptl.core.portal.animation.StableClientTimer;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 import qouteall.imm_ptl.core.teleportation.ClientTeleportationManager;
+
+import java.util.List;
+import java.util.function.Function;
 
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft implements IEMinecraftClient {
@@ -160,6 +166,27 @@ public abstract class MixinMinecraft implements IEMinecraftClient {
     private static void onIsFabulousGraphicsOrBetter(CallbackInfoReturnable<Boolean> cir) {
         if (WorldRenderInfo.isRendering()) {
             cir.setReturnValue(false);
+        }
+    }
+    
+    @Unique
+    private int ip_initialScreenTicks = 0;
+    
+    @Inject(
+        method = "Lnet/minecraft/client/Minecraft;tick()V",
+        at = @At("HEAD")
+    )
+    private void onTickInitialScreen(CallbackInfo ci) {
+        if (ip_initialScreenTicks >= 0 && ip_initialScreenTicks < 10) {
+            ip_initialScreenTicks++;
+            if (ip_initialScreenTicks == 5) {
+                IPConfig config = IPConfig.getConfig();
+                if (!config.initialScreenShown) {
+                    Minecraft.getInstance().setScreen(new IPortalInitialScreen(() -> {
+                        Minecraft.getInstance().setScreen(null);
+                    }));
+                }
+            }
         }
     }
     
