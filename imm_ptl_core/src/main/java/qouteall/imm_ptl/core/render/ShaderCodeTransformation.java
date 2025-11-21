@@ -40,7 +40,7 @@ public class ShaderCodeTransformation {
         public ShaderType type;
         public Set<String> affectedShaders;
         public List<TransformationEntry> transformations;
-        public boolean debugOutput;
+        public boolean debugOutput = true;
     }
     
     private static final Pattern patternVoidMain = Pattern.compile(

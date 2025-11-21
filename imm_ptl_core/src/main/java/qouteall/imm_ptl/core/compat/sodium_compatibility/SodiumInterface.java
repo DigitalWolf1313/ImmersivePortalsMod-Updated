@@ -4,8 +4,8 @@ import me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer;
 import me.jellysquid.mods.sodium.client.render.chunk.RenderSectionManager;
 import me.jellysquid.mods.sodium.client.render.chunk.map.ChunkStatus;
 import me.jellysquid.mods.sodium.client.render.chunk.map.ChunkTrackerHolder;
-import me.jellysquid.mods.sodium.client.render.texture.SpriteUtil;
 import me.jellysquid.mods.sodium.client.world.WorldRendererExtended;
+import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -77,7 +77,7 @@ public class SodiumInterface {
         
         @Override
         public void markSpriteActive(TextureAtlasSprite sprite) {
-            SpriteUtil.markSpriteActive(sprite);
+            SpriteUtil.INSTANCE.markSpriteActive(sprite);
         }
         
         @Override

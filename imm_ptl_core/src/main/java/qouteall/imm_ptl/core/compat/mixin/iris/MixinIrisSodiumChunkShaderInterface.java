@@ -1,15 +1,16 @@
 package qouteall.imm_ptl.core.compat.mixin.iris;
 
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderOptions;
-import net.coderbot.iris.compat.sodium.impl.shader_overrides.IrisChunkShaderInterface;
-import net.coderbot.iris.compat.sodium.impl.shader_overrides.ShaderBindingContextExt;
-import net.coderbot.iris.gl.blending.BlendModeOverride;
-import net.coderbot.iris.gl.blending.BufferBlendOverride;
-import net.coderbot.iris.pipeline.SodiumTerrainPipeline;
-import net.coderbot.iris.uniforms.custom.CustomUniforms;
+import net.irisshaders.iris.compat.sodium.impl.shader_overrides.IrisChunkShaderInterface;
+import net.irisshaders.iris.compat.sodium.impl.shader_overrides.ShaderBindingContextExt;
+import net.irisshaders.iris.gl.blending.BlendModeOverride;
+import net.irisshaders.iris.gl.blending.BufferBlendOverride;
+import net.irisshaders.iris.pipeline.SodiumTerrainPipeline;
+import net.irisshaders.iris.uniforms.custom.CustomUniforms;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL21;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -20,8 +21,10 @@ import java.util.List;
 
 @Mixin(value = IrisChunkShaderInterface.class, remap = false)
 public class MixinIrisSodiumChunkShaderInterface {
+    @Unique
     private int uIPClippingEquation;
     
+    @Unique
     private void ip_init(int shaderId) {
         uIPClippingEquation = GL20C.glGetUniformLocation(shaderId, "imm_ptl_ClippingEquation");
         if (uIPClippingEquation < 0) {
@@ -36,10 +39,9 @@ public class MixinIrisSodiumChunkShaderInterface {
         require = 0
     )
     private void onInit(
-        int handle, ShaderBindingContextExt contextExt, SodiumTerrainPipeline pipeline,
-        ChunkShaderOptions options, boolean isShadowPass, BlendModeOverride blendModeOverride,
-        List<BufferBlendOverride> bufferOverrides, float alpha, CustomUniforms customUniforms,
-        CallbackInfo ci
+            int handle, ShaderBindingContextExt contextExt, SodiumTerrainPipeline pipeline, ChunkShaderOptions options,
+            boolean isTess, boolean isShadowPass, BlendModeOverride blendModeOverride,
+            List<BufferBlendOverride> bufferOverrides, float alpha, CustomUniforms customUniforms, CallbackInfo ci
     ) {
         ip_init(handle);
     }
