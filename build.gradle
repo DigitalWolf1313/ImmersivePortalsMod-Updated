@@ -1,5 +1,8 @@
 plugins {
-    id 'fabric-loom' version '1.8-SNAPSHOT'
+    id 'java-library'
+
+    id 'fabric-loom' version '1.13-SNAPSHOT' apply(false)
+    // uses qouteall's fork of fabric loom, see settings.gradle
 
     id 'maven-publish'
 
