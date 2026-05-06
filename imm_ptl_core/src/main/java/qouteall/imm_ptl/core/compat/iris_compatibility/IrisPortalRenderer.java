@@ -313,6 +313,9 @@ public class IrisPortalRenderer extends PortalRenderer {
     public void invokeWorldRendering(
         WorldRenderInfo worldRenderInfo
     ) {
+        
+        IrisInterface.invoker.updatePerFrameUniforms();
+        
         MyGameRenderer.renderWorldNew(
             worldRenderInfo,
             Runnable::run

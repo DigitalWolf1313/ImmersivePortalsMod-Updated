@@ -143,6 +143,9 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
 //            }
 //        }
         
+        IrisInterface.invoker.updatePerFrameUniforms();
+        
+        
         SystemTimeUniforms.COUNTER.beginFrame(); // is it necessary?
         super.invokeWorldRendering(worldRenderInfo);
         SystemTimeUniforms.COUNTER.beginFrame(); // make Iris to update the uniforms

@@ -602,6 +602,11 @@ public class ClientDebugCommand {
         );
         registerSwitchCommand(
             builder,
+            "iris_uniform_updates",
+            cond -> IPCGlobal.irisUniformUpdate = cond
+        );
+        registerSwitchCommand(
+            builder,
             "portal_rendering_cave_culling",
             cond -> MyGameRenderer.enablePortalCaveCulling = cond
         );
