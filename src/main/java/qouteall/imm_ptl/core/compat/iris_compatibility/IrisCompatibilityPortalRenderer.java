@@ -126,6 +126,11 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         client.getMainRenderTarget().bindWrite(true);
     }
+
+    @Override
+    public boolean shouldRenderHand() {
+        return true;
+    }
     
     @Override
     public void invokeWorldRendering(
