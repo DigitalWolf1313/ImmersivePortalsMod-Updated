@@ -247,7 +247,7 @@ public abstract class PortalRenderer {
                 .setOverwriteCameraTransformation(false)
                 .setDescription(portalLike.getDiscriminator())
                 .setRenderDistance(renderDistance)
-                .setDoRenderHand(false)
+                .setDoRenderHand(true)
                 .setEnableViewBobbing(true)
                 .setDoRenderSky(!portalLike.isFuseView())
                 .build()
