@@ -1,1 +1,3 @@
-Changed Sodium compat to Sodium 0.6.0 and Iris compat to 1.8.0. Note that this version is experimental.
+- Fix C2ME.
+- Fixed Colored Lighting with Iris
+- Fix the hand Not rendering between cross-dimension portals
