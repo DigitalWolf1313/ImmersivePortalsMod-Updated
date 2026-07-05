@@ -95,7 +95,7 @@ public class IrisInterface {
         @Override
         public void updatePerFrameUniforms() {
             // Skip the updates if the player disables it (Didn't Break any shaderpacks In my testing but just incase)
-            if (!qouteall.imm_ptl.core.IPCGlobal.irisUniformUpdate) {
+            if (qouteall.imm_ptl.core.IPCGlobal.irisUniformUpdate) {
                 return;
             }
             SystemTimeUniforms.COUNTER.beginFrame();
