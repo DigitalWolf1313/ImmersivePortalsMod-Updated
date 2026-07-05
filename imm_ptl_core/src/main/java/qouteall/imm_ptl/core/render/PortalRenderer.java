@@ -247,7 +247,7 @@ public abstract class PortalRenderer {
                 .setOverwriteCameraTransformation(false)
                 .setDescription(portalLike.getDiscriminator())
                 .setRenderDistance(renderDistance)
-                .setDoRenderHand(true)
+                .setDoRenderHand(shouldRenderHand())
                 .setEnableViewBobbing(true)
                 .setDoRenderSky(!portalLike.isFuseView())
                 .build()
@@ -260,6 +260,10 @@ public abstract class PortalRenderer {
         MyRenderHelper.restoreViewPort();
         
         
+    }
+
+    public boolean shouldRenderHand() {
+        return false;
     }
     
     private static int getPortalRenderDistance(PortalLike portal) {
