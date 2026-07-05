@@ -1,3 +1,2 @@
-- Fix C2ME.
 - Fixed Colored Lighting with Iris
 - Fix the hand Not rendering between cross-dimension portals
