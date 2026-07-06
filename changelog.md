@@ -1,2 +1,1 @@
-- Fixed Colored Lighting with Iris
-- Fix the hand Not rendering between cross-dimension portals
+- Hopefully improve mod compatibility By rewriting "MixinFrustum_FixDeadLoop::offsetToFullyIncludeCameraCube using MixinExtras" - Acuadragon100
