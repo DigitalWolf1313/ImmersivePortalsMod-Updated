@@ -37,3 +37,5 @@ https://fabricmc.net/wiki/tutorial:setup
 
 ## Credits
 Thank you to Acuadragon100 for creating the Valkyrien Skies crash fix and checking some of my code.
+
+Mikulasz12 For creating A version of "MixinSodiumViewport" That works with Sodium 8.12

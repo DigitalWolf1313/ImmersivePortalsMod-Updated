@@ -1,6 +1,6 @@
 plugins {
 
-    id 'fabric-loom' version '1.13-SNAPSHOT'
+    id 'net.fabricmc.fabric-loom-remap' version '1.16-SNAPSHOT'
     // uses qouteall's fork of fabric loom, see settings.gradle
 
     id 'maven-publish'
@@ -149,8 +149,8 @@ dependencies {
             modImplementation name
         }
     }
-    testImplementation(platform('org.junit:junit-bom:5.10.0'))
-    testImplementation('org.junit.jupiter:junit-jupiter')
+    // testImplementation(platform('org.junit:junit-bom:5.10.0'))
+    // testImplementation('org.junit.jupiter:junit-jupiter')
 }
 
 processResources {
@@ -211,12 +211,12 @@ task printClasspath {
 
 // run test when building will slow down the build process
 // manually run when needed
-//test {
-//    useJUnitPlatform()
-//    testLogging {
-//        events "passed", "skipped", "failed"
-//    }
-//}
+// test {
+//     useJUnitPlatform()
+//     testLogging {
+//         events "passed", "skipped", "failed"
+//     }
+// }
 
 publishMods {
     file = remapJar.archiveFile
