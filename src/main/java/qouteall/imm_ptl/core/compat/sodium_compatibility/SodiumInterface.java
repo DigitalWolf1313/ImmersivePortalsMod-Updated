@@ -26,7 +26,7 @@ public class SodiumInterface {
             return false;
         }
         
-        public Object createNewContext(int renderDistance) {
+        public Object createNewContext(int renderDistance, org.joml.Vector3d initialCameraPos) {
             return null;
         }
         
@@ -56,8 +56,8 @@ public class SodiumInterface {
         }
         
         @Override
-        public Object createNewContext(int renderDistance) {
-            return new SodiumRenderingContext(renderDistance);
+        public Object createNewContext(int renderDistance, org.joml.Vector3d initialCameraPos) {
+            return new SodiumRenderingContext(renderDistance, initialCameraPos);
         }
         
         @Override
@@ -71,6 +71,12 @@ public class SodiumInterface {
             
             ((IESodiumRenderSectionManager) renderSectionManager)
                 .ip_swapContext(((SodiumRenderingContext) context));
+            
+            // Swap lastCameraPos to prevent bogus camera movement detection
+            // when rendering through same-dimension portals
+            var tmp = ((IESodiumWorldRenderer) swr).ip_getLastCameraPos();
+            ((IESodiumWorldRenderer) swr).ip_setLastCameraPos(((SodiumRenderingContext) context).lastCameraPos);
+            ((SodiumRenderingContext) context).lastCameraPos = tmp;
             
             swr.scheduleTerrainUpdate();
         }

@@ -2,11 +2,10 @@ package qouteall.imm_ptl.core.compat.mixin.sodium;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
-import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderList;
-import net.caffeinemc.mods.sodium.client.render.chunk.lists.SortedRenderLists;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
+import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.MultiDrawBatch;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 
@@ -16,6 +15,11 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.q_misc_util.Helper;
 
@@ -107,6 +111,27 @@ public void clearAllCachedBatches() {
         }
     }
 }
+
+    /**
+     * Clean up portal-layer cached batches when the region is deleted, to prevent
+     * memory leaks.
+     */
+    @Inject(method = "delete", at = @At("HEAD"))
+    private void onDelete(CommandList commandList, CallbackInfo ci) {
+        if (cachedBatchesForPortalRendering != null) {
+            for (var map : cachedBatchesForPortalRendering) {
+                if (map == null) continue;
+                for (var batch : map.values()) {
+                    batch.delete();
+                }
+            }
+            cachedBatchesForPortalRendering = null;
+        }
+
+        if (chunkRenderListsForPortalRendering != null) {
+            chunkRenderListsForPortalRendering = null;
+        }
+    }
 
 @Unique
 private static void clearOne(Map<TerrainRenderPass, MultiDrawBatch> map, TerrainRenderPass pass) {

@@ -210,7 +210,10 @@ public class MyGameRenderer {
             }
         }
         
-        Object newSodiumContext = SodiumInterface.invoker.createNewContext(renderDistance);
+        Object newSodiumContext = SodiumInterface.invoker.createNewContext(
+            renderDistance,
+            new org.joml.Vector3d(thisTickCameraPos.x(), thisTickCameraPos.y(), thisTickCameraPos.z())
+        );
         SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
         
         ((IEWorldRenderer) worldRenderer).portal_setTransparencyShader(null);
