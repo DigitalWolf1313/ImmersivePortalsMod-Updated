@@ -89,7 +89,7 @@ public class CrossPortalViewRendering {
             .setDescription(null)
             .setRenderDistance(client.options.getEffectiveRenderDistance())
             .setDoRenderHand(false)
-            .setEnableViewBobbing(false)
+            .setEnableViewBobbing(true)
             .build();
         
         IPCGlobal.renderer.invokeWorldRendering(worldRenderInfo);
