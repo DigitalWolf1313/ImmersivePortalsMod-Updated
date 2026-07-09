@@ -323,7 +323,7 @@ public abstract class PortalRenderer {
                 CHelper.printChat(Component.translatable("imm_ptl.fabulous_warning"));
             }
         }
-        
+
         IPModInfoChecking.checkShaderpack();
         
         if (IrisInterface.invoker.isIrisPresent()) {

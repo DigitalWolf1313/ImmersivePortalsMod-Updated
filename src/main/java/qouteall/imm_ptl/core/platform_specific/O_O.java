@@ -103,7 +103,7 @@ public class O_O {
         else {
             // it's in github pages
             // https://github.com/qouteall/immptl_info
-            return "https://qouteall.fun/immptl_info/%s.json".formatted(gameVersion);
+            return "https://raw.githubusercontent.com/Digitalgaming1/immptl_info/main/%s.json".formatted(gameVersion);
         }
     }
     
@@ -191,11 +191,11 @@ public class O_O {
     }
     
     public static String getModDownloadLink() {
-        return "https://modrinth.com/mod/immersiveportals";
+        return "https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/releases";
     }
     
     public static String getIssueLink() {
-        return "https://github.com/iPortalTeam/ImmersivePortalsMod/discussions";
+        return "https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/issues";
     }
     
     @Nullable

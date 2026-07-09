@@ -1,1 +1,3 @@
 - Hopefully improve mod compatibility By rewriting "MixinFrustum_FixDeadLoop::offsetToFullyIncludeCameraCube using MixinExtras" - Acuadragon100
+- Improved third person view (added viewbobbing Trough the portal)
+- Update mod compatibility and Update checker pages
