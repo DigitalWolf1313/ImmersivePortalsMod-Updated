@@ -1,1 +1,4 @@
 - Finished The Sodium 8.12 Update (hopefully no more flickering)
+- Improved third person view (added viewbobbing Trough the portal)
+- Update mod compatibility and Update checker pages
+- Add small compat for voxy

@@ -23,6 +23,7 @@ import qouteall.imm_ptl.core.compat.iris_compatibility.ExperimentalIrisPortalRen
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisCompatibilityPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisPortalRenderer;
+import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.Mirror;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
@@ -312,6 +313,7 @@ public abstract class PortalRenderer {
     public void onBeginIrisTranslucentRendering(Matrix4f modelView) {}
     
     private static boolean fabulousWarned = false;
+    private static boolean voxyWarned = false;
     
     public static void switchToCorrectRenderer() {
         if (PortalRendering.isRendering()) {
@@ -324,6 +326,20 @@ public abstract class PortalRenderer {
                 fabulousWarned = true;
                 CHelper.printChat(Component.translatable("imm_ptl.fabulous_warning"));
             }
+        }
+
+        if (O_O.getIsVoxyPresent() && !IrisInterface.invoker.isShaders()) {
+            if (IPCGlobal.renderer != IPCGlobal.rendererUsingFrameBuffer) {
+                if (!voxyWarned) {
+                    voxyWarned = true;
+                    CHelper.printChat(
+                        Component.translatable("imm_ptl.voxy_warning")
+                    );
+                }
+                // doing IPGlobal.renderMode = IPGlobal.RenderMode.compatibility; doesn't work?
+                switchRenderer(IPCGlobal.rendererUsingFrameBuffer);
+            }
+            return;
         }
         
         IPModInfoChecking.checkShaderpack();
