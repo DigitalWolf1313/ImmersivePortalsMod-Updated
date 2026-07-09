@@ -1,11 +1,3 @@
-- Fix C2ME.
-- Fixed Colored Lighting with Iris
-- Backport a few things from later versions.
-- Add a dedicated tab for immersive portals
-- Fixed cross-portal bucket interactions
-- Fixed cross-portal Double chest interactions
-- Fixed cross-portal crafting table interactions
-- Added an initial screen when first booting immersive portals
-- Fix third view when the camera goes into a portal
-- Fix the hand Not rendering between cross-dimension portals
-- Fix Valkyrien Skies Crashing - Acuadragon100
+- Improved third person view (added viewbobbing Trough the portal)
+- Update mod compatibility and Update checker pages
+- Add small compat for voxy

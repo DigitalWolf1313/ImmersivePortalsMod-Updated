@@ -85,6 +85,10 @@ public class O_O {
         return FabricLoader.getInstance().isModLoaded("pehkui");
     }
     
+    public static boolean getIsVoxyPresent() {
+        return FabricLoader.getInstance().isModLoaded("voxy");
+    }
+    
     @Nullable
     public static String getImmPtlModInfoUrl() {
         String gameVersion = SharedConstants.getCurrentVersion().getName();
@@ -95,7 +99,7 @@ public class O_O {
         else {
             // it's in github pages
             // https://github.com/qouteall/immptl_info
-            return "https://qouteall.fun/immptl_info/%s.json".formatted(gameVersion);
+            return "https://raw.githubusercontent.com/Digitalgaming1/immptl_info/main/%s.json".formatted(gameVersion);
         }
     }
     
@@ -163,11 +167,11 @@ public class O_O {
     }
     
     public static String getModDownloadLink() {
-        return "https://modrinth.com/mod/immersiveportals";
+        return "https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/releases";
     }
     
     public static String getIssueLink() {
-        return "https://github.com/iPortalTeam/ImmersivePortalsMod/issues";
+        return "https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/issues";
     }
     
     @Nullable
