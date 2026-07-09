@@ -370,7 +370,7 @@ public abstract class PortalRenderer {
     }
 
     effectiveRenderMode = IPGlobal.RenderMode.compatibility;
-}
+    }
         
         IPModInfoChecking.checkShaderpack();
         
@@ -381,22 +381,22 @@ public abstract class PortalRenderer {
                     return;
                 }
                 
-            switch (effectiveRenderMode) {
-                case normal -> switchRenderer(IrisPortalRenderer.instance);
-                case compatibility -> switchRenderer(IrisCompatibilityPortalRenderer.instance);
-                case debug -> switchRenderer(IrisCompatibilityPortalRenderer.debugModeInstance);
-                case none -> switchRenderer(IPCGlobal.rendererDummy);
-            }
+                switch (effectiveRenderMode) {
+                    case normal -> switchRenderer(IrisPortalRenderer.instance);
+                    case compatibility -> switchRenderer(IrisCompatibilityPortalRenderer.instance);
+                    case debug -> switchRenderer(IrisCompatibilityPortalRenderer.debugModeInstance);
+                    case none -> switchRenderer(IPCGlobal.rendererDummy);
+                }
                 return;
             }
         }
         
-    switch (effectiveRenderMode) {
-        case normal -> switchRenderer(IPCGlobal.rendererUsingStencil);
-        case compatibility -> switchRenderer(IPCGlobal.rendererUsingFrameBuffer);
-        case debug -> switchRenderer(IPCGlobal.rendererDebug);
-        case none -> switchRenderer(IPCGlobal.rendererDummy);
-    }
+        switch (effectiveRenderMode) {
+            case normal -> switchRenderer(IPCGlobal.rendererUsingStencil);
+            case compatibility -> switchRenderer(IPCGlobal.rendererUsingFrameBuffer);
+            case debug -> switchRenderer(IPCGlobal.rendererDebug);
+            case none -> switchRenderer(IPCGlobal.rendererDummy);
+        }
     }
     
     private static void switchRenderer(PortalRenderer renderer) {
