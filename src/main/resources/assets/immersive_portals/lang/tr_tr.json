@@ -140,7 +140,7 @@
   "imm_ptl.dim_stack_removed": "Boyut yığını kaldırılmıştır. (Mevcut yığınlar değişmeden kalacaktır)",
   "imm_ptl.cannot_connect_to_vanilla_portal": "[Immersive Portals] Not: Sürükleyici nether portalı mevcut bir vanilya nether portalına bağlanmayacaktır. Sadece aynı şekil ve yöne sahip boş bir obsidyen çerçeveye bağlanabilir.",
   "imm_ptl.fabulous_warning": "[Immersive Portals] Immersive Portals yüklüyken, grafik modu \"muhteşem\" olduğunda, saydamlık oluşturma bazı donanımlarda bozulabilir. \"Muhteşem\" modunun kullanılması önerilmez. Ve gölgelendiriciler oyunu vanilya \"muhteşem\" modundan daha muhteşem hale getirir.",
-  "imm_ptl.voxy_warning": "[Immersive Portals] Switched renderer to compatibility mode. Portal-in-portal rendering is disabled due to Voxy causing abnormal portal rendering.",
+  "imm_ptl.voxy_warning": "[Immersive Portals] Switched renderer to compatibility mode. Portal-in-portal rendering is disabled due to Voxy causing abnormal portal rendering. Turn on Compatibility mode in Immersive portal's settings to Disable this warning",
   "imm_ptl.intel_warning": "[Immersive Portals] Intel video kartı kullanıyorsunuz. GUI görüntülemesi anormal olabilir. Sorun hala araştırılıyor.",
   "modmenu.descriptionTranslation.immersive_portals": "Portalların arkasını görün ve sorunsuzca ışınlanın.",
   "imm_ptl.enable_warning": "Uyarıyı aktif et",

@@ -143,7 +143,7 @@
   "imm_ptl.dim_stack_removed": "維度堆疊已移除。（現有區塊將保持不變）",
   "imm_ptl.cannot_connect_to_vanilla_portal": "[Immersive Portals] 注意：沉浸式地獄傳送門不會連接到現有的香草地獄傳送門。它只能連結到形狀和方向相同的空黑曜石框架。",
   "imm_ptl.fabulous_warning": "[Immersive Portals] 安裝沉浸式傳送門後，當圖形模式為「極佳」時，某些硬體中的透明度渲染可能會損壞。不建議使用「極佳」模式。並且著色器使遊戲比香草「極佳」模式更棒。",
-  "imm_ptl.voxy_warning": "[Immersive Portals] Switched renderer to compatibility mode. Portal-in-portal rendering is disabled due to Voxy causing abnormal portal rendering.",
+  "imm_ptl.voxy_warning": "[Immersive Portals] Switched renderer to compatibility mode. Portal-in-portal rendering is disabled due to Voxy causing abnormal portal rendering. Turn on Compatibility mode in Immersive portal's settings to Disable this warning",
   "imm_ptl.intel_warning": "[Immersive Portals] 您正在使用 Intel 顯示卡。GUI 渲染可能異常。問題仍在調查中。",
   "modmenu.descriptionTranslation.immersive_portals": "透過傳送門查看並無縫傳送。\n（捆綁 DimLib 和 Cloth 設定）",
   "imm_ptl.enable_warning": "啟用警告",

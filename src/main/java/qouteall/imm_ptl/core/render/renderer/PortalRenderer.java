@@ -328,19 +328,19 @@ public abstract class PortalRenderer {
             }
         }
 
-        if (O_O.getIsVoxyPresent() && !IrisInterface.invoker.isShaders()) {
-            if (IPCGlobal.renderer != IPCGlobal.rendererUsingFrameBuffer) {
-                if (!voxyWarned) {
-                    voxyWarned = true;
-                    CHelper.printChat(
-                        Component.translatable("imm_ptl.voxy_warning")
-                    );
-                }
-                // doing IPGlobal.renderMode = IPGlobal.RenderMode.compatibility; doesn't work?
-                switchRenderer(IPCGlobal.rendererUsingFrameBuffer);
-            }
-            return;
-        }
+    IPGlobal.RenderMode effectiveRenderMode = IPGlobal.renderMode;
+
+    if (O_O.getIsVoxyPresent()
+        && !IrisInterface.invoker.isShaders()
+        && effectiveRenderMode != IPGlobal.RenderMode.compatibility) {
+
+        if (!voxyWarned) {
+        voxyWarned = true;
+        CHelper.printChat(Component.translatable("imm_ptl.voxy_warning"));
+    }
+
+    effectiveRenderMode = IPGlobal.RenderMode.compatibility;
+    }
         
         IPModInfoChecking.checkShaderpack();
         
@@ -351,7 +351,7 @@ public abstract class PortalRenderer {
                     return;
                 }
                 
-                switch (IPGlobal.renderMode) {
+                switch (effectiveRenderMode) {
                     case normal -> switchRenderer(IrisPortalRenderer.instance);
                     case compatibility -> switchRenderer(IrisCompatibilityPortalRenderer.instance);
                     case debug -> switchRenderer(IrisCompatibilityPortalRenderer.debugModeInstance);
@@ -361,7 +361,7 @@ public abstract class PortalRenderer {
             }
         }
         
-        switch (IPGlobal.renderMode) {
+        switch (effectiveRenderMode) {
             case normal -> switchRenderer(IPCGlobal.rendererUsingStencil);
             case compatibility -> switchRenderer(IPCGlobal.rendererUsingFrameBuffer);
             case debug -> switchRenderer(IPCGlobal.rendererDebug);
