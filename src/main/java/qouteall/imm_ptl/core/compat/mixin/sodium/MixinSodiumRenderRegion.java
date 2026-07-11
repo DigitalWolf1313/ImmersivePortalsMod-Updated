@@ -36,6 +36,20 @@ public class MixinSodiumRenderRegion {
     @Unique
     private @Nullable ObjectArrayList<Map<TerrainRenderPass, MultiDrawBatch>> cachedBatchesForPortalRendering = null;
 
+    /**
+    * @author DigitalWolf13
+    * @reason iPortals renders the same world multiple times within a frame:
+    * 1. render solid geometry
+    * 2. recursively render portals (advancing Sodium's frame state)
+    * 3. render transparent geometry
+    *
+    * For same-world portals, the recursive render advances the frame counter before
+    * the outer world's transparent pass finishes. Sodium then rebuilds its per-frame
+    * region state (ChunkRenderList and cached draw batches), invalidating the state
+    * still needed by the outer render. Store separate instances for each portal
+    * rendering layer so recursive renders cannot interfere with each other.
+    */
+
     @Overwrite
     public ChunkRenderList getRenderList() {
         if (!PortalRendering.isRendering()) {
@@ -73,6 +87,13 @@ public class MixinSodiumRenderRegion {
         );
     }
 
+    /**
+    * @author DigitalWolf13
+    * @reason Cached MultiDrawBatch instances are part of the same per-frame render
+    * state as ChunkRenderList. They must also be separated by portal rendering layer,
+    * otherwise a recursive same-world portal render can overwrite the batches still
+    * required by the outer world render.
+    */
 @Overwrite
 public MultiDrawBatch getCachedBatch(TerrainRenderPass pass) {
     var map = getActiveCachedBatches();
@@ -83,6 +104,13 @@ public MultiDrawBatch getCachedBatch(TerrainRenderPass pass) {
     return batch;
 }
 
+    /**
+    * @author DigitalWolf13
+    * @reason Cached batches may be invalidated because the underlying GPU resources
+    * for a region were rebuilt. Since every portal layer keeps its own cached batch
+    * but all reference the same uploaded region data, the cache must be cleared for
+    * every layer, not only the currently active one.
+    */
 @Overwrite
 public void clearCachedBatchFor(TerrainRenderPass pass) {
     // Can be triggered by a resource-level change (section rebuild/upload), which affects
@@ -97,6 +125,11 @@ public void clearCachedBatchFor(TerrainRenderPass pass) {
     }
 }
 
+    /**
+    * @author DigitalWolf13
+    * @reason Every portal rendering layer maintains its own cached draw batches.
+    * Clear them all so stale cached draw commands cannot survive across region resets.
+    */
 @Overwrite
 public void clearAllCachedBatches() {
     for (var batch : this.cachedBatches.values()) {
