@@ -22,11 +22,11 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPModInfoChecking;
+import qouteall.imm_ptl.core.compat.IPVoxyCompat;
 import qouteall.imm_ptl.core.compat.iris_compatibility.ExperimentalIrisPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisCompatibilityPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisPortalRenderer;
-import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.Mirror;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalLike;
@@ -360,7 +360,7 @@ public abstract class PortalRenderer {
 
     IPGlobal.RenderMode effectiveRenderMode = IPGlobal.renderMode;
 
-    if (O_O.getIsVoxyPresent()
+    if (IPVoxyCompat.isVoxyPresent
         && !IrisInterface.invoker.isShaders()
         && effectiveRenderMode != IPGlobal.RenderMode.compatibility) {
 

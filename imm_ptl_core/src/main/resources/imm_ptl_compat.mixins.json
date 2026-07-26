@@ -4,6 +4,9 @@
   "compatibilityLevel": "JAVA_17",
   "plugin": "qouteall.imm_ptl.core.compat.IPCompatMixinPlugin",
   "mixins": [
+    "voxy.MixinVoxyRenderDistanceTracker",
+    "voxy.MixinVoxyMipGen",
+    "voxy.MixinVoxyViewportSelector",
     "cardinal_comp.MixinCardinalCompComponentKey",
     "flywheel.MixinFlywheelCrumblingRenderer",
     "flywheel.MixinFlywheelProgramCompiler",

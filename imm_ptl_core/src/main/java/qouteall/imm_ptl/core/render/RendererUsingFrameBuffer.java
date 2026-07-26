@@ -42,6 +42,8 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     public void prepareRendering() {
         secondaryFrameBuffer.prepare();
         
+        client.getMainRenderTarget().bindWrite(false);
+        
         GlStateManager._enableDepthTest();
         
         GL11.glDisable(GL11.GL_STENCIL_TEST);

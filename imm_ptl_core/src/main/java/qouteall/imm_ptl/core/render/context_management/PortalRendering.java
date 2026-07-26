@@ -82,6 +82,19 @@ public class PortalRendering {
         return portalLayers.peek();
     }
     
+    /**
+     * Gets the current portal rendering path.
+     * The list is ordered from the outermost portal to the innermost portal.
+     *
+     * @return an immutable snapshot of the portals currently being rendered
+     */
+    public static List<Portal> getPortalPath() {
+        return List.copyOf(PortalRendering.portalLayers.stream()
+            .filter(portal -> portal instanceof Portal)
+            .map(portal -> (Portal) portal)
+            .toList());
+    }
+    
     public static void onBeginPortalWorldRendering() {
         List<WeakReference<PortalLike>> currRenderInfo = portalLayers.stream().map(
             (Function<PortalLike, WeakReference<PortalLike>>) WeakReference::new
