@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
 import me.shedaniel.autoconfig.annotation.ConfigEntry;
+import net.minecraft.locale.Language;
 import net.minecraft.util.Mth;
 import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.IPGlobal;
@@ -102,9 +103,14 @@ public class IPConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean enableServerPerformanceAdjustment = true;
     public boolean enableDatapackPortalGen = true;
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    @ConfigEntry.Gui.Tooltip
+    public IndirectLoadingRadiusCapMode indirectLoadingRadiusCapMode = IndirectLoadingRadiusCapMode.RENDER_DISTANCE;
     @ConfigEntry.BoundedDiscrete(min = 1, max = 32)
     @ConfigEntry.Gui.Tooltip
     public int indirectLoadingRadiusCap = 8;
+    @ConfigEntry.Gui.Excluded
+    public boolean useManualIndirectLoadingRadiusCap = false;
     @ConfigEntry.BoundedDiscrete(min = 3, max = 64)
     public int regularPortalLengthLimit = 64;
     @ConfigEntry.BoundedDiscrete(min = 4, max = 128)
@@ -154,8 +160,31 @@ public class IPConfig implements ConfigData {
         IPGlobal.configHolder.save();
     }
     
+    public enum IndirectLoadingRadiusCapMode {
+        RENDER_DISTANCE,
+        MANUAL;
+
+        @Override
+        public String toString() {
+            return switch (this) {
+                case RENDER_DISTANCE -> Language.getInstance().getOrDefault(
+                    "text.autoconfig.immersive_portals.option.indirectLoadingRadiusCapMode.RENDER_DISTANCE"
+                );
+                case MANUAL -> Language.getInstance().getOrDefault(
+                    "text.autoconfig.immersive_portals.option.indirectLoadingRadiusCapMode.MANUAL"
+                );
+            };
+        }
+    }
+    
     public void onConfigChanged() {
         indirectLoadingRadiusCap = Mth.clamp(indirectLoadingRadiusCap, 1, 32);
+        if (indirectLoadingRadiusCapMode == null) {
+            indirectLoadingRadiusCapMode = useManualIndirectLoadingRadiusCap ?
+                IndirectLoadingRadiusCapMode.MANUAL : IndirectLoadingRadiusCapMode.RENDER_DISTANCE;
+        }
+        useManualIndirectLoadingRadiusCap =
+            indirectLoadingRadiusCapMode == IndirectLoadingRadiusCapMode.MANUAL;
         regularPortalLengthLimit = Mth.clamp(regularPortalLengthLimit, 3, 64);
         scaleLimit = Mth.clamp(scaleLimit, 8, 128);
         if (netherPortalMode == null) {
@@ -180,6 +209,7 @@ public class IPConfig implements ConfigData {
         IPGlobal.looseMovementCheck = looseMovementCheck;
         IPGlobal.pureMirror = pureMirror;
         IPGlobal.indirectLoadingRadiusCap = indirectLoadingRadiusCap;
+        IPGlobal.useManualIndirectLoadingRadiusCap = useManualIndirectLoadingRadiusCap;
         IPGlobal.netherPortalMode = netherPortalMode;
         IPGlobal.endPortalMode = endPortalMode;
         IPGlobal.reducedPortalRendering = reducedPortalRendering;
