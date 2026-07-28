@@ -206,6 +206,7 @@
   "text.autoconfig.immersive_portals.option.enableServerPerformanceAdjustment": "Enable Server Performance Adjustment",
   "text.autoconfig.immersive_portals.option.enableDatapackPortalGen": "Enable Datapack Portal Generation",
   "text.autoconfig.immersive_portals.option.indirectLoadingRadiusCap": "Indirect Chunk Loading Radius Cap",
+  "text.autoconfig.immersive_portals.option.indirectLoadingRadiusCapMode": "Indirect Chunk Loading Radius Cap Mode",
   "text.autoconfig.immersive_portals.option.scaleLimit": "Scale Limit",
   "text.autoconfig.immersive_portals.option.easeCreativePermission": "Ease Creative Permission",
   "text.autoconfig.immersive_portals.option.easeCommandStickPermission": "Ease Command Stick Permission",

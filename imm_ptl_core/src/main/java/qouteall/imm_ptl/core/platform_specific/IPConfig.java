@@ -84,6 +84,9 @@ public class IPConfig implements ConfigData {
     public boolean enableAlternateDimensions = true;
     public boolean enableServerPerformanceAdjustment = true;
     public boolean enableDatapackPortalGen = true;
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public IPGlobal.IndirectLoadingRadiusCapMode indirectLoadingRadiusCapMode =
+        IPGlobal.IndirectLoadingRadiusCapMode.Manual;
     @ConfigEntry.BoundedDiscrete(min = 1, max = 32)
     public int indirectLoadingRadiusCap = 8;
     @ConfigEntry.BoundedDiscrete(min = 3, max = 64)
@@ -134,6 +137,9 @@ public class IPConfig implements ConfigData {
         if (endPortalMode == null) {
             endPortalMode = IPGlobal.EndPortalMode.normal;
         }
+        if (indirectLoadingRadiusCapMode == null) {
+            indirectLoadingRadiusCapMode = IPGlobal.IndirectLoadingRadiusCapMode.Manual;
+        }
         
         IPGlobal.renderMode = compatibilityRenderMode ? IPGlobal.RenderMode.compatibility : IPGlobal.RenderMode.normal;
         IPGlobal.enableWarning = enableWarning;
@@ -151,6 +157,7 @@ public class IPConfig implements ConfigData {
         IPGlobal.pureMirror = pureMirror;
         IPGlobal.enableAlternateDimensions = enableAlternateDimensions;
         IPGlobal.indirectLoadingRadiusCap = indirectLoadingRadiusCap;
+        IPGlobal.indirectLoadingRadiusCapMode = indirectLoadingRadiusCapMode;
         IPGlobal.netherPortalMode = netherPortalMode;
         IPGlobal.endPortalMode = endPortalMode;
         IPGlobal.reducedPortalRendering = reducedPortalRendering;

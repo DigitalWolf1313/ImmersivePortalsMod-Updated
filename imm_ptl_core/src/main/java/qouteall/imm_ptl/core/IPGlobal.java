@@ -40,6 +40,15 @@ public class IPGlobal {
     public static int maxPortalLayer = 5;
     
     public static int indirectLoadingRadiusCap = 8;
+    public static IndirectLoadingRadiusCapMode indirectLoadingRadiusCapMode =
+        IndirectLoadingRadiusCapMode.Manual;
+    
+    public static int getEffectiveIndirectLoadingRadiusCap() {
+        if (indirectLoadingRadiusCapMode == IndirectLoadingRadiusCapMode.RenderDistance) {
+            return McHelper.getRenderDistanceOnServer();
+        }
+        return indirectLoadingRadiusCap;
+    }
     
     public static boolean lagAttackProof = true;
     
@@ -166,4 +175,9 @@ public class IPGlobal {
     public static NetherPortalMode netherPortalMode = NetherPortalMode.normal;
     
     public static EndPortalMode endPortalMode = EndPortalMode.normal;
+    
+    public static enum IndirectLoadingRadiusCapMode {
+        RenderDistance,
+        Manual; 
+    }
 }
