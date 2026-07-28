@@ -42,6 +42,7 @@ public class IPGlobal {
     public static int maxPortalLayer = 5;
     
     public static int indirectLoadingRadiusCap = 8;
+    public static boolean useManualIndirectLoadingRadiusCap = false;
     
     public static boolean lagAttackProof = true;
     
