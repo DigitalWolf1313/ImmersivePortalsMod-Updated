@@ -16,10 +16,10 @@ import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.chunk_loading.ImmPtlChunkTracking;
@@ -33,6 +33,8 @@ import qouteall.imm_ptl.core.network.PacketRedirection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.sable_compatibility.SableInterface;
 
 //NOTE must redirect all packets about entities
 @SuppressWarnings({"JavadocReference", "resource"})
@@ -115,18 +117,18 @@ public abstract class MixinTrackedEntity implements IETrackedEntity {
      *   If an entity's section pos changes, it's updates to all players in that dimension.
      *   In ImmPtl, handled in {@link ImmPtlChunkTracking#tick(MinecraftServer)}
      */
-    @Overwrite
-    public void updatePlayer(ServerPlayer player) {
-        // nothing
+    @Inject(method = "updatePlayer", at = @At("HEAD"), cancellable = true)
+    private void iPortals$cancelUpdatePlayer(ServerPlayer player, CallbackInfo ci) {
+        ci.cancel();
     }
     
     /**
      * @author qouteall
      * @reason managed by ImmPtl
      */
-    @Overwrite
-    public void updatePlayers(List<ServerPlayer> list) {
-        // nothing
+    @Inject(method = "updatePlayers", at = @At("HEAD"), cancellable = true)
+    private void iPortals$cancelUpdatePlayers(List<ServerPlayer> list, CallbackInfo ci) {
+        ci.cancel();
     }
     
     @Override
@@ -157,9 +159,28 @@ public abstract class MixinTrackedEntity implements IETrackedEntity {
         // no need to clamp it with render distance, as we check chunk watch records now
         int effectiveRange = getEffectiveRange();
         
+        // If the entity is in a Sable plot chunk, get the players Sable considers
+        // as tracking that sublevel. Sable entities are stored physically far away
+        // (plot grid) so ImmPtl's distance-based watch records will not cover them.
+        final @Nullable List<ServerPlayer> sableTrackedPlayers;
+        if (IPSableCompat.isSablePresent && SableInterface.isSablePlotChunk(
+            entity.level(), entity.chunkPosition()
+        )) {
+            sableTrackedPlayers = SableInterface.getPlayersTrackingPlotChunk(
+                entity.level(), entity.chunkPosition()
+            );
+        }
+        else {
+            sableTrackedPlayers = null;
+        }
+        
         seenBy.removeIf(connection -> {
             ServerPlayer player = connection.getPlayer();
             boolean shouldRemove = !watches(entity, watchRecMap, effectiveRange, player);
+            // For Sable plot entities, also check if Sable tracks this player
+            if (shouldRemove && sableTrackedPlayers != null) {
+                shouldRemove = !sableTrackedPlayers.contains(player);
+            }
             if (shouldRemove) {
                 PacketRedirection.withForceRedirect(
                     ((ServerLevel) entity.level()),
@@ -185,6 +206,25 @@ public abstract class MixinTrackedEntity implements IETrackedEntity {
                             }
                         );
                     }
+                }
+            }
+        }
+        
+        // For Sable plot entities, also add players that Sable tracks directly
+        // (e.g. players inside the sublevel). This catches entities that are
+        // physically in the plot grid where ImmPtl's chunk watch records won't reach.
+        if (sableTrackedPlayers != null) {
+            for (ServerPlayer player : sableTrackedPlayers) {
+                if (entity == player) {
+                    continue;
+                }
+                if (seenBy.add(player.connection)) {
+                    PacketRedirection.withForceRedirect(
+                        ((ServerLevel) entity.level()),
+                        () -> {
+                            this.serverEntity.addPairing(player);
+                        }
+                    );
                 }
             }
         }

@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.core.mixin.common.collision;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
@@ -80,14 +82,14 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
     @Unique
     private static final CountDownInt IMM_PTL_LOG_COUNTER = new CountDownInt(20);
     
-    @Redirect(
+    @WrapOperation(
         method = "Lnet/minecraft/world/entity/Entity;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/world/entity/Entity;collide(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"
         )
     )
-    private Vec3 redirectHandleCollisions(Entity entity, Vec3 attemptedMove) {
+    private Vec3 redirectHandleCollisions(Entity entity, Vec3 attemptedMove, Operation<Vec3> original) {
         if (!IPGlobal.enableServerCollision) {
             if (!entity.level().isClientSide()) {
                 if (entity instanceof Player) {
@@ -116,7 +118,7 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
             || ip_portalCollisionHandler == null
             || !ip_portalCollisionHandler.hasCollisionEntry()
         ) {
-            Vec3 normalCollisionResult = collide(attemptedMove);
+            Vec3 normalCollisionResult = original.call(entity, attemptedMove);
             return normalCollisionResult;
         }
         

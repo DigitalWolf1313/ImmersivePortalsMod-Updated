@@ -21,6 +21,8 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.chunk_loading.ImmPtlClientChunkMap;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.sable_compatibility.SableInterface;
 import qouteall.imm_ptl.core.ducks.IERenderSection;
 import qouteall.imm_ptl.core.ducks.IEWorldRenderer;
 import qouteall.imm_ptl.core.miscellaneous.GcMonitor;
@@ -165,8 +167,12 @@ public class ImmPtlViewArea extends ViewArea {
     
     @Override
     public void setDirty(int cx, int cy, int cz, boolean isImportant) {
-        RenderSection builtChunk = provideBuiltChunkByChunkPos(cx, cy, cz);
-        builtChunk.setDirty(isImportant);
+        if (IPSableCompat.isSablePresent && SableInterface.isSablePlotChunk(level, ChunkPos.asLong(cx, cz))) {
+            super.setDirty(cx, cy, cz, isImportant);
+        } else {
+            RenderSection builtChunk = provideBuiltChunkByChunkPos(cx, cy, cz);
+            builtChunk.setDirty(isImportant);
+        }
     }
     
     public RenderSection provideBuiltChunkByChunkPos(int cx, int cy, int cz) {

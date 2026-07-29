@@ -34,6 +34,8 @@ import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.ducks.IEParticleManager;
 import qouteall.imm_ptl.core.ducks.IEWorld;
 import qouteall.imm_ptl.core.ducks.IEWorldRenderer;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.sable_compatibility.SableClientInterface;
 import qouteall.imm_ptl.core.mixin.client.accessor.IEClientLevelData;
 import qouteall.imm_ptl.core.mixin.client.accessor.IEClientLevel_Accessor;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -160,6 +162,9 @@ public class ClientWorldLoader {
                 newWorld.tick(() -> true);
                 
                 if (!CLIENT.isPaused()) {
+                    if (IPSableCompat.isSablePresent && !IPSableCompat.isIPSablePresent) {
+                        SableClientInterface.tickRemotePlotContainer(newWorld);
+                    }
                     tickRemoteWorldRandomTicksClient(newWorld, nearbyPortals);
                 }
                 

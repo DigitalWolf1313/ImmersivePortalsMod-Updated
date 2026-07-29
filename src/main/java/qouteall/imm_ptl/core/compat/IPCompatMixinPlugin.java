@@ -50,6 +50,16 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return cardinalCompLoaded;
         }
         
+       if (mixinClassName.contains("Veil")) {
+            boolean veilLoaded = fabricLoader.isModLoaded("veil");
+            return veilLoaded;
+        }
+        
+        if (mixinClassName.contains("Sable")) {
+            boolean sableLoaded = fabricLoader.isModLoaded("sable");
+            return sableLoaded;
+        }
+        
         return false;
     }
     

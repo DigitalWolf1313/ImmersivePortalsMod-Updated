@@ -82,6 +82,11 @@ public class PortalRendering {
         return portalLayers.peek();
     }
     
+    // This method is used in IPSable so to prevent a crash when using this mod with IPSable add it here.
+    public static List<Portal> getPortalPath() {
+        return List.copyOf(portalLayers);
+    }
+    
     public static void onBeginPortalWorldRendering() {
         List<WeakReference<Portal>> currRenderInfo = portalLayers.stream().map(
             (Function<Portal, WeakReference<Portal>>) WeakReference::new

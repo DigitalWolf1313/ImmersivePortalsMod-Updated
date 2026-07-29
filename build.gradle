@@ -55,6 +55,21 @@ repositories {
         name = 'Ladysnake'
         url = 'https://maven.ladysnake.org/releases'
     }
+    // sable
+    maven {
+        name = "RyanHCode Maven"
+        url = "https://maven.ryanhcode.dev/releases"
+    }
+    // veil
+    maven {
+        name = 'BlameJared Maven (CrT / Bookshelf)'
+        url = 'https://maven.blamejared.com'
+    }
+    // Forge Config API Port For Sable
+    maven {
+        name = "Fuzs Mod Resources"
+        url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/"
+    }
 
     // geckolib, for testing with portal gun
     maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
@@ -104,6 +119,15 @@ dependencies {
         exclude(group: "net.fabricmc.fabric-api")
     }
     include("com.github.iPortalTeam:DimLib:${dimlib_version}")
+
+
+    modApi("dev.ryanhcode.sable:sable-common-${project.minecraft_version}:2.0.3")
+
+    modCompileOnly("foundry.veil:veil-fabric-${project.minecraft_version}:4.3.0") {
+    exclude group: "maven.modrinth"
+    exclude group: "me.fallenbreath"
+    exclude(group: "net.fabricmc.fabric-api")
+    }
 
     // put these into inner mod to reduce duplicate MC jar
 
@@ -162,7 +186,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 17
+    it.options.release = 21
 }
 
 java {
@@ -171,8 +195,8 @@ java {
     // If you remove this line, sources will not be generated.
     withSourcesJar()
 
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 

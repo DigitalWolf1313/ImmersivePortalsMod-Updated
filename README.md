@@ -36,6 +36,9 @@ https://fabricmc.net/wiki/tutorial:setup
 [Support qouteall on Patreon](https://www.patreon.com/qouteall)
 
 ## Credits
-Thank you to Acuadragon100 for creating the Valkyrien Skies crash fix and checking some of my code.
+
+Acuadragon100 for creating the Valkyrien Skies crash fix and checking some of my code.
 
 Mikulasz12 For creating A version of "MixinSodiumViewport" That works with Sodium 8.12
+
+r2smith141 For creating some sable compatibility code.

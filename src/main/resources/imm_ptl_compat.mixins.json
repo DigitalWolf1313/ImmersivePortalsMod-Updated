@@ -4,6 +4,13 @@
   "compatibilityLevel": "JAVA_17",
   "plugin": "qouteall.imm_ptl.core.compat.IPCompatMixinPlugin",
   "mixins": [
+    "sable.MixinSableSubLevelCamera",
+    "sable.MixinSableCollisionInfo",
+    "sable.MixinSableServerCommonPacketListenerImpl",
+    "sable.MixinSableSubLevelInclusiveLevelEntityGetter",
+    "sable.MixinSableSubLevelTrackingSystem",
+    "sable.MixinSableVanillaChunkedSubLevelRenderData",
+    "veil.MixinVeilFabricRenderTypeStageHandler",
     "cardinal_comp.MixinCardinalCompComponentKey",
     "flywheel.MixinFlywheelCrumblingRenderer",
     "flywheel.MixinFlywheelProgramCompiler",
@@ -24,6 +31,9 @@
     "sodium.MixinSodiumShaderLoader",
     "sodium.MixinSodiumViewport",
     "sodium.MixinSodiumWorldRenderer"
+  ],
+  "client": [
+    "veil.MixinVeilPacketContext"
   ],
   "injectors": {
     "defaultRequire": 1

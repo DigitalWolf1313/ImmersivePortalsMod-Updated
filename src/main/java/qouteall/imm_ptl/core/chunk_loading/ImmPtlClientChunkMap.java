@@ -22,6 +22,9 @@ import org.apache.logging.log4j.Logger;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.McHelper;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.sable_compatibility.SableClientInterface;
+import qouteall.imm_ptl.core.compat.sable_compatibility.SableInterface;
 import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
@@ -68,6 +71,16 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
     public void drop(ChunkPos chunkPos) {
         Validate.isTrue(Thread.currentThread() == mainThread);
         
+        // Sable plot chunks are lifecycle-managed by their SubLevelContainer, never dropped
+        // by view-range logic (mirrors Sable's own ClientChunkCacheMixin on the vanilla cache).
+        if (IPSableCompat.isSablePresent && SableClientInterface.isSablePlotBound(this.level, chunkPos.x, chunkPos.z)) {
+            return;
+        }
+
+        // if (IPSableCompat.isSablePresent && IPSableInterface.isSablePlotChunk(level, chunkPos)) {
+        //    super.drop(chunkPos);
+        //    return;
+        // }
 //        LOGGER.info("unload {} {}", level, chunkPos);
         
         LevelChunk chunk = chunkMapForMainThread.get(chunkPos.toLong());
@@ -104,6 +117,11 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
     
     @Override
     public LevelChunk getChunk(int x, int z, ChunkStatus chunkStatus, boolean create) {
+
+        if (IPSableCompat.isSablePresent && SableInterface.isSablePlotChunk(level, ChunkPos.asLong(x, z))) {
+            return super.getChunk(x, z, chunkStatus, create);
+        }
+
         return readChunkMap(chunkMap -> {
             LevelChunk chunk = chunkMap.get(ChunkPos.asLong(x, z));
             if (chunk != null) {
@@ -123,6 +141,11 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
     @Override
     public void replaceBiomes(int x, int z, FriendlyByteBuf friendlyByteBuf) {
         Validate.isTrue(Thread.currentThread() == mainThread);
+
+        // if (IPSableCompat.isSablePresent && IPSableInterface.isSablePlotChunk(level, ChunkPos.asLong(x, z))) {
+        //    super.replaceBiomes(x, z, friendlyByteBuf);
+        //    return;
+        // }
         
         long chunkPosLong = ChunkPos.asLong(x, z);
         
@@ -143,6 +166,10 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
         Consumer<ClientboundLevelChunkPacketData.BlockEntityTagOutput> consumer
     ) {
         Validate.isTrue(Thread.currentThread() == mainThread);
+
+        if (IPSableCompat.isSablePresent && SableInterface.isSablePlotChunk(level, ChunkPos.asLong(x, z))) {
+            return super.replaceWithPacketData(x, z, buf, nbt, consumer);
+        }
         
         long chunkPosLong = ChunkPos.asLong(x, z);
         LevelChunk worldChunk = chunkMapForMainThread.get(chunkPosLong);

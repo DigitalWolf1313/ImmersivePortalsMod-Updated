@@ -29,7 +29,9 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.block_manipulation.BlockManipulationClient;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
+import qouteall.imm_ptl.core.compat.sable_compatibility.SableClientInterface;
 import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.ducks.IEGameRenderer;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
@@ -229,13 +231,24 @@ public class MyGameRenderer {
         }
         
         //invoke rendering
-        invokeWrapper.accept(() -> {
-            client.getProfiler().push("render_portal_content");
-            client.gameRenderer.renderLevel(
-                client.getTimer()
-            );
-            client.getProfiler().pop();
-        });
+        if (IPSableCompat.isSablePresent) {
+            SableClientInterface.runWithTemporaryFirstPerson(() ->
+            invokeWrapper.accept(() -> {
+                client.getProfiler().push("render_portal_content");
+                client.gameRenderer.renderLevel(
+                    client.getTimer()
+                );
+                client.getProfiler().pop();
+            }));
+        } else {
+            invokeWrapper.accept(() -> {
+                client.getProfiler().push("render_portal_content");
+                client.gameRenderer.renderLevel(
+                    client.getTimer()
+                );
+                client.getProfiler().pop();
+            });
+        }
         
         SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
         
