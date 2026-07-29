@@ -16,10 +16,10 @@ import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.chunk_loading.ImmPtlChunkTracking;
@@ -115,18 +115,18 @@ public abstract class MixinTrackedEntity implements IETrackedEntity {
      *   If an entity's section pos changes, it's updates to all players in that dimension.
      *   In ImmPtl, handled in {@link ImmPtlChunkTracking#tick(MinecraftServer)}
      */
-    @Overwrite
-    public void updatePlayer(ServerPlayer player) {
-        // nothing
+    @Inject(method = "updatePlayer", at = @At("HEAD"), cancellable = true)
+    private void iPortals$cancelUpdatePlayer(ServerPlayer player, CallbackInfo ci) {
+        ci.cancel();
     }
     
     /**
      * @author qouteall
      * @reason managed by ImmPtl
      */
-    @Overwrite
-    public void updatePlayers(List<ServerPlayer> list) {
-        // nothing
+    @Inject(method = "updatePlayers", at = @At("HEAD"), cancellable = true)
+    private void iPortals$cancelUpdatePlayers(List<ServerPlayer> list, CallbackInfo ci) {
+        ci.cancel();
     }
     
     @Override
