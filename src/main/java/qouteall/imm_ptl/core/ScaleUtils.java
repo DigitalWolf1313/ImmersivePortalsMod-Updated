@@ -4,10 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -99,27 +101,42 @@ public class ScaleUtils {
         if (scaleAttr == null) {
             return;
         }
+
+        setAttributeScaling(entity, Attributes.SCALE, newScale);
+        setAttributeScaling(entity, Attributes.MOVEMENT_SPEED, newScale);
+        setAttributeScaling(entity, Attributes.SAFE_FALL_DISTANCE, newScale);
+        setAttributeScaling(entity, Attributes.JUMP_STRENGTH, newScale);
+        setAttributeScaling(entity, Attributes.GRAVITY, newScale);
+        setAttributeScaling(entity, Attributes.STEP_HEIGHT, newScale);
+        setAttributeScaling(entity, Attributes.BLOCK_INTERACTION_RANGE, newScale);
+        setAttributeScaling(entity, Attributes.ENTITY_INTERACTION_RANGE, newScale);
+        
+        // it updates cached eyeHeight field, which is important in feet pos calculation
+        entity.refreshDimensions();
+    }
+    
+    private static void setAttributeScaling(Entity entity, Holder<Attribute> attribute, double newScale) {
+        if (!(entity instanceof LivingEntity livingEntity)) {
+            return;
+        }
+        AttributeInstance attr = livingEntity.getAttributes().getInstance(attribute);
+        if (attr == null) {
+            return;
+        }
         
         if (Math.abs(newScale - 1.0) < 0.0001) {
-            scaleAttr.removeModifier(IPORTAL_SCALING);
-            
-            // it updates cached eyeHeight field, which is important in feet pos calculation
-            entity.refreshDimensions();
-            
+            attr.removeModifier(IPORTAL_SCALING);
             return;
         }
         
         /**
          * {@link AttributeInstance#calculateValue()}
          */
-        scaleAttr.addOrReplacePermanentModifier(new AttributeModifier(
+        attr.addOrReplacePermanentModifier(new AttributeModifier(
             IPORTAL_SCALING,
             newScale - 1.0,
             AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
         ));
-        
-        // it updates cached eyeHeight field, which is important in feet pos calculation
-        entity.refreshDimensions();
     }
     
     public static void setBaseScale(Entity entity, double scale) {
