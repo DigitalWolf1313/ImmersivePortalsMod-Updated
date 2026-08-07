@@ -55,6 +55,7 @@ import qouteall.imm_ptl.core.ducks.IEWorldRenderer;
 import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.imm_ptl.core.platform_specific.IPConfigGUI;
 import qouteall.imm_ptl.core.platform_specific.O_O;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.ForceMainThreadRebuild;
 import qouteall.imm_ptl.core.render.ImmPtlViewArea;
@@ -688,7 +689,32 @@ public class ClientDebugCommand {
             "box_portal_special_iteration",
             cond -> IPGlobal.boxPortalSpecialIteration = cond
         );
-        
+        registerSwitchCommand(
+            builder,
+            "force_blocking_sort_catch_up",
+            cond -> IPGlobal.forceBlockingSortCatchUpEnabled = cond
+        );
+        registerSwitchCommand(
+            builder,
+            "force_blocking_sort_catch_up_only_for_shared_sections",
+            cond -> IPGlobal.forceBlockingSortCatchUpOnlyForSharedSections = cond
+        );
+        builder = builder.then(ClientCommandManager
+            .literal("force_blocking_sort_catch_up_set_radius")
+            .then(ClientCommandManager
+                .argument("blocks", DoubleArgumentType.doubleArg(-1))
+                .executes(context -> {
+                    double blocks = DoubleArgumentType.getDouble(context, "blocks");
+                    IPGlobal.forceBlockingSortCatchUpRadius = blocks;
+                    context.getSource().sendFeedback(Component.literal(
+                        blocks < 0
+                            ? "force_blocking_sort_catch_up radius cutoff disabled (unbounded)"
+                            : "force_blocking_sort_catch_up radius set to " + blocks + " blocks"
+                    ));
+                    return 0;
+                })
+            )
+        );
         builder.then(ClientCommandManager
             .literal("print_class_path")
             .executes(context -> {

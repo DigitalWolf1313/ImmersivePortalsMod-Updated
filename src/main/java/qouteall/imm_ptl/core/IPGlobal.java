@@ -119,6 +119,10 @@ public class IPGlobal {
     
     public static boolean alwaysOverrideTerrainSetup = false;
     
+    public static boolean forceBlockingSortCatchUpEnabled = false;
+    public static double forceBlockingSortCatchUpRadius = 32.0;
+    public static boolean forceBlockingSortCatchUpOnlyForSharedSections = false;
+    
     public static boolean viewBobbingReduce = true;
     
     public static boolean enableClientPerformanceAdjustment = true;

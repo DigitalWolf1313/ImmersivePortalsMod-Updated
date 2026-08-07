@@ -47,6 +47,8 @@ import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 import qouteall.q_misc_util.my_util.LimitedLogger;
 
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.Stack;
 import java.util.function.Consumer;
 
@@ -66,6 +68,24 @@ public class MyGameRenderer {
     // when the player teleports through a portal, on the first frame it will not work normally
     // so use IP's non-multi-threaded algorithm at the first frame
     public static int vanillaTerrainSetupOverride = 0;
+    
+    // Stack of Sodium rendering contexts (see SodiumInterface#createNewContext), one per
+    // currently-in-progress portal render. Each entry holds the render list of the view
+    // that encloses that portal (the outer world, or the parent portal one layer up), or
+    // null if that enclosing view can't be meaningfully compared (e.g. cross-dimension
+    // portals, where the swapped-to RenderSectionManager belongs to a different dimension
+    // entirely). A LinkedList is used instead of ArrayDeque because ArrayDeque rejects
+    // null elements.
+    // Exposed so that the translucent sort catch-up done right before rendering a
+    // portal's own translucent geometry (see MixinLevelRenderer#onMyBeforeTranslucentRendering)
+    // can tell which sections are also visible from the enclosing view, and skip forcing
+    // a blocking sort for sections that are exclusively visible from the portal's view.
+    private static final Deque<Object> enclosingSodiumContextStack = new LinkedList<>();
+    
+    @Nullable
+    public static Object getEnclosingSodiumContext() {
+        return enclosingSodiumContextStack.peek();
+    }
     
     public static boolean enablePortalCaveCulling = true;
     
@@ -213,10 +233,21 @@ public class MyGameRenderer {
         }
         
         Object newSodiumContext = SodiumInterface.invoker.createNewContext(
-            renderDistance,
-            new org.joml.Vector3d(thisTickCameraPos.x(), thisTickCameraPos.y(), thisTickCameraPos.z())
+            renderDistance, new org.joml.Vector3d(thisTickCameraPos.x(), thisTickCameraPos.y(), thisTickCameraPos.z())
         );
         SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
+        
+        // After the swap above, newSodiumContext's render list holds the enclosing
+        // (outer world's, or parent portal's) view's render list -- but only if this
+        // portal renders the SAME dimension as its enclosing view: cross-dimension
+        // portals swap onto an entirely different dimension's RenderSectionManager
+        // (distinct RenderSection objects), so the two views could never have shared
+        // (and thus never have contaminated) each other's GPU-sorted section buffers.
+        // Push null in that case so the entry catch-up below falls back to forcing
+        // every in-view section, same as before this optimization was added.
+        enclosingSodiumContextStack.push(
+            newWorld.dimension() == oldWorld.dimension() ? newSodiumContext : null
+        );
         
         ((IEWorldRenderer) worldRenderer).portal_setTransparencyShader(null);
         
@@ -231,26 +262,38 @@ public class MyGameRenderer {
         }
         
         //invoke rendering
-        if (IPSableCompat.isSablePresent) {
-            SableClientInterface.runWithTemporaryFirstPerson(() ->
-            invokeWrapper.accept(() -> {
-                client.getProfiler().push("render_portal_content");
-                client.gameRenderer.renderLevel(
-                    client.getTimer()
-                );
-                client.getProfiler().pop();
-            }));
-        } else {
-            invokeWrapper.accept(() -> {
-                client.getProfiler().push("render_portal_content");
-                client.gameRenderer.renderLevel(
-                    client.getTimer()
-                );
-                client.getProfiler().pop();
-            });
+        try {
+            if (IPSableCompat.isSablePresent) {
+                SableClientInterface.runWithTemporaryFirstPerson(() ->
+                invokeWrapper.accept(() -> {
+                    client.getProfiler().push("render_portal_content");
+                    client.gameRenderer.renderLevel(
+                        client.getTimer()
+                    );
+                    client.getProfiler().pop();
+                }));
+            } else {
+                invokeWrapper.accept(() -> {
+                    client.getProfiler().push("render_portal_content");
+                    client.gameRenderer.renderLevel(
+                        client.getTimer()
+                    );
+                    client.getProfiler().pop();
+                });
+            }
+        } finally {
+            enclosingSodiumContextStack.pop();
         }
         
         SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
+         if (newWorld.dimension() == oldWorld.dimension()) {
+            if (PortalRendering.getPortalLayer() == 1) {
+                // After the swap above, newSodiumContext's render list now holds the
+                // portal's own (just-finished) render list, which is the "other view"
+                // relative to the outer camera we've just returned to.
+                SodiumInterface.invoker.forceBlockingSortCatchUp(newSodiumContext);
+            }
+        }
         
         //recover
         

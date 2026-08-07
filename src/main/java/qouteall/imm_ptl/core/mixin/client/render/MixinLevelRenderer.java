@@ -160,6 +160,10 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
     ) {
         IPCGlobal.renderer.onBeforeTranslucentRendering(modelView);
         
+        if (WorldRenderInfo.isRendering()) {
+                SodiumInterface.invoker.forceBlockingSortCatchUp(MyGameRenderer.getEnclosingSodiumContext());
+            }
+        
         MyGameRenderer.updateFogColor();
         MyGameRenderer.resetFogState();
         
