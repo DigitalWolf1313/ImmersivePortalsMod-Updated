@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.IPGlobal;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.custom_portal_gen.CustomPortalGeneration;
 import qouteall.imm_ptl.core.portal.custom_portal_gen.PortalGenInfo;
@@ -61,13 +62,23 @@ public abstract class NetherPortalLikeForm extends PortalGenForm {
         }
         
         // clear the area
+        net.minecraft.world.level.Level frameLevel =
+            IPSableIntegration.plotAwareLevel(fromWorld, fromShape.anchor);
         if (generateFrameIfNotFound) {
             for (BlockPos areaPos : fromShape.area) {
-                fromWorld.setBlockAndUpdate(areaPos, Blocks.AIR.defaultBlockState());
+                frameLevel.setBlockAndUpdate(areaPos, Blocks.AIR.defaultBlockState());
             }
         }
         
-        BlockPos toPos = cpg.mapPosition(fromShape.innerAreaBox.getCenter(), fromWorld, toWorld);
+        // A Sable plot-space frame (ship-borne) maps its destination from the ship's WORLD
+        // position — the raw plot center (~20.4M) would land the other side millions
+        // of blocks out.
+        BlockPos fromCenter = fromShape.innerAreaBox.getCenter();
+        net.minecraft.world.phys.Vec3 shipWorldCenter =
+            IPSableIntegration.shipFrameWorldCenter(fromWorld, fromCenter);
+        BlockPos toPos = cpg.mapPosition(
+            shipWorldCenter != null ? BlockPos.containing(shipWorldCenter) : fromCenter,
+            fromWorld, toWorld);
         
         FrameSearching.FrameSearchingFunc<PortalGenInfo> frameMatchingFunc =
             getFrameMatchingFunc(fromWorld, toWorld, fromShape);
@@ -98,7 +109,7 @@ public abstract class NetherPortalLikeForm extends PortalGenForm {
             () -> {
                 // check portal integrity while loading chunk
                 return fromShape.frameAreaWithoutCorner.stream().allMatch(
-                    bp -> !fromWorld.isEmptyBlock(bp)
+                    bp -> !frameLevel.isEmptyBlock(bp)
                 );
             },
             frameMatchingFunc

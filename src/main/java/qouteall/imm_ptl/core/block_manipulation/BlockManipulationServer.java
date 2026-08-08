@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.ScaleUtils;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.network.PacketRedirection;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -82,19 +83,26 @@ public class BlockManipulationServer {
         Vec3 playerPos = player.position();
         double distanceSquare = 6 * 6 * 4 * 4 * playerScale * playerScale;
         if (player.level().dimension() == dimension) {
-            if (playerPos.distanceToSqr(pos) < distanceSquare) {
+            if (IPSableIntegration.frameAwareDistanceSqr(player.level(), playerPos, pos)
+                < distanceSquare) {
                 return true;
             }
         }
         return IPMcHelper.getNearbyPortals(
             player,
             IPGlobal.maxNormalPortalRadius
-        ).anyMatch(portal ->
-            portal.getDestDim() == dimension &&
-                portal.isInteractableBy(player) &&
-                portal.transformPoint(playerPos).distanceToSqr(pos) <
-                    distanceSquare * portal.getScale() * portal.getScale()
-        );
+        ).anyMatch(portal -> {
+            if (portal.getDestDim() != dimension || !portal.isInteractableBy(player)) {
+                return false;
+            }
+            net.minecraft.server.level.ServerLevel destLevel =
+                player.server.getLevel(portal.getDestDim());
+            Vec3 transformed = portal.transformPoint(playerPos);
+            double distSq = destLevel != null
+                ? IPSableIntegration.frameAwareDistanceSqr(destLevel, transformed, pos)
+                : transformed.distanceToSqr(pos);
+            return distSq < distanceSquare * portal.getScale() * portal.getScale();
+        });
     }
     
     public static Tuple<BlockHitResult, ResourceKey<Level>> getHitResultForPlacing(

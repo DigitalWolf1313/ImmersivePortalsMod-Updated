@@ -29,6 +29,7 @@ import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.api.ImmPtlEntityExtension;
 import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
+import qouteall.imm_ptl.core.compat.sable_compatibility.SableInterface;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.portal.EndPortalEntity;
@@ -122,8 +123,18 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
             return normalCollisionResult;
         }
         
+        // When the entity is tracking a Sable sublevel, run the original collision chain first
+        // (which includes Sable's sublevel collision redirect on Entity.collide), then apply
+        // portal collision on top of the Sable-collided movement. Without this, the portal
+        // collision path bypasses Sable's collide redirect and the entity loses collision
+        // with sublevel blocks while touching a portal.
+        Vec3 preCollided = attemptedMove;
+        if (SableInterface.isEntityInteractingWithSableSubLevel((Entity) (Object) this)) {
+            preCollided = original.call(entity, attemptedMove);
+        }
+        
         Vec3 result = ip_portalCollisionHandler.handleCollision(
-            (Entity) (Object) this, attemptedMove
+            (Entity) (Object) this, preCollided
         );
         
         if (result.lengthSqr() > 20 * 20) {

@@ -8,6 +8,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.McHelper;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
 import qouteall.imm_ptl.core.portal.PortalManipulation;
@@ -79,6 +80,8 @@ public class PortalGenInfo {
         portal.setScaling(scale);
         portal.setRotation(rotation);
         
+        IPSableIntegration.mapShipFramePortalPose(portal);
+        
         return portal;
     }
     
@@ -108,6 +111,8 @@ public class PortalGenInfo {
         McHelper.spawnServerEntity(f2);
         McHelper.spawnServerEntity(t1);
         McHelper.spawnServerEntity(t2);
+        
+        IPSableIntegration.anchorShipFramePortal(f1, fromShape.anchor);
         
         return (new BreakablePortalEntity[]{f1, f2, t1, t2});
     }

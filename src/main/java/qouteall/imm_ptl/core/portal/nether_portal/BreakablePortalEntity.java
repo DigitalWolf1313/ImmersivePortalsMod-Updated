@@ -19,6 +19,7 @@ import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import qouteall.imm_ptl.core.McHelper;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalPlaceholderBlock;
@@ -32,7 +33,7 @@ import java.util.UUID;
 
 public abstract class BreakablePortalEntity extends Portal {
     private static final Logger LOGGER = LogUtils.getLogger();
-    
+
     public static record OverlayInfo(
         BlockState blockState,
         double opacity,
@@ -124,11 +125,23 @@ public abstract class BreakablePortalEntity extends Portal {
         }
     }
     
+    /**
+     * Used in immersive portals X Sable
+     * The level that authoritatively stores this portal's frame blocks. A ship-borne
+     * portal's shape is in PLOT coordinates while the entity lives in the parent
+     * dimension — frame reads/writes must hit the plot-hosting level directly.
+     */
+    protected Level frameLevel() {
+        return IPSableIntegration.plotAwareLevel(
+            level(), blockPortalShape != null ? blockPortalShape.anchor : null);
+    }
+
     private void breakPortalOnThisSide() {
+        Level frameLevel = frameLevel();
         blockPortalShape.area.forEach(
             blockPos -> {
-                if (level().getBlockState(blockPos).getBlock() == PortalPlaceholderBlock.instance) {
-                    level().setBlockAndUpdate(
+                if (frameLevel.getBlockState(blockPos).getBlock() == PortalPlaceholderBlock.instance) {
+                    frameLevel.setBlockAndUpdate(
                         blockPos, Blocks.AIR.defaultBlockState()
                     );
                 }

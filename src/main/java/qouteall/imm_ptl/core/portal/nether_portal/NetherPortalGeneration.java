@@ -18,6 +18,7 @@ import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.chunk_loading.ChunkLoader;
 import qouteall.imm_ptl.core.chunk_loading.DimensionalChunkPos;
 import qouteall.imm_ptl.core.chunk_loading.ImmPtlChunkTracking;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
 import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.LoadingIndicatorEntity;
@@ -250,7 +251,7 @@ public class NetherPortalGeneration {
     private static final LimitedLogger limitedLogger = new LimitedLogger(50);
     
     public static boolean checkPortalGeneration(ServerLevel fromWorld, BlockPos startingPos) {
-        if (!fromWorld.hasChunkAt(startingPos)) {
+        if (!IPSableIntegration.hasChunkAtFrameAware(fromWorld, startingPos)) {
             Helper.log("Cancel Portal Generation Because Chunk Not Loaded");
             return false;
         }
@@ -295,9 +296,12 @@ public class NetherPortalGeneration {
         ServerLevel world,
         BlockPortalShape blockPortalShape
     ) {
+        // Plot-space shapes (ship-borne frames) write where the chunks actually live.
+        ServerLevel target = IPSableIntegration.plotAwareLevel(world, blockPortalShape.anchor)
+            instanceof ServerLevel plotLevel ? plotLevel : world;
         blockPortalShape.area.forEach(
             blockPos -> setPortalContentBlock(
-                world, blockPos, blockPortalShape.axis
+                target, blockPos, blockPortalShape.axis
             )
         );
     }

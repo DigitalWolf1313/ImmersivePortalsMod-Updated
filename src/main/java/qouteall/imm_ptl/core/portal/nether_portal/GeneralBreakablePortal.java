@@ -15,12 +15,13 @@ public class GeneralBreakablePortal extends BreakablePortalEntity {
     
     @Override
     protected boolean isPortalIntactOnThisSide() {
+        Level frameLevel = frameLevel();
         boolean areaIntact = blockPortalShape.area.stream()
             .allMatch(blockPos ->
-                level().getBlockState(blockPos).getBlock() == PortalPlaceholderBlock.instance
+                frameLevel.getBlockState(blockPos).getBlock() == PortalPlaceholderBlock.instance
             );
         boolean frameIntact = blockPortalShape.frameAreaWithoutCorner.stream()
-            .allMatch(blockPos -> !level().isEmptyBlock(blockPos));
+            .allMatch(blockPos -> !frameLevel.isEmptyBlock(blockPos));
         return areaIntact && frameIntact;
     }
     

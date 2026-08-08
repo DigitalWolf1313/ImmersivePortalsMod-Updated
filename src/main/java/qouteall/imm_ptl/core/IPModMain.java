@@ -21,6 +21,7 @@ import qouteall.imm_ptl.core.commands.SubCommandArgumentType;
 import qouteall.imm_ptl.core.commands.TimingFunctionArgumentType;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.debug.DebugUtil;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
 import qouteall.imm_ptl.core.miscellaneous.GcMonitor;
@@ -104,7 +105,10 @@ public class IPModMain {
         BlockManipulationServer.init();
         
         CommandRegistrationCallback.EVENT.register(
-            (dispatcher, ctx, environment) -> PortalCommand.register(dispatcher, ctx)
+            (dispatcher, ctx, environment) -> {
+                PortalCommand.register(dispatcher, ctx);
+                IPSableIntegration.registerIplShipPortalCommand(dispatcher);
+            }
         );
         SubCommandArgumentType.init();
         TimingFunctionArgumentType.init();

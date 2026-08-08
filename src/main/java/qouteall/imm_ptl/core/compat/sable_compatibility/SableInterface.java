@@ -1,10 +1,14 @@
 package qouteall.imm_ptl.core.compat.sable_compatibility;
 
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
+import dev.ryanhcode.sable.mixinterface.entity.entity_sublevel_collision.EntityMovementExtension;
+import dev.ryanhcode.sable.sublevel.entity_collision.SubLevelEntityCollision;
 import dev.ryanhcode.sable.sublevel.plot.LevelPlot;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -65,5 +69,37 @@ public class SableInterface {
     public static boolean isSablePlotChunk(final Level level, final long chunkPosLong) {
         return isSablePlotChunk(level, new ChunkPos(chunkPosLong));
     }
-    
+
+    /**
+     * Whether the entity is near a Sable sublevel that could collide with it
+     * (standing on it, locked to it, or horizontally touching it).
+     *
+     * <p>Sable only sets {@code sable$getTrackingSubLevel()} when the entity is
+     * <em>standing on</em> a sublevel (vertical collision below). When the entity
+     * touches a sublevel from the side, Sable instead records the collision in
+     * {@code CollisionInfo.subLevelHorizontalCollision} / {@code horizontalCollision}.
+     * This helper checks both so the original collision chain (which includes Sable's
+     * sublevel collision redirect on {@link Entity#move}) is not bypassed when portal
+     * collision is active. Returns {@code false} when Sable is absent.
+     */
+    public static boolean isEntityInteractingWithSableSubLevel(final Entity entity) {
+        if (!IPSableCompat.isSablePresent) {
+            return false;
+        }
+        if (entity instanceof EntityMovementExtension ext) {
+            if (ext.sable$getTrackingSubLevel() != null) {
+                return true;
+            }
+            final SubLevelEntityCollision.CollisionInfo collisionInfo = ext.sable$getCollisionInfo();
+            // stale from the last Entity.collide() call. If the entity has recently
+            // collided with a sublevel from any direction, run the original chain.
+            return collisionInfo != null && (
+                collisionInfo.subLevelHorizontalCollision ||
+                    collisionInfo.horizontalCollision ||
+                    collisionInfo.verticalCollision
+            );
+        }
+        return false;
+    }
+
 }

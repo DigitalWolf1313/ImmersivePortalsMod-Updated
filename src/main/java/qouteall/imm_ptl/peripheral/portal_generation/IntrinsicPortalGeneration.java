@@ -12,6 +12,7 @@ import net.minecraft.world.level.portal.PortalShape;
 import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.McHelper;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.portal.custom_portal_gen.CustomPortalGeneration;
 
 import java.util.ArrayList;
@@ -74,6 +75,7 @@ public class IntrinsicPortalGeneration {
         @Nullable Entity triggeringEntity
     ) {
         IPGlobal.NetherPortalMode mode = IPGlobal.netherPortalMode;
+        fromWorld = IPSableIntegration.effectivePortalGenLevel(fromWorld, firePos);
         
         if (mode == IPGlobal.NetherPortalMode.normal || mode == IPGlobal.NetherPortalMode.adaptive) {
             ResourceKey<Level> fromDimension = fromWorld.dimension();

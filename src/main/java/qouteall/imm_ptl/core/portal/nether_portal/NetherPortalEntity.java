@@ -71,13 +71,14 @@ public class NetherPortalEntity extends BreakablePortalEntity {
     @Override
     protected boolean isPortalIntactOnThisSide() {
         
+        var frameLevel = frameLevel();
         return blockPortalShape.area.stream()
             .allMatch(blockPos ->
-                level().getBlockState(blockPos).getBlock() == PortalPlaceholderBlock.instance
+                frameLevel.getBlockState(blockPos).getBlock() == PortalPlaceholderBlock.instance
             ) &&
             blockPortalShape.frameAreaWithoutCorner.stream()
                 .allMatch(blockPos ->
-                    O_O.isObsidian(level().getBlockState(blockPos))
+                    O_O.isObsidian(frameLevel.getBlockState(blockPos))
                 );
     }
     

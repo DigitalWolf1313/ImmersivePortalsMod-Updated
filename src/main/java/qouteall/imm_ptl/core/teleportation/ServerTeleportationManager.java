@@ -28,6 +28,8 @@ import qouteall.imm_ptl.core.ScaleUtils;
 import qouteall.imm_ptl.core.chunk_loading.ImmPtlChunkTracking;
 import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.compat.GravityChangerInterface;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.ducks.IEServerPlayNetworkHandler;
 import qouteall.imm_ptl.core.ducks.IEServerPlayerEntity;
@@ -200,6 +202,10 @@ public class ServerTeleportationManager {
             teleportPlayer(player, dimensionTo, newEyePos);
             
             portal.onEntityTeleportedOnServer(player);
+            
+            if (IPSableCompat.isIPSablePresent) {
+                IPSableIntegration.onPlayerTeleported(player, portal);
+            }
             
             ScaleUtils.onServerEntityTeleported(player, portal);
             

@@ -2,8 +2,6 @@ package qouteall.imm_ptl.core.compat.sable_compatibility;
 
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.mixinhelpers.camera.new_camera_types.SableCameraTypes;
-import dev.ryanhcode.sable.sublevel.ClientSubLevel;
-import dev.ryanhcode.sable.sublevel.SubLevel;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.CameraType;
@@ -12,7 +10,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.Level;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
 
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Client-only Sable compat methods. Separated from {@link SableInterface} so that

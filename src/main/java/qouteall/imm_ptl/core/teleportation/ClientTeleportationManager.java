@@ -29,6 +29,7 @@ import qouteall.imm_ptl.core.api.PortalAPI;
 import qouteall.imm_ptl.core.collision.CollisionHelper;
 import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.compat.GravityChangerInterface;
+import qouteall.imm_ptl.core.compat.IPSableCompat;
 import qouteall.imm_ptl.core.ducks.IEAbstractClientPlayer;
 import qouteall.imm_ptl.core.ducks.IEClientPlayNetworkHandler;
 import qouteall.imm_ptl.core.ducks.IEEntity;
@@ -38,6 +39,7 @@ import qouteall.imm_ptl.core.ducks.IEParticleManager;
 import qouteall.imm_ptl.core.network.ImmPtlNetworking;
 import qouteall.imm_ptl.core.network.PacketRedirectionClient;
 import qouteall.imm_ptl.core.platform_specific.O_O;
+import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
 import qouteall.imm_ptl.core.portal.animation.ClientPortalAnimationManagement;
@@ -368,6 +370,10 @@ public class ClientTeleportationManager {
         }
         
         ScaleUtils.onClientPlayerTeleported(portal);
+        
+        if (IPSableCompat.isIPSablePresent) {
+            IPSableIntegration.onLocalPlayerTeleported(portal);
+        }
         
         player.connection.send(ClientPlayNetworking.createC2SPacket(
             new ImmPtlNetworking.TeleportPacket(

@@ -82,7 +82,7 @@ public class PortalRendering {
         return portalLayers.peek();
     }
     
-    // This method is used in IPSable so to prevent a crash when using this mod with IPSable add it here.
+    // This method is used in immersive portals X Sable so to prevent a crash when using this mod with it add it here.
     public static List<Portal> getPortalPath() {
         return List.copyOf(portalLayers);
     }
