@@ -1,4 +1,7 @@
-- Finished The Sodium 8.12 Update (hopefully no more flickering)
-- Improved third person view (added viewbobbing Trough the portal)
-- Update mod compatibility and Update checker pages
-- Add small compat for voxy
+- Added Sable compatibility
+- Improved Sodium Compatibility
+- Improved Voxy Support
+- Improved Vanilla scaling
+- Improved the ease of use of the Indirect loading radius cap Option
+- Readded support for Pehkui
+- Fixed support for gravity changer
