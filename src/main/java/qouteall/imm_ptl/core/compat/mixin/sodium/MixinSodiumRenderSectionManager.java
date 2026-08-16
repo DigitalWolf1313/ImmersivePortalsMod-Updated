@@ -1,7 +1,5 @@
 package qouteall.imm_ptl.core.compat.mixin.sodium;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkUpdateTypes;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
@@ -141,40 +139,6 @@ public class MixinSodiumRenderSectionManager implements IESodiumRenderSectionMan
         return !pendingIsRebuild && !runningIsRebuild;
     }
 
-    /**
-     * Builds an identity set of the sections currently present (with geometry) in the
-     * given render list. Used to determine whether a section is also visible from
-     * another view (camera), so the blocking sort catch-up can skip sections that are
-     * exclusively visible from a single view.
-     */
-    @Nullable
-    private static Set<RenderSection> collectSectionsWithGeometry(@Nullable SortedRenderLists lists) {
-        if (lists == null) {
-            return null;
-        }
-
-        Set<RenderSection> result = new HashSet<>();
-
-        var iter = lists.iterator(false);
-        while (iter.hasNext()) {
-            ChunkRenderList list = iter.next();
-            ByteIterator sectionIterator = list.sectionsWithGeometryIterator(false);
-            if (sectionIterator == null) {
-                continue;
-            }
-            while (sectionIterator.hasNext()) {
-                int sectionIndex = sectionIterator.nextByteAsInt();
-                RenderSection section = list.getRegion().getSection(sectionIndex);
-                if (section != null) {
-                    result.add(section);
-                }
-            }
-        }
-
-        return result;
-    }
-
-
 /**
  * Force a blocking sort catch-up for all currently-visible sections that have
  * dynamic translucency data. This is called both:
@@ -186,18 +150,9 @@ public class MixinSodiumRenderSectionManager implements IESodiumRenderSectionMan
  *     when the GPU buffers may still be sorted for the enclosing (outer or parent
  *     portal) camera.</li>
  * </ul>
- * <p>
- * If {@code otherViewRenderLists} is non-null, a section is only force-sorted if it
- * is also present (with geometry) in that other view's render list. A translucent
- * section that is only visible from the view currently being caught up, and not
- * from the other view, was never sorted for that other view in the first place
- * (the other view's own catch-up skips sections it can't see either), so its GPU
- * buffer can't have been "contaminated" by the other camera. It still gets sorted
- * correctly through Sodium's normal (non-blocking) sort triggers whenever it's
- * rendered, so it doesn't need to be force-sorted here.
  */
 @Override
-public void ip_forceBlockingSortCatchUp(@Nullable SortedRenderLists otherViewRenderLists) {
+public void ip_forceBlockingSortCatchUp() {
     double radius = IPGlobal.forceBlockingSortCatchUpRadius;
     boolean useRadiusCutoff = radius >= 0.0;
     float radiusSq = useRadiusCutoff ? (float) (radius * radius) : 0f;
@@ -210,8 +165,6 @@ public void ip_forceBlockingSortCatchUp(@Nullable SortedRenderLists otherViewRen
         camY = (float) camPos.y();
         camZ = (float) camPos.z();
     }
-
-    Set<RenderSection> otherViewSections = collectSectionsWithGeometry(otherViewRenderLists);
 
     ChunkJobCollector collector = new ChunkJobCollector(result -> this.buildResults.add(result));
 
@@ -232,14 +185,6 @@ public void ip_forceBlockingSortCatchUp(@Nullable SortedRenderLists otherViewRen
 
                 var translucentData = section.getTranslucentData();
                 if (!(translucentData instanceof DynamicData)) {
-                    continue;
-                }
-
-                if (
-                    IPGlobal.forceBlockingSortCatchUpOnlyForSharedSections
-                        && otherViewSections != null
-                        && !otherViewSections.contains(section)
-                ) {
                     continue;
                 }
 

@@ -2,11 +2,10 @@ package qouteall.imm_ptl.core.compat.sodium_compatibility;
 
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
-import net.caffeinemc.mods.sodium.client.render.chunk.lists.SortedRenderLists;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkStatus;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTrackerHolder;
-import net.caffeinemc.mods.sodium.client.render.texture.SpriteUtil;
+import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -39,16 +38,9 @@ public class SodiumInterface {
         }
 
         /**
-         * @param otherViewContext If non-null, this is expected to be a
-         *                         {@link SodiumRenderingContext} (typically obtained via
-         *                         {@link #createNewContext}) whose render list represents
-         *                         another view/camera. Sections not also visible from
-         *                         that other view are skipped, since they can't have been
-         *                         desynced by it. Passed as {@code Object} so that callers
-         *                         outside the sodium compat package don't need to depend
-         *                         on sodium-specific types.
+         * Forces a synchronous translucent sort catch-up for the current view.
          */
-        public void forceBlockingSortCatchUp(Object otherViewContext) {
+        public void forceBlockingSortCatchUp() {
         
         }
         
@@ -99,7 +91,7 @@ public class SodiumInterface {
         }
         
         @Override
-        public void forceBlockingSortCatchUp(Object otherViewContext) {
+        public void forceBlockingSortCatchUp() {
             if (!IPGlobal.forceBlockingSortCatchUpEnabled) {
                 return;
             }
@@ -113,20 +105,15 @@ public class SodiumInterface {
             RenderSectionManager renderSectionManager =
                 ((IESodiumWorldRenderer) swr).ip_getRenderSectionManager();
 
-            SortedRenderLists otherViewRenderLists =
-                otherViewContext instanceof SodiumRenderingContext src
-                    ? src.renderLists
-                    : null;
-
             ((IESodiumRenderSectionManager) renderSectionManager)
-                .ip_forceBlockingSortCatchUp(otherViewRenderLists);
+                .ip_forceBlockingSortCatchUp();
 
             RenderDevice.exitManagedCode();
         }
         
         @Override
         public void markSpriteActive(TextureAtlasSprite sprite) {
-            SpriteUtil.markSpriteActive(sprite);
+            SpriteUtil.INSTANCE.markSpriteActive(sprite);
         }
         
         @Override

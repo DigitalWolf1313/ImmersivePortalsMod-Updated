@@ -694,11 +694,6 @@ public class ClientDebugCommand {
             "force_blocking_sort_catch_up",
             cond -> IPGlobal.forceBlockingSortCatchUpEnabled = cond
         );
-        registerSwitchCommand(
-            builder,
-            "force_blocking_sort_catch_up_only_for_shared_sections",
-            cond -> IPGlobal.forceBlockingSortCatchUpOnlyForSharedSections = cond
-        );
         builder = builder.then(ClientCommandManager
             .literal("force_blocking_sort_catch_up_set_radius")
             .then(ClientCommandManager

@@ -53,18 +53,7 @@ public class IPConfig implements ConfigData {
     @ConfigEntry.Category("client")
     @ConfigEntry.Gui.Tooltip
     public boolean compatibilityRenderMode = false;
-    @ConfigEntry.Category("client")
-    @ConfigEntry.Gui.Tooltip
-    public boolean forceBlockingSortCatchUpEnabled = false;
-    @ConfigEntry.Category("client")
-    @ConfigEntry.BoundedDiscrete(min = -1, max = 256)
-    @ConfigEntry.Gui.Tooltip
-    public int forceBlockingSortCatchUpRadius = 32;
 
-    // @ConfigEntry.Category("client")
-    // @ConfigEntry.Gui.Tooltip
-    // public boolean forceBlockingSortCatchUpOnlyForSharedSections = true;
-    
     // client invisible configs
     
     @ConfigEntry.Gui.Excluded
@@ -94,8 +83,9 @@ public class IPConfig implements ConfigData {
     @ConfigEntry.Gui.Excluded
     public boolean initialScreenShown = false;
     @ConfigEntry.Gui.Excluded
-    @ConfigEntry.Gui.Tooltip
-    public boolean forceBlockingSortCatchUpOnlyForSharedSections = false;
+    public boolean forceBlockingSortCatchUpEnabled = false;
+    @ConfigEntry.Gui.Excluded
+    public int forceBlockingSortCatchUpRadius = 32;
     
     // common visible configs
     
@@ -238,7 +228,6 @@ public class IPConfig implements ConfigData {
         IPGlobal.enableClippingMechanism = enableClippingMechanism;
         IPGlobal.forceBlockingSortCatchUpEnabled = forceBlockingSortCatchUpEnabled;
         IPGlobal.forceBlockingSortCatchUpRadius = forceBlockingSortCatchUpRadius < 0 ? -1.0 : forceBlockingSortCatchUpRadius;
-        IPGlobal.forceBlockingSortCatchUpOnlyForSharedSections = forceBlockingSortCatchUpOnlyForSharedSections;
         IPGlobal.lightVanillaNetherPortalWhenCrouching = lightVanillaNetherPortalWhenCrouching;
         IPGlobal.enableNetherPortalEffect = enableNetherPortalEffect;
         IPGlobal.enableClientPerformanceAdjustment = enableClientPerformanceAdjustment;
