@@ -1,3 +1,3 @@
-- Improved third person view (added viewbobbing Trough the portal)
-- Update mod compatibility and Update checker pages
-- Add small compat for voxy
+- Optimized clouds with sodium
+- Improved Voxy Support
+- Improved the Indirect loading radius cap Option
