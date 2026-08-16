@@ -60,6 +60,11 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return sableLoaded;
         }
         
+        if (mixinClassName.contains("Voxy")) {
+            boolean voxyLoaded = fabricLoader.isModLoaded("voxy");
+            return voxyLoaded;
+        }
+        
         return false;
     }
     

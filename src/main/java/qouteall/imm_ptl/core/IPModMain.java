@@ -21,6 +21,7 @@ import qouteall.imm_ptl.core.commands.SubCommandArgumentType;
 import qouteall.imm_ptl.core.commands.TimingFunctionArgumentType;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.IPVoxyCompat;
 import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
 import qouteall.imm_ptl.core.debug.DebugUtil;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
@@ -86,8 +87,6 @@ public class IPModMain {
         
         EntitySync.init();
         
-        IPSableCompat.init();
-        
         ServerTeleportationManager.init();
         
         CollisionHelper.init();
@@ -100,6 +99,8 @@ public class IPModMain {
         
         ImmPtlChunkTickets.init();
         
+        IPVoxyCompat.init();
+        IPSableCompat.init();
         IPPortingLibCompat.init();
         
         BlockManipulationServer.init();

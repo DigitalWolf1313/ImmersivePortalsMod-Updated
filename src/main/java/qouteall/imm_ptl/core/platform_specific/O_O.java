@@ -93,10 +93,6 @@ public class O_O {
         return FabricLoader.getInstance().isModLoaded("pehkui");
     }
     
-    public static boolean getIsVoxyPresent() {
-        return FabricLoader.getInstance().isModLoaded("voxy");
-    }
-    
     @Nullable
     public static String getImmPtlModInfoUrl() {
         String gameVersion = SharedConstants.getCurrentVersion().getName();

@@ -82,7 +82,12 @@ public class PortalRendering {
         return portalLayers.peek();
     }
     
-    // This method is used in immersive portals X Sable so to prevent a crash when using this mod with it add it here.
+    /**
+     * Gets the current portal rendering path.
+     * The list is ordered from the outermost portal to the innermost portal.
+     *
+     * @return an immutable snapshot of the portals currently being rendered
+     */
     public static List<Portal> getPortalPath() {
         return List.copyOf(portalLayers);
     }

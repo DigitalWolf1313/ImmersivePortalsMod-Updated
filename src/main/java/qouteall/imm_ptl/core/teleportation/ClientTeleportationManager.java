@@ -30,6 +30,7 @@ import qouteall.imm_ptl.core.collision.CollisionHelper;
 import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.compat.GravityChangerInterface;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
+import qouteall.imm_ptl.core.compat.IPVoxyCompat;
 import qouteall.imm_ptl.core.ducks.IEAbstractClientPlayer;
 import qouteall.imm_ptl.core.ducks.IEClientPlayNetworkHandler;
 import qouteall.imm_ptl.core.ducks.IEEntity;
@@ -425,6 +426,13 @@ public class ClientTeleportationManager {
         
         isTeleportingTick = true;
         isTeleportingFrame = true;
+        
+        if (IPVoxyCompat.isVoxyPresent && fromDimension.equals(toDimension)) {
+            // The outer camera is about to take over the space the portal was rendering and the
+            // portal (looked back through) takes over the previous outer space, so swap their Voxy
+            // viewports to reuse each one's cached render/HiZ data.
+            IPVoxyCompat.requestVoxyViewportSwap(portal);
+        }
         
         MyGameRenderer.vanillaTerrainSetupOverride = 1;
     }
