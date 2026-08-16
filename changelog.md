@@ -1,3 +1,7 @@
-- Hopefully improve mod compatibility By rewriting "MixinFrustum_FixDeadLoop::offsetToFullyIncludeCameraCube using MixinExtras" - Acuadragon100
-- Improved third person view (added viewbobbing Trough the portal)
-- Update mod compatibility and Update checker pages
+- Added Sable compatibility
+- Improved Sodium Compatibility
+- Improved Voxy Support
+- Improved Vanilla scaling
+- Improved the ease of use of the Indirect loading radius cap Option
+- Readded support for Pehkui
+- Fixed support for gravity changer
