@@ -1,7 +1,7 @@
 - Added Sable compatibility
-- Improved Sodium Compatibility
+- Optimized clouds with sodium
 - Improved Voxy Support
 - Improved Vanilla scaling
-- Improved the ease of use of the Indirect loading radius cap Option
+- Improved the Indirect loading radius cap Option
 - Readded support for Pehkui
 - Fixed support for gravity changer
