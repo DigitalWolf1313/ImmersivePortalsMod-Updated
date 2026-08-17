@@ -44,40 +44,21 @@ public class ChunkVisibility {
         return renderDistance / 3;
     }
     
-    static int getEffectiveIndirectLoadingRadiusCap(
-        int renderDistance,
-        int performanceCap,
-        int manualCap,
-        boolean useManualMode,
-        double portalScale
-    ) {
-        int cap = useManualMode ? manualCap : renderDistance;
-        cap = Math.min(cap, performanceCap);
-        
-        // load more for scaling portal
-        if (portalScale > 2) {
-            cap *= 2;
-        }
-        
-        return cap;
-    }
-    
     private static int getCappedLoadingDistance(
         Portal portal, ServerPlayer player, int targetLoadingDistance
     ) {
         PerformanceLevel performanceLevel =
             ImmPtlChunkTracking.getPlayerInfo(player).performanceLevel;
-        int performanceCap = PerformanceLevel.getIndirectLoadingRadiusCap(performanceLevel);
-        int manualCap = IPGlobal.indirectLoadingRadiusCap;
-        int renderDistance = McHelper.getPlayerLoadDistance(player);
+        int cap1 = PerformanceLevel.getIndirectLoadingRadiusCap(performanceLevel);
+        int cap2 = IPGlobal.getEffectiveIndirectLoadingRadiusCap();
+        int cap3 = PerformanceLevel.getIndirectLoadingRadiusCap(ServerPerformanceMonitor.getLevel());
         
-        int cap = getEffectiveIndirectLoadingRadiusCap(
-            renderDistance,
-            performanceCap,
-            manualCap,
-            IPGlobal.useManualIndirectLoadingRadiusCap,
-            portal.getScale()
-        );
+        int cap = Math.min(cap1, cap2);
+        
+        // load more for scaling portal
+        if (portal.getScale() > 2) {
+            cap *= 2;
+        }
         
         int cappedLoadingDistance = Math.min(targetLoadingDistance, cap);
         
@@ -120,7 +101,7 @@ public class ChunkVisibility {
     ) {
         if (portal.getIsGlobal()) {
             int renderDistance = Math.min(
-                IPGlobal.indirectLoadingRadiusCap * 2,
+                IPGlobal.getEffectiveIndirectLoadingRadiusCap() * 2,
                 //load a little more to make dimension stack more complete
                 Math.max(
                     2,
@@ -170,7 +151,7 @@ public class ChunkVisibility {
         
         if (portal.getIsGlobal()) {
             int renderDistance = Math.min(
-                IPGlobal.indirectLoadingRadiusCap,
+                IPGlobal.getEffectiveIndirectLoadingRadiusCap(),
                 loadDistance / 3
             );
             return new ChunkLoader(
