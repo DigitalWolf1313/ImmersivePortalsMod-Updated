@@ -199,6 +199,7 @@
   "text.autoconfig.immersive_portals.option.enableServerPerformanceAdjustment": "启用服务器性能调整",
   "text.autoconfig.immersive_portals.option.enableDatapackPortalGen": "启用数据包自定义传送门生成",
   "text.autoconfig.immersive_portals.option.indirectLoadingRadiusCap": "间接区块加载半径上限",
+  "text.autoconfig.immersive_portals.option.indirectLoadingRadiusCapMode": "Indirect Chunk Loading Radius Cap Mode",
   "text.autoconfig.immersive_portals.option.scaleLimit": "缩放比例限制",
   "text.autoconfig.immersive_portals.option.easeCreativePermission": "创造模式下放宽权限",
   "text.autoconfig.immersive_portals.option.easeCommandStickPermission": "命令杖放宽权限",

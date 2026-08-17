@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.event.Event;
 import net.minecraft.server.MinecraftServer;
 import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.q_misc_util.Helper;
+import qouteall.q_misc_util.MiscGlobals;
 import qouteall.q_misc_util.MiscHelper;
 import qouteall.q_misc_util.my_util.MyTaskList;
 
@@ -42,7 +43,15 @@ public class IPGlobal {
     public static int maxPortalLayer = 5;
     
     public static int indirectLoadingRadiusCap = 8;
-    public static boolean useManualIndirectLoadingRadiusCap = false;
+    public static IndirectLoadingRadiusCapMode indirectLoadingRadiusCapMode =
+        IndirectLoadingRadiusCapMode.Manual;
+    
+    public static int getEffectiveIndirectLoadingRadiusCap() {
+        if (indirectLoadingRadiusCapMode == IndirectLoadingRadiusCapMode.RenderDistance) {
+            return McHelper.getLoadDistanceOnServer(MiscGlobals.refMinecraftServer.get());
+        }
+        return indirectLoadingRadiusCap;
+    }
     
     public static boolean lagAttackProof = true;
     
@@ -153,6 +162,11 @@ public class IPGlobal {
         compatibility,
         debug,
         none
+    }
+    
+    public static enum IndirectLoadingRadiusCapMode {
+        RenderDistance,
+        Manual; 
     }
     
     // this should not be in core but the config is in core
