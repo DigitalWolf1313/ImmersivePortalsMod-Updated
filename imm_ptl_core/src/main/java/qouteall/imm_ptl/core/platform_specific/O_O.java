@@ -94,7 +94,7 @@ public class O_O {
         }
         else {
             // it's in github pages
-            // https://github.com/qouteall/immptl_info
+            // https://github.com/DigitalWolf1313/immptl_info
             return "https://raw.githubusercontent.com/Digitalgaming1/immptl_info/main/%s.json".formatted(gameVersion);
         }
     }
@@ -163,7 +163,7 @@ public class O_O {
     }
     
     public static String getModDownloadLink() {
-        return "https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/releases";
+        return "https://www.curseforge.com/minecraft/mc-mods/immersive-portals-continued";
     }
     
     public static String getIssueLink() {
