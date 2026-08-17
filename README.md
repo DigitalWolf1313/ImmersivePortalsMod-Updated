@@ -56,4 +56,4 @@ https://fabricmc.net/wiki/tutorial:setup
 
 [Mikulasz12](https://github.com/Mikulasz12) For creating A version of ["MixinSodiumViewport"](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/commit/3cd10cf5e6a0a3e8cd8984cd122e51e0c2db93cc) That works with Sodium 8.12
 
-[r2smith141](https://github.com/r2smith141) for creating some [sable compatibility code](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/commit/e567f7e8b0a82eecf9812dc86cdc421111878e70).
+[r2smith141](https://github.com/r2smith141) for creating some [sable compatibility code](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/commit/482e331357f6c0e1c7b114d827d9cb84daa6125a).
