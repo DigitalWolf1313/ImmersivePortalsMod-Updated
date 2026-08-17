@@ -6,7 +6,7 @@ It's a Minecraft mod that provides see-through portals and seamless teleportatio
 
 ![immptl.png](https://i.loli.net/2021/09/30/chHMG45dsnZNqep.png)
 
-[On CurseForge](https://www.curseforge.com/minecraft/mc-mods/immersive-portals-mod) (Not updated)     [On Modrinth](https://modrinth.com/mod/immersiveportals) (Not updated)    [Website](https://qouteall.fun/immptl/)
+[On CurseForge](https://www.curseforge.com/minecraft/mc-mods/immersive-portals-continued) (Updated)     [On Modrinth](https://modrinth.com/mod/immersive-portals-updated) (Review pending)    [Website](https://qouteall.fun/immptl/)
 
 This mod changes a lot of underlying Minecraft mechanics. This mod allows the client to load multiple dimensions at the same time and synchronize remote world information(blocks/entities) to client. It can render portal-in-portals. The portal rendering is roughly compatible with some versions of Sodium and Iris. The portal can transform player scale and gravity direction.  [Implementation Details](https://qouteall.fun/immptl/wiki/Implementation-Details)
 
@@ -20,7 +20,9 @@ This fork aims to
 
 2: Fix any bugs
 
-No promises are made regarding new features or long-term stability of this fork However
+3: Add new features
+
+No promises are made regarding long-term stability of this fork However
 I will always do my best to keep it stable and maintainable.
 
 I am also **Not** porting this mod to later version, others are already working on that.
@@ -54,4 +56,4 @@ https://fabricmc.net/wiki/tutorial:setup
 
 [Mikulasz12](https://github.com/Mikulasz12) For creating A version of ["MixinSodiumViewport"](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/commit/3cd10cf5e6a0a3e8cd8984cd122e51e0c2db93cc) That works with Sodium 8.12
 
-[r2smith141](https://github.com/r2smith141) for creating some [sable compatibility code](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/commit/e567f7e8b0a82eecf9812dc86cdc421111878e70).
+[r2smith141](https://github.com/r2smith141) for creating some [sable compatibility code](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/commit/482e331357f6c0e1c7b114d827d9cb84daa6125a).
