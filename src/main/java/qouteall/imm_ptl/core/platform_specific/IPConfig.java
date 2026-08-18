@@ -108,7 +108,7 @@ public class IPConfig implements ConfigData {
     public boolean enableDatapackPortalGen = true;
     @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
     public IPGlobal.IndirectLoadingRadiusCapMode indirectLoadingRadiusCapMode =
-        IPGlobal.IndirectLoadingRadiusCapMode.Manual;
+        IPGlobal.IndirectLoadingRadiusCapMode.RenderDistance;
     @ConfigEntry.BoundedDiscrete(min = 1, max = 32)
     @ConfigEntry.Gui.Tooltip
     public int indirectLoadingRadiusCap = 8;
@@ -172,7 +172,7 @@ public class IPConfig implements ConfigData {
             endPortalMode = IPGlobal.EndPortalMode.normal;
         }
         if (indirectLoadingRadiusCapMode == null) {
-            indirectLoadingRadiusCapMode = IPGlobal.IndirectLoadingRadiusCapMode.Manual;
+            indirectLoadingRadiusCapMode = IPGlobal.IndirectLoadingRadiusCapMode.RenderDistance;
         }
         
         IPGlobal.renderMode = compatibilityRenderMode ? IPGlobal.RenderMode.compatibility : IPGlobal.RenderMode.normal;
