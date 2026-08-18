@@ -41,7 +41,7 @@ public class IPGlobal {
     
     public static int indirectLoadingRadiusCap = 8;
     public static IndirectLoadingRadiusCapMode indirectLoadingRadiusCapMode =
-        IndirectLoadingRadiusCapMode.Manual;
+        IndirectLoadingRadiusCapMode.RenderDistance;
     
     public static int getEffectiveIndirectLoadingRadiusCap() {
         if (indirectLoadingRadiusCapMode == IndirectLoadingRadiusCapMode.RenderDistance) {
