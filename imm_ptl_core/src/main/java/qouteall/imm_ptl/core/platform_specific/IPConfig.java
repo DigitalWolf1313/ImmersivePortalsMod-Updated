@@ -26,8 +26,6 @@ public class IPConfig implements ConfigData {
     @ConfigEntry.Category("client")
     public boolean lagAttackProof = true;
     @ConfigEntry.Category("client")
-    public boolean compatibilityRenderMode = false;
-    @ConfigEntry.Category("client")
     public boolean enableMirrorCreation = true;
     @ConfigEntry.Category("client")
     public boolean enableCrossPortalSound = true;
@@ -45,6 +43,12 @@ public class IPConfig implements ConfigData {
     public boolean enableNetherPortalEffect = true;
     @ConfigEntry.Category("client")
     public boolean enableClientPerformanceAdjustment = true;
+    @ConfigEntry.Category("client")
+    @ConfigEntry.Gui.Tooltip
+    public boolean compatibilityRenderMode = false;
+    @ConfigEntry.Category("client")
+    @ConfigEntry.Gui.Tooltip
+    public boolean PortalRecursionInCompatibilityMode = false;
     
     // client invisible configs
     
@@ -142,6 +146,7 @@ public class IPConfig implements ConfigData {
         }
         
         IPGlobal.renderMode = compatibilityRenderMode ? IPGlobal.RenderMode.compatibility : IPGlobal.RenderMode.normal;
+        IPGlobal.PortalRecursionInCompatibilityMode = PortalRecursionInCompatibilityMode;
         IPGlobal.enableWarning = enableWarning;
         IPGlobal.enableMirrorCreation = enableMirrorCreation;
         IPGlobal.doCheckGlError = doCheckGlError;

@@ -8,6 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.opengl.GL11;
 import qouteall.imm_ptl.core.CHelper;
+import qouteall.imm_ptl.core.IPCGlobal;
+import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -16,7 +18,10 @@ import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import java.util.List;
 
 public class RendererUsingFrameBuffer extends PortalRenderer {
-    SecondaryFrameBuffer secondaryFrameBuffer = new SecondaryFrameBuffer();
+    
+    private SecondaryFrameBuffer[] secondaryFrameBuffers = new SecondaryFrameBuffer[]{
+        new SecondaryFrameBuffer()
+    };
     
     @Override
     public void onBeforeTranslucentRendering(PoseStack matrixStack) {
@@ -40,14 +45,33 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     
     @Override
     public void prepareRendering() {
-        secondaryFrameBuffer.prepare();
+        // when Portal Recursion in Compatibility mode rendering is on, keep one buffer per possible
+        // recursion depth. when it's off, collapse back down to a single buffer
+        // (the original behavior).
+        int requiredBufferCount = IPGlobal.PortalRecursionInCompatibilityMode ?
+            (PortalRendering.getMaxPortalLayer() + 1) : 1;
+        
+        if (secondaryFrameBuffers.length != requiredBufferCount) {
+            for (SecondaryFrameBuffer fb : secondaryFrameBuffers) {
+                if (fb.fb != null) {
+                    fb.fb.destroyBuffers();
+                }
+            }
+            
+            secondaryFrameBuffers = new SecondaryFrameBuffer[requiredBufferCount];
+            for (int i = 0; i < requiredBufferCount; i++) {
+                secondaryFrameBuffers[i] = new SecondaryFrameBuffer();
+            }
+        }
+        
+        secondaryFrameBuffers[0].prepare();
         
         client.getMainRenderTarget().bindWrite(false);
         
         GlStateManager._enableDepthTest();
         
         GL11.glDisable(GL11.GL_STENCIL_TEST);
-    
+        
         IPPortingLibCompat.setIsStencilEnabled(client.getMainRenderTarget(), false);
 //        ((IEFrameBuffer) client.getMainRenderTarget()).setIsStencilBufferEnabledAndReload(false);
     }
@@ -56,9 +80,19 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         PortalRenderable portal,
         PoseStack matrixStack
     ) {
-        if (PortalRendering.isRendering()) {
-            //only support one-layer portal
-            return;
+        int portalLayer = PortalRendering.getPortalLayer();
+        
+        if (portalLayer > 0) {
+            if (!IPGlobal.PortalRecursionInCompatibilityMode) {
+                //only support one-layer portal unless the Portal Recursion in Compatibility mode toggle is enabled
+                return;
+            }
+            
+            if (portalLayer >= secondaryFrameBuffers.length) {
+                // deeper than the buffers we allocated for (should track
+                // PortalRendering.getMaxPortalLayer(), so this shouldn't normally trigger)
+                return;
+            }
         }
         
         if (!testShouldRenderPortal(portal, matrixStack)) {
@@ -68,6 +102,9 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         PortalRendering.pushPortalLayer(portal.getPortalLike());
         
         RenderTarget oldFrameBuffer = client.getMainRenderTarget();
+        
+        SecondaryFrameBuffer secondaryFrameBuffer = secondaryFrameBuffers[portalLayer];
+        secondaryFrameBuffer.prepare();
         
         ((IEMinecraftClient) client).setFrameBuffer(secondaryFrameBuffer.fb);
         secondaryFrameBuffer.fb.bindWrite(true);
@@ -88,7 +125,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         PortalRendering.popPortalLayer();
         
         CHelper.enableDepthClamp();
-        renderSecondBufferIntoMainBuffer(portal, matrixStack);
+        renderSecondBufferIntoMainBuffer(portal, matrixStack, secondaryFrameBuffer);
         CHelper.disableDepthClamp();
         
         MyRenderHelper.debugFramebufferDepth();
@@ -120,7 +157,9 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         });
     }
     
-    private void renderSecondBufferIntoMainBuffer(PortalRenderable portal, PoseStack matrixStack) {
+    private void renderSecondBufferIntoMainBuffer(
+        PortalRenderable portal, PoseStack matrixStack, SecondaryFrameBuffer secondaryFrameBuffer
+    ) {
         MyRenderHelper.drawPortalAreaWithFramebuffer(
             portal,
             secondaryFrameBuffer.fb,
@@ -131,7 +170,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     
     protected void renderPortals(PoseStack matrixStack) {
         List<PortalRenderable> portalsToRender = getPortalsToRender(matrixStack);
-    
+        
         for (PortalRenderable portal : portalsToRender) {
             doRenderPortal(portal, matrixStack);
         }
