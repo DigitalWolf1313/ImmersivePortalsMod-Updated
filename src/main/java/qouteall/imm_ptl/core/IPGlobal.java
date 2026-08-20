@@ -57,6 +57,8 @@ public class IPGlobal {
     
     public static RenderMode renderMode = RenderMode.normal;
     
+    public static boolean PortalRecursionInCompatibilityMode = false;
+    
     public static boolean doCheckGlError = true;
     
     public static boolean renderYourselfInPortal = true;
