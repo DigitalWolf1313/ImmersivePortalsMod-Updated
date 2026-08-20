@@ -184,6 +184,8 @@
   "text.autoconfig.immersive_portals.option.maxPortalLayer": "Max Portal Rendering Recursion Layer",
   "text.autoconfig.immersive_portals.option.lagAttackProof": "Lag Attack Proof",
   "text.autoconfig.immersive_portals.option.compatibilityRenderMode": "Compatibility Render Mode",
+  "text.autoconfig.immersive_portals.option.PortalRecursionInCompatibilityMode": "Allow Portal Recursion in Compatibility Mode",
+  "text.autoconfig.immersive_portals.option.PortalRecursionInCompatibilityMode.@Tooltip": "Allows portal-in-portal rendering while using compatibility mode.",
   "text.autoconfig.immersive_portals.option.enableMirrorCreation": "Enable Mirror Creation",
   "text.autoconfig.immersive_portals.option.enableCrossPortalSound": "Enable Cross Portal Sound",
   "text.autoconfig.immersive_portals.option.pureMirror": "Pure Mirror",

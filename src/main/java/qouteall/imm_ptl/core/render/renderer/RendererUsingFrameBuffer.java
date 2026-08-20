@@ -8,6 +8,8 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import qouteall.imm_ptl.core.CHelper;
+import qouteall.imm_ptl.core.IPCGlobal;
+import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -21,7 +23,10 @@ import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import java.util.List;
 
 public class RendererUsingFrameBuffer extends PortalRenderer {
-    SecondaryFrameBuffer secondaryFrameBuffer = new SecondaryFrameBuffer();
+
+    private SecondaryFrameBuffer[] secondaryFrameBuffers = new SecondaryFrameBuffer[]{
+        new SecondaryFrameBuffer()
+    };
     
     @Override
     public void onBeforeTranslucentRendering(Matrix4f modelView) {
@@ -45,7 +50,26 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     
     @Override
     public void prepareRendering() {
-        secondaryFrameBuffer.prepare();
+        // when Portal Recursion in Compatibility mode rendering is on, keep one buffer per possible
+        // recursion depth. when it's off, collapse back down to a single buffer
+        // (the original behavior).
+        int requiredBufferCount = IPGlobal.PortalRecursionInCompatibilityMode ?
+            (PortalRendering.getMaxPortalLayer() + 1) : 1;
+        
+        if (secondaryFrameBuffers.length != requiredBufferCount) {
+            for (SecondaryFrameBuffer fb : secondaryFrameBuffers) {
+                if (fb.fb != null) {
+                    fb.fb.destroyBuffers();
+                }
+            }
+            
+            secondaryFrameBuffers = new SecondaryFrameBuffer[requiredBufferCount];
+            for (int i = 0; i < requiredBufferCount; i++) {
+                secondaryFrameBuffers[i] = new SecondaryFrameBuffer();
+            }
+        }
+        
+        secondaryFrameBuffers[0].prepare();
         
         client.getMainRenderTarget().bindWrite(false);
         
@@ -61,9 +85,19 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         Portal portal,
         Matrix4f modelView
     ) {
-        if (PortalRendering.isRendering()) {
-            //only support one-layer portal
-            return;
+        int portalLayer = PortalRendering.getPortalLayer();
+        
+        if (portalLayer > 0) {
+            if (!IPGlobal.PortalRecursionInCompatibilityMode) {
+                //only support one-layer portal unless the Portal Recursion in Compatibility mode toggle is enabled
+                return;
+            }
+            
+            if (portalLayer >= secondaryFrameBuffers.length) {
+                // deeper than the buffers we allocated for (should track
+                // PortalRendering.getMaxPortalLayer(), so this shouldn't normally trigger)
+                return;
+            }
         }
         
         if (!testShouldRenderPortal(portal, modelView)) {
@@ -73,6 +107,9 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         PortalRendering.pushPortalLayer(portal);
         
         RenderTarget oldFrameBuffer = client.getMainRenderTarget();
+        
+        SecondaryFrameBuffer secondaryFrameBuffer = secondaryFrameBuffers[portalLayer];
+        secondaryFrameBuffer.prepare();
         
         ((IEMinecraftClient) client).ip_setFrameBuffer(secondaryFrameBuffer.fb);
         secondaryFrameBuffer.fb.bindWrite(true);
@@ -93,7 +130,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         PortalRendering.popPortalLayer();
         
         CHelper.enableDepthClamp();
-        renderSecondBufferIntoMainBuffer(portal, modelView);
+        renderSecondBufferIntoMainBuffer(portal, modelView, secondaryFrameBuffer);
         CHelper.disableDepthClamp();
         
         MyRenderHelper.debugFramebufferDepth();
@@ -125,7 +162,9 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         });
     }
     
-    private void renderSecondBufferIntoMainBuffer(Portal portal, Matrix4f modelView) {
+    private void renderSecondBufferIntoMainBuffer(
+        Portal portal, Matrix4f modelView, SecondaryFrameBuffer secondaryFrameBuffer
+    ) {
         MyRenderHelper.drawPortalAreaWithFramebuffer(
             portal,
             secondaryFrameBuffer.fb,

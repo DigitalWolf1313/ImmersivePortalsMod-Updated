@@ -189,6 +189,8 @@
   "text.autoconfig.immersive_portals.option.lagAttackProof": "延遲攻擊防護",
   "text.autoconfig.immersive_portals.option.lagAttackProof.@Tooltip": "延遲時渲染較少的傳送門內容",
   "text.autoconfig.immersive_portals.option.compatibilityRenderMode": "相容性渲染模式",
+  "text.autoconfig.immersive_portals.option.PortalRecursionInCompatibilityMode": "Allow Portal Recursion in Compatibility Mode",
+  "text.autoconfig.immersive_portals.option.PortalRecursionInCompatibilityMode.@Tooltip": "Allows portal-in-portal rendering while using compatibility mode.",
   "text.autoconfig.immersive_portals.option.compatibilityRenderMode.@Tooltip": "在正常情況下，不應觸碰此選項。",
   "text.autoconfig.immersive_portals.option.enableMirrorCreation": "啟用鏡面建立",
   "text.autoconfig.immersive_portals.option.enableCrossPortalSound": "啟用跨傳送門聲音",

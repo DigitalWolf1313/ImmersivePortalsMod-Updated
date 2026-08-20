@@ -7,6 +7,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import qouteall.imm_ptl.core.CHelper;
+import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
@@ -28,10 +29,17 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     public static final IrisCompatibilityPortalRenderer debugModeInstance =
         new IrisCompatibilityPortalRenderer(true);
     
-    private SecondaryFrameBuffer deferredBuffer = new SecondaryFrameBuffer();
+    // one buffer per possible recursion depth when Portal Recursion in Compatibility mode rendering is
+    // enabled (index == PortalRendering.getPortalLayer()). collapses down to a single
+    // buffer (index 0 only) when the "PortalRecursionInCompatibilityMode" setting is off,
+    // which is the original single-layer behavior.
+    private SecondaryFrameBuffer[] deferredBuffers = new SecondaryFrameBuffer[]{
+        new SecondaryFrameBuffer()
+    };
     
     // TODO figure out why this field existed in old versions
-    private Matrix4f passingModelView = new Matrix4f();
+    // per-layer version of the above, indexed the same way
+    private Matrix4f[] passingModelViews = new Matrix4f[]{new Matrix4f()};
     
     public boolean isDebugMode;
     
@@ -48,11 +56,16 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     
     @Override
     public void onBeforeTranslucentRendering(Matrix4f modelView) {
-        if (PortalRendering.isRendering()) {
+        int portalLayer = PortalRendering.getPortalLayer();
+        
+        if (portalLayer > 0 && !IPGlobal.PortalRecursionInCompatibilityMode) {
+            // this renderer only supports one-layer portal unless Portal Recursion in Compatibility mode is enabled
             return;
         }
         
-        passingModelView = modelView;
+        if (portalLayer < passingModelViews.length) {
+            passingModelViews[portalLayer] = modelView;
+        }
         
         GL11.glDisable(GL_STENCIL_TEST);
     }
@@ -69,6 +82,32 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     
     @Override
     public void prepareRendering() {
+        // when portal-in-portal rendering is on, keep one buffer per possible
+        // recursion depth. when it's off, collapse back down to a single buffer
+        // (the original behavior).
+        int requiredBufferCount = IPGlobal.PortalRecursionInCompatibilityMode ?
+            (PortalRendering.getMaxPortalLayer() + 1) : 1;
+        
+        if (deferredBuffers.length != requiredBufferCount) {
+            for (SecondaryFrameBuffer fb : deferredBuffers) {
+                if (fb.fb != null) {
+                    fb.fb.destroyBuffers();
+                }
+            }
+            
+            deferredBuffers = new SecondaryFrameBuffer[requiredBufferCount];
+            for (int i = 0; i < requiredBufferCount; i++) {
+                deferredBuffers[i] = new SecondaryFrameBuffer();
+            }
+            
+            passingModelViews = new Matrix4f[requiredBufferCount];
+            for (int i = 0; i < requiredBufferCount; i++) {
+                passingModelViews[i] = new Matrix4f();
+            }
+        }
+        
+        SecondaryFrameBuffer deferredBuffer = deferredBuffers[0];
+        
         deferredBuffer.prepare();
         
         deferredBuffer.fb.setClearColor(1, 0, 0, 0);
@@ -83,9 +122,19 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     }
     
     protected void doRenderPortal(Portal portal, Matrix4f modelView) {
-        if (PortalRendering.isRendering()) {
-            // this renderer only supports one-layer portal
-            return;
+        int portalLayer = PortalRendering.getPortalLayer();
+        
+        if (portalLayer > 0) {
+            if (!IPGlobal.PortalRecursionInCompatibilityMode) {
+                // this renderer only supports one-layer portal unless Portal Recursion in Compatibility mode is enabled
+                return;
+            }
+            
+            if (portalLayer >= deferredBuffers.length) {
+                // deeper than the buffers we allocated for (should track
+                // PortalRendering.getMaxPortalLayer(), so this shouldn't normally trigger)
+                return;
+            }
         }
         
         if (!testShouldRenderPortal(portal, modelView)) {
@@ -101,6 +150,8 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         PortalRendering.popPortalLayer();
         
         CHelper.enableDepthClamp();
+        
+        SecondaryFrameBuffer deferredBuffer = deferredBuffers[portalLayer];
         
         if (!isDebugMode) {
             // draw portal content to the deferred buffer
@@ -155,6 +206,9 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         //reset projection matrix
 //        client.gameRenderer.loadProjectionMatrix(RenderStates.basicProjectionMatrix);
         
+        int portalLayer = PortalRendering.getPortalLayer();
+        SecondaryFrameBuffer deferredBuffer = deferredBuffers[portalLayer];
+        
         deferredBuffer.fb.bindWrite(true);
         
         return PortalRenderInfo.renderAndDecideVisibility(portal, () -> {
@@ -170,13 +224,30 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     
     @Override
     public void onBeforeHandRendering(Matrix4f modelView) {
-        if (PortalRendering.isRendering()) {
-            return;
+        int portalLayer = PortalRendering.getPortalLayer();
+        
+        if (portalLayer > 0) {
+            if (!IPGlobal.PortalRecursionInCompatibilityMode) {
+                // this renderer only supports one-layer portal unless Portal Recursion in Compatibility mode is enabled
+                return;
+            }
+            
+            if (portalLayer >= deferredBuffers.length) {
+                // deeper than the buffers we allocated for (should track
+                // PortalRendering.getMaxPortalLayer(), so this shouldn't normally trigger)
+                return;
+            }
         }
         
         CHelper.checkGlError();
         
-        // save the main framebuffer to deferredBuffer
+        SecondaryFrameBuffer deferredBuffer = deferredBuffers[portalLayer];
+        // buffers for recursion depth > 0 are not sized/allocated in prepareRendering(),
+        // so make sure this one is ready before we copy into it
+        deferredBuffer.prepare();
+        
+        // save the main framebuffer (this recursion depth's freshly rendered world) to
+        // its deferred buffer
         IPIrisHelper.newCopyDepthStencil(
             client.getMainRenderTarget(),
             deferredBuffer.fb
@@ -196,7 +267,12 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         CHelper.checkGlError();
         
-        renderPortals(passingModelView);
+        Matrix4f effectiveModelView = portalLayer < passingModelViews.length ?
+            passingModelViews[portalLayer] : modelView;
+        
+        // recursing here (via doRenderPortal -> renderPortalContent) is what lets
+        // portals seen through other portals be rendered when Portal Recursion in Compatibility mode is enabled
+        renderPortals(effectiveModelView);
         
         RenderTarget mainFrameBuffer = client.getMainRenderTarget();
         mainFrameBuffer.bindWrite(true);

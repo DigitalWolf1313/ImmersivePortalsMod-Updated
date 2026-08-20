@@ -184,6 +184,8 @@
   "text.autoconfig.immersive_portals.option.maxPortalLayer": "Maksimum Portal Oluşturma Yineleme Katmanı",
   "text.autoconfig.immersive_portals.option.lagAttackProof": "Gecikme Saldırısı Kanıtı",
   "text.autoconfig.immersive_portals.option.compatibilityRenderMode": "Uyumluluk İşleme Modu",
+  "text.autoconfig.immersive_portals.option.PortalRecursionInCompatibilityMode": "Allow Portal Recursion in Compatibility Mode",
+  "text.autoconfig.immersive_portals.option.PortalRecursionInCompatibilityMode.@Tooltip": "Allows portal-in-portal rendering while using compatibility mode.",
   "text.autoconfig.immersive_portals.option.enableMirrorCreation": "Ayna Oluşturmayı Etkinleştir",
   "text.autoconfig.immersive_portals.option.enableCrossPortalSound": "Portallar Arası Sesi Etkinleştir",
   "text.autoconfig.immersive_portals.option.pureMirror": "Saf Ayna",

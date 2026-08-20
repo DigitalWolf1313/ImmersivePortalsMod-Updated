@@ -621,6 +621,11 @@ public class ClientDebugCommand {
         );
         registerSwitchCommand(
             builder,
+            "portal_recursion_in_compatibility",
+            cond -> IPGlobal.PortalRecursionInCompatibilityMode = cond
+        );
+        registerSwitchCommand(
+            builder,
             "view_bob_reduce",
             cond -> IPGlobal.viewBobbingReduce = cond
         );

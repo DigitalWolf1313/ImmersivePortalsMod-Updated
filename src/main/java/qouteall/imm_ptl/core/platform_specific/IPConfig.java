@@ -52,6 +52,9 @@ public class IPConfig implements ConfigData {
     @ConfigEntry.Category("client")
     @ConfigEntry.Gui.Tooltip
     public boolean compatibilityRenderMode = false;
+    @ConfigEntry.Category("client")
+    @ConfigEntry.Gui.Tooltip
+    public boolean PortalRecursionInCompatibilityMode = false;
 
     // client invisible configs
     
@@ -176,6 +179,7 @@ public class IPConfig implements ConfigData {
         }
         
         IPGlobal.renderMode = compatibilityRenderMode ? IPGlobal.RenderMode.compatibility : IPGlobal.RenderMode.normal;
+        IPGlobal.PortalRecursionInCompatibilityMode = PortalRecursionInCompatibilityMode;
         IPGlobal.enableWarning = enableWarning;
         IPGlobal.enableMirrorCreation = enableMirrorCreation;
         IPGlobal.doCheckGlError = doCheckGlError;
