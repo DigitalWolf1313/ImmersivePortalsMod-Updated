@@ -43,6 +43,28 @@ configs:
               gl_ClipDistance[0] = dot(Position.xyz, iportal_ClippingEquation.xyz) + 
                   iportal_ClippingEquation.w;
     debugOutput: false
+  - comment: For iris entity rendering
+    type: vs
+    affectedShaders:
+      - entities_alpha
+      - entities_cutout
+      - entities_cutout_diffuse
+      - entities_eyes
+      - entities_eyes_trans
+      - entities_solid
+      - entities_solid_bright
+      - entities_solid_diffuse
+      - entities_translucent
+    transformations:
+      - pattern: |-
+          void ( )*main( )*\(( )*( )*\)( )*(
+          )*\{
+        replacement: |-
+          uniform vec4 iportal_ClippingEquation;
+          void main() {
+              gl_ClipDistance[0] = dot(iris_Position, iportal_ClippingEquation.xyz) +
+                iportal_ClippingEquation.w;
+    debugOutput: false
   - comment: For iris+sodium
     type: vs
     affectedShaders:

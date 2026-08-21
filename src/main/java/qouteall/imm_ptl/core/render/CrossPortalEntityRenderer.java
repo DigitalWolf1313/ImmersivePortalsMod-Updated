@@ -89,9 +89,6 @@ public class CrossPortalEntityRenderer {
     }
     
     private static boolean isCrossPortalRenderingEnabled() {
-        if (IrisInterface.invoker.isIrisPresent()) {
-            return false;
-        }
         return IPGlobal.correctCrossPortalEntityRendering;
     }
     

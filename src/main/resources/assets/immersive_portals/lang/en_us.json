@@ -198,7 +198,7 @@
   "text.autoconfig.immersive_portals.option.pureMirror.@Tooltip": "If enabled, the glass texture will not appear on mirror. (automatically enabled when Iris is installed)",
   "text.autoconfig.immersive_portals.option.renderYourselfInPortal": "Render Yourself In Portal",
   "text.autoconfig.immersive_portals.option.correctCrossPortalEntityRendering": "Cross Portal Entity Rendering",
-  "text.autoconfig.immersive_portals.option.correctCrossPortalEntityRendering.@Tooltip": "Better cross-portal entity rendering. (automatically disabled when Iris is installed)",
+  "text.autoconfig.immersive_portals.option.correctCrossPortalEntityRendering.@Tooltip": "Better cross-portal entity rendering.",
   "text.autoconfig.immersive_portals.option.reducedPortalRendering": "Reduced Portal Rendering",
   "text.autoconfig.immersive_portals.option.netherPortalOverlay": "Nether Portal Overlay",
   "text.autoconfig.immersive_portals.option.enableNetherPortalEffect": "Enable Nether Portal Sound and Particle",
