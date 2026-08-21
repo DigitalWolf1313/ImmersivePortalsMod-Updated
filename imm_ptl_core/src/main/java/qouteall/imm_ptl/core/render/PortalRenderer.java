@@ -248,7 +248,7 @@ public abstract class PortalRenderer {
                 .setOverwriteCameraTransformation(false)
                 .setDescription(portalLike.getDiscriminator())
                 .setRenderDistance(renderDistance)
-                .setDoRenderHand(shouldRenderHand())
+                .setDoRenderHand(shouldRenderHand(portalLike))
                 .setEnableViewBobbing(true)
                 .setDoRenderSky(!portalLike.isFuseView())
                 .build()
@@ -263,8 +263,12 @@ public abstract class PortalRenderer {
         
     }
 
-    public boolean shouldRenderHand() {
-        return false;
+    public boolean shouldRenderHand(PortalLike portal) {
+        return client.options.getCameraType().isFirstPerson()
+            && IrisInterface.invoker.isShaders()
+            && portal.getDistanceToNearestPointInPortal(
+                TransformationManager.getIsometricAdjustedCameraPos()
+            ) <= 0.35;
     }
     
     private static int getPortalRenderDistance(PortalLike portal) {
@@ -358,19 +362,19 @@ public abstract class PortalRenderer {
             }
         }
 
-    IPGlobal.RenderMode effectiveRenderMode = IPGlobal.renderMode;
+        IPGlobal.RenderMode effectiveRenderMode = IPGlobal.renderMode;
 
-    if (IPVoxyCompat.isVoxyPresent
-        && !IrisInterface.invoker.isShaders()
-        && effectiveRenderMode != IPGlobal.RenderMode.compatibility) {
+        if (IPVoxyCompat.isVoxyPresent
+            && !IrisInterface.invoker.isShaders()
+            && effectiveRenderMode != IPGlobal.RenderMode.compatibility) {
 
-        if (!voxyWarned) {
-        voxyWarned = true;
-        CHelper.printChat(Component.translatable("imm_ptl.voxy_warning"));
-    }
+            if (!voxyWarned) {
+                voxyWarned = true;
+                CHelper.printChat(Component.translatable("imm_ptl.voxy_warning"));
+            }
 
-    effectiveRenderMode = IPGlobal.RenderMode.compatibility;
-    }
+            effectiveRenderMode = IPGlobal.RenderMode.compatibility;
+        }
         
         IPModInfoChecking.checkShaderpack();
         

@@ -168,10 +168,6 @@ public class IrisPortalRenderer extends PortalRenderer {
         mcFrameBuffer.bindWrite(true);
     }
 
-    @Override
-    public boolean shouldRenderHand() {
-        return true;
-    }
     
     @Override
     public void onHandRenderingEnded(PoseStack matrixStack) {
