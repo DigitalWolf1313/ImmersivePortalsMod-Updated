@@ -20,6 +20,7 @@
     "flywheel.MixinFlywheelQuadConverter",
     "iris.MixinIrisClearPass",
     "iris.MixinIrisFinalPassRenderer",
+    "iris.MixinIrisHandRenderer",
     "iris.MixinIrisIris",
     "iris.MixinIrisRenderingPipeline",
     "iris.MixinIrisShadowRenderTargets",

@@ -24,7 +24,6 @@ import qouteall.imm_ptl.core.compat.iris_compatibility.ExperimentalIrisPortalRen
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisCompatibilityPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisPortalRenderer;
-import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.Mirror;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
@@ -219,7 +218,7 @@ public abstract class PortalRenderer {
                 .setOverwriteCameraTransformation(false)
                 .setDescription(portal.getDiscriminator())
                 .setRenderDistance(renderDistance)
-                .setDoRenderHand(shouldRenderHand())
+                .setDoRenderHand(shouldRenderHand(portal))
                 .setEnableViewBobbing(true)
                 .setDoRenderSky(!portal.isFuseView())
                 .build()
@@ -234,8 +233,12 @@ public abstract class PortalRenderer {
         
     }
 
-    public boolean shouldRenderHand() {
-        return false;
+    public boolean shouldRenderHand(Portal portal) {
+        return client.options.getCameraType().isFirstPerson()
+            && IrisInterface.invoker.isShaders()
+            && portal.getDistanceToNearestPointInPortal(
+                TransformationManager.getIsometricAdjustedCameraPos()
+            ) <= 0.35;
     }
     
     private static int getPortalRenderDistance(Portal portal) {
@@ -329,19 +332,19 @@ public abstract class PortalRenderer {
             }
         }
 
-    IPGlobal.RenderMode effectiveRenderMode = IPGlobal.renderMode;
+        IPGlobal.RenderMode effectiveRenderMode = IPGlobal.renderMode;
 
-    if (IPVoxyCompat.isVoxyPresent
-        && !IrisInterface.invoker.isShaders()
-        && effectiveRenderMode != IPGlobal.RenderMode.compatibility) {
+        if (IPVoxyCompat.isVoxyPresent
+            && !IrisInterface.invoker.isShaders()
+            && effectiveRenderMode != IPGlobal.RenderMode.compatibility) {
 
-        if (!voxyWarned) {
-        voxyWarned = true;
-        CHelper.printChat(Component.translatable("imm_ptl.voxy_warning"));
-    }
+            if (!voxyWarned) {
+                voxyWarned = true;
+                CHelper.printChat(Component.translatable("imm_ptl.voxy_warning"));
+            }
 
-    effectiveRenderMode = IPGlobal.RenderMode.compatibility;
-    }
+            effectiveRenderMode = IPGlobal.RenderMode.compatibility;
+        }
         
         IPModInfoChecking.checkShaderpack();
         
