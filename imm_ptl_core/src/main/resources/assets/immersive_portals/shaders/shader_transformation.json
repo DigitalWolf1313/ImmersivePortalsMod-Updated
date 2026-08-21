@@ -12,9 +12,9 @@
       {
         "pattern": "void ( )*main( )*\\(( )*( )*\\)( )*(\n)*\\{",
         "replacement": [
-          "uniform vec4 imm_ptl_ClippingEquation;",
+          "uniform vec4 iportal_ClippingEquation;",
           "void main() {",
-          "    gl_ClipDistance[0] = dot(Position.xyz + ChunkOffset, imm_ptl_ClippingEquation.xyz) + imm_ptl_ClippingEquation.w;"
+          "    gl_ClipDistance[0] = dot(Position.xyz + ChunkOffset, iportal_ClippingEquation.xyz) + iportal_ClippingEquation.w;"
         ]
       }
     ],
@@ -42,9 +42,36 @@
       {
         "pattern": "void ( )*main( )*\\(( )*( )*\\)( )*(\n)*\\{",
         "replacement": [
-          "uniform vec4 imm_ptl_ClippingEquation;",
+          "uniform vec4 iportal_ClippingEquation;",
           "void main() {",
-          "    gl_ClipDistance[0] = dot(Position.xyz, imm_ptl_ClippingEquation.xyz) + imm_ptl_ClippingEquation.w;"
+          "    gl_ClipDistance[0] = dot(Position.xyz, iportal_ClippingEquation.xyz) + iportal_ClippingEquation.w;"
+        ]
+      }
+    ],
+    "debugOutput": false
+  },
+  {
+    "comment": "For iris entity rendering",
+    "type": "vs",
+    "affectedShaders": [
+      "entities_alpha",
+      "entities_cutout",
+      "entities_cutout_diffuse",
+      "entities_eyes",
+      "entities_eyes_trans",
+      "entities_solid",
+      "entities_solid_bright",
+      "entities_solid_diffuse",
+      "entities_translucent"
+    ],
+    "transformations": [
+      {
+        "pattern": "void ( )*main( )*\\(( )*( )*\\)( )*(\\n)*\\{",
+        "replacement": [
+          "uniform vec4 iportal_ClippingEquation;",
+          "void main() {",
+          "    gl_ClipDistance[0] = dot(iris_Position, iportal_ClippingEquation.xyz) +",
+          "      iportal_ClippingEquation.w;"
         ]
       }
     ],
@@ -61,7 +88,7 @@
       {
         "pattern": "void ( )*main( )*\\(( )*( )*\\)( )*(\n)*\\{",
         "replacement": [
-          "uniform vec4 imm_ptl_ClippingEquation;",
+          "uniform vec4 iportal_ClippingEquation;",
           "void main() {"
         ]
       },
@@ -69,7 +96,7 @@
         "pattern": "\\}(?![\\S\\s]*\\})",
         "comment": "match the last } ([\\S\\s] matches any character). use the modelview-transformed coordinate",
         "replacement": [
-          "gl_ClipDistance[0] = dot((iris_ModelViewMatrix * getVertexPosition()).xyz, imm_ptl_ClippingEquation.xyz) + imm_ptl_ClippingEquation.w;}"
+          "gl_ClipDistance[0] = dot((iris_ModelViewMatrix * getVertexPosition()).xyz, iportal_ClippingEquation.xyz) + iportal_ClippingEquation.w;}"
         ]
       }
     ],
@@ -85,7 +112,7 @@
       {
         "pattern": "void ( )*main( )*\\(( )*( )*\\)( )*(\n)*\\{",
         "replacement": [
-          "uniform vec4 imm_ptl_ClippingEquation;",
+          "uniform vec4 iportal_ClippingEquation;",
           "void main() {"
         ]
       },
@@ -93,7 +120,7 @@
         "pattern": "\\}(?![\\S\\s]*\\})",
         "comment": "match the last } ([\\S\\s] matches any character). use the modelview-transformed coordinate",
         "replacement": [
-          "gl_ClipDistance[0] = dot((u_ModelViewMatrix * vec4(position, 1.0)).xyz, imm_ptl_ClippingEquation.xyz) + imm_ptl_ClippingEquation.w;}"
+          "gl_ClipDistance[0] = dot((u_ModelViewMatrix * vec4(position, 1.0)).xyz, iportal_ClippingEquation.xyz) + iportal_ClippingEquation.w;}"
         ]
       }
     ],

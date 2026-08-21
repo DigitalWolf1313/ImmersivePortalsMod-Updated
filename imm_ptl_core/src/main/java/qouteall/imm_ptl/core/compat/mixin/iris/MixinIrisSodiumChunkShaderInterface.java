@@ -26,9 +26,9 @@ public class MixinIrisSodiumChunkShaderInterface {
     
     @Unique
     private void ip_init(int shaderId) {
-        uIPClippingEquation = GL20C.glGetUniformLocation(shaderId, "imm_ptl_ClippingEquation");
+        uIPClippingEquation = GL20C.glGetUniformLocation(shaderId, "iportal_ClippingEquation");
         if (uIPClippingEquation < 0) {
-            Helper.err("uniform imm_ptl_ClippingEquation not found in transformed iris shader");
+            Helper.err("uniform iportal_ClippingEquation not found in transformed iris shader");
             uIPClippingEquation = -1;
         }
     }

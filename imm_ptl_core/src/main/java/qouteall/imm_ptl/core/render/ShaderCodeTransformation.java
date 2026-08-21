@@ -71,6 +71,10 @@ public class ShaderCodeTransformation {
             return inputCode;
         }
         
+        if (inputCode.contains("uniform vec4 iportal_ClippingEquation")) {
+            return inputCode;
+        }
+        
         Config selected = getConfig(type, shaderId);
         
         if (selected == null) {

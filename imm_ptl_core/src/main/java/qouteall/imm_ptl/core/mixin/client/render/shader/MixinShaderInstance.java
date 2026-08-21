@@ -42,7 +42,7 @@ public abstract class MixinShaderInstance implements IEShader {
         
         if (ShaderCodeTransformation.shouldAddUniform(name)) {
             ip_clippingEquation = new Uniform(
-                "imm_ptl_ClippingEquation",
+                "iportal_ClippingEquation",
                 7, 4, this_
             );
             uniforms.add(ip_clippingEquation);
