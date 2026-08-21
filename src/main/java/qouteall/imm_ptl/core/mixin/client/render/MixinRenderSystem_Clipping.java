@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.IPGlobal;
-import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
@@ -36,22 +35,20 @@ public class MixinRenderSystem_Clipping {
     @Unique
     private static void iportal_onShaderSet() {
         if (IPGlobal.enableClippingMechanism) {
-            if (!IrisInterface.invoker.isIrisPresent()) {
-                if (CrossPortalEntityRenderer.isRenderingEntityNormally ||
-                    CrossPortalEntityRenderer.isRenderingEntityProjection
-                ) {
-                    FrontClipping.updateClippingEquationUniformForCurrentShader(true);
-                }
-                else if (RenderStates.isRenderingPortalWeather) {
-                    FrontClipping.updateClippingEquationUniformForCurrentShader(false);
-                }
-                else {
-                    FrontClipping.unsetClippingUniform();
-                }
+            if (CrossPortalEntityRenderer.isRenderingEntityNormally ||
+                CrossPortalEntityRenderer.isRenderingEntityProjection
+            ) {
+                FrontClipping.updateClippingEquationUniformForCurrentShader(true);
+            }
+            else if (RenderStates.isRenderingPortalWeather) {
+                FrontClipping.updateClippingEquationUniformForCurrentShader(false);
             }
             else {
                 FrontClipping.unsetClippingUniform();
             }
+        }
+        else {
+            FrontClipping.unsetClippingUniform();
         }
     }
 }
