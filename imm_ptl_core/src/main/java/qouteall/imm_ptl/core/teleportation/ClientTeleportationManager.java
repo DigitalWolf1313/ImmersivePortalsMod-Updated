@@ -357,6 +357,8 @@ public class ClientTeleportationManager {
         //but after pre render info being updated
         RenderStates.updatePreRenderInfo(tickDelta);
         
+        FogRendererContext.snapBiomeTransition();
+        
         if (teleportation.isDynamic()) {
             LOGGER.info(
                 """
@@ -426,6 +428,7 @@ public class ClientTeleportationManager {
 //        disableTeleportFor(2);
         
         RenderStates.updatePreRenderInfo(RenderStates.getPartialTick());
+        FogRendererContext.snapBiomeTransition();
         MyGameRenderer.vanillaTerrainSetupOverride = 1;
     }
     
