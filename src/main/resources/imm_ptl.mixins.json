@@ -97,6 +97,7 @@
     "client.interaction.MixinMultiPlayerGameMode",
     "client.multiworld_awareness.MixinBiomeAmbientSoundPlayer",
     "client.multiworld_awareness.MixinFogRenderer",
+    "client.multiworld_awareness.MixinFogRenderer_PortalBiome",
     "client.particle.IEParticle",
     "client.particle.MixinParticleEngine",
     "client.render.IERenderSystem",

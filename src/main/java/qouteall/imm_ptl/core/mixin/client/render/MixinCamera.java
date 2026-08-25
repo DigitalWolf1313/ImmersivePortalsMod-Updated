@@ -5,6 +5,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.material.FogType;
+import qouteall.imm_ptl.core.portal.Portal;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,10 +13,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.ducks.IECamera;
 import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
-import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 @Mixin(Camera.class)
 public abstract class MixinCamera implements IECamera {
@@ -50,17 +54,41 @@ public abstract class MixinCamera implements IECamera {
         WorldRenderInfo.adjustCameraPos(this_);
     }
     
+    // Sample fluid at the portal destination instead of the camera's current position.
+    private final Deque<CameraFluidSampleState> fluidSampleStack = new ArrayDeque<>();
+
     @Inject(
         method = "Lnet/minecraft/client/Camera;getFluidInCamera()Lnet/minecraft/world/level/material/FogType;",
-        at = @At("HEAD"),
-        cancellable = true
+        at = @At("HEAD")
     )
-    private void getSubmergedFluidState(CallbackInfoReturnable<FogType> cir) {
-        if (PortalRendering.isRendering()) {
-            cir.setReturnValue(FogType.NONE);
-            cir.cancel();
+    private void onGetFluidInCameraHead(CallbackInfoReturnable<FogType> cir) {
+        if (!PortalRendering.isRendering()) {
+            return;
         }
+        Portal portal = PortalRendering.getRenderingPortal();
+        if (portal == null) {
+            return;
+        }
+
+        fluidSampleStack.push(new CameraFluidSampleState(this.level, this.position));
+        this.level = portal.getDestinationWorld();
+        this.setPosition(portal.getDestPos());
     }
+
+    @Inject(
+        method = "Lnet/minecraft/client/Camera;getFluidInCamera()Lnet/minecraft/world/level/material/FogType;",
+        at = @At("RETURN")
+    )
+    private void onGetFluidInCameraReturn(CallbackInfoReturnable<FogType> cir) {
+        if (fluidSampleStack.isEmpty()) {
+            return;
+        }
+        CameraFluidSampleState savedState = fluidSampleStack.pop();
+        this.level = savedState.level();
+        this.setPosition(savedState.position());
+    }
+
+    private record CameraFluidSampleState(BlockGetter level, Vec3 position) {}
     
 //    @Inject(method = "getMaxZoom", at = @At("HEAD"), cancellable = true)
 //    private void onGetMaxZoomHead(float f, CallbackInfoReturnable<Float> cir) {

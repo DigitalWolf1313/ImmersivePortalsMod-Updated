@@ -138,6 +138,13 @@ public class FogRendererContext {
     
     public static void onPlayerTeleport(ResourceKey<Level> from, ResourceKey<Level> to) {
         swappingManager.updateOuterDimensionAndChangeContext(to);
+        
+        snapBiomeTransition();
+    }
+    
+    // Makes the underwater fog color adopt the current biome immediately instead of fading.
+    public static void snapBiomeTransition() {
+        MixinFogRenderer.ip_setBiomeChangedTime(-1L);
     }
     
 }
