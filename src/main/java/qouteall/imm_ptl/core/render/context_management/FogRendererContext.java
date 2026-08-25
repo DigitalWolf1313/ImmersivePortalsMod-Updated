@@ -30,6 +30,9 @@ public class FogRendererContext {
     public static Consumer<FogRendererContext> copyContextToObject;
     public static Supplier<Vec3> getCurrentFogColor;
     
+    // Snap the biome fog transition to the current color.
+    public static Runnable snapBiomeChangedTime;
+    
     public static StaticFieldsSwappingManager<FogRendererContext> swappingManager;
     
     public static void init() {
@@ -110,6 +113,14 @@ public class FogRendererContext {
     
     public static void onPlayerTeleport(ResourceKey<Level> from, ResourceKey<Level> to) {
         swappingManager.updateOuterDimensionAndChangeContext(to);
+        
+        snapBiomeTransition();
+    }
+    
+    public static void snapBiomeTransition() {
+        if (snapBiomeChangedTime != null) {
+            snapBiomeChangedTime.run();
+        }
     }
     
 }

@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Stack;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -76,7 +77,7 @@ public class StaticFieldsSwappingManager<Context> {
     
     public ResourceKey<Level> getCurrentDimension() {
         if (swappedContext.empty()) {
-            Validate.notNull(outerDimension);
+            Objects.requireNonNull(outerDimension);
             return outerDimension;
         }
         else {
@@ -85,14 +86,23 @@ public class StaticFieldsSwappingManager<Context> {
     }
     
     public void pushSwapping(ResourceKey<Level> newDimension) {
-        ResourceKey<Level> currentDimension = getCurrentDimension();
+        ContextRecord<Context> oldContext = getCurrentContextRecord();
+        Objects.requireNonNull(oldContext);
         
-        ContextRecord<Context> oldContext = contextMap.get(currentDimension);
-        ContextRecord<Context> newContext = contextMap.computeIfAbsent(newDimension, k -> {
-            return new ContextRecord<>(newDimension, contextConstructor.get(), true);
-        });
-        Validate.notNull(oldContext);
-        Validate.notNull(newContext);
+        // Same-dimension recursion needs a separate context to avoid aliasing
+        // the ancestor's context during portal rendering.
+        boolean isDimensionAlreadyActive = isDimensionActiveInChain(newDimension);
+        
+        ContextRecord<Context> newContext;
+        if (isDimensionAlreadyActive) {
+            newContext = new ContextRecord<>(newDimension, contextConstructor.get(), true);
+        }
+        else {
+            newContext = contextMap.computeIfAbsent(newDimension, k -> {
+                return new ContextRecord<>(newDimension, contextConstructor.get(), true);
+            });
+        }
+        Objects.requireNonNull(newContext);
         
         swappedContext.push(newContext);
         
@@ -103,11 +113,34 @@ public class StaticFieldsSwappingManager<Context> {
     
     public void popSwapping() {
         ContextRecord<Context> outerContext = swappedContext.pop();
-        ContextRecord<Context> innerContext = contextMap.get(getCurrentDimension());
+        ContextRecord<Context> innerContext = getCurrentContextRecord();
         
         transferDataFromStaticFieldsToObject(outerContext);
         
         transferDataFromObjectToStaticFields(innerContext);
+    }
+    
+    // Returns the actual active record, including temporary same-dimension ones.
+    private ContextRecord<Context> getCurrentContextRecord() {
+        if (swappedContext.empty()) {
+            Objects.requireNonNull(outerDimension);
+            return contextMap.get(outerDimension);
+        }
+        else {
+            return swappedContext.peek();
+        }
+    }
+    
+    private boolean isDimensionActiveInChain(ResourceKey<Level> dimension) {
+        if (dimension == outerDimension) {
+            return true;
+        }
+        for (ContextRecord<Context> record : swappedContext) {
+            if (record.dimension == dimension) {
+                return true;
+            }
+        }
+        return false;
     }
     
     public void swapAndInvoke(ResourceKey<Level> newDimension, Runnable func) {
@@ -147,7 +180,7 @@ public class StaticFieldsSwappingManager<Context> {
     //called when player teleports
     public void updateOuterDimensionAndChangeContext(ResourceKey<Level> newDimension) {
         Validate.isTrue(!isSwapped());
-        Validate.notNull(outerDimension);
+        Objects.requireNonNull(outerDimension);
         
         ResourceKey<Level> oldDimension = this.outerDimension;
         
