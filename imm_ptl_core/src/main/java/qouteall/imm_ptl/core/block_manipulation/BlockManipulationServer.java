@@ -7,18 +7,25 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
@@ -27,6 +34,7 @@ import org.slf4j.Logger;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.compat.PehkuiInterface;
+import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.network.PacketRedirection;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -45,6 +53,13 @@ public class BlockManipulationServer {
         @Nullable BlockHitResult blockHitResult
     ) {
     
+    }
+    
+    /**
+     * Whether a player can reach an entity across a portal, plus the portal to
+     * virtually relocate through when not reachable directly (null portal = direct).
+     */
+    private record EntityReachResult(boolean reachable, @Nullable Portal portal) {
     }
     
     public static final ThreadLocal<Context> REDIRECT_CONTEXT =
@@ -169,6 +184,29 @@ public class BlockManipulationServer {
                 }
             );
         }
+        
+        /**
+         * {@link qouteall.imm_ptl.core.mixin.client.interaction.MixinMultiPlayerGameMode#ip_redirectPacket}
+         */
+        @SuppressWarnings("JavadocReference")
+        public static void processInteractPacket(
+            ServerPlayer player,
+            ResourceKey<Level> dimension,
+            byte[] packetBytes
+        ) {
+            FriendlyByteBuf buf = IPMcHelper.bytesToBuf(packetBytes);
+            ServerboundInteractPacket packet = new ServerboundInteractPacket(buf);
+            
+            ServerLevel world = player.server.getLevel(dimension);
+            Validate.notNull(world, "missing %s", dimension.location());
+            
+            withRedirect(
+                new Context(world, null),
+                () -> {
+                    doProcessInteract(world, player, packet);
+                }
+            );
+        }
     }
     
     public static void init() {
@@ -218,6 +256,181 @@ public class BlockManipulationServer {
         return action == ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK ||
             action == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK ||
             action == ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK;
+    }
+    
+    /**
+     * {@link ServerGamePacketListenerImpl#handleInteract(ServerboundInteractPacket)}
+     */
+    @IPVanillaCopy
+    private static void doProcessInteract(
+        ServerLevel world, ServerPlayer player, ServerboundInteractPacket packet
+    ) {
+        Entity target = packet.getTarget(world);
+        
+        player.resetLastActionTime();
+        player.setShiftKeyDown(packet.isUsingSecondaryAction());
+        
+        if (target == null) {
+            return;
+        }
+        
+        if (!world.getWorldBorder().isWithinBounds(target.blockPosition())) {
+            return;
+        }
+        
+        EntityReachResult reachResult = getEntityReachResult(world.dimension(), player, target);
+        if (!reachResult.reachable()) {
+            LOGGER.error("Reject cross-portal entity interact {} {} {}", player, world, target);
+            return;
+        }
+        
+        packet.dispatch(new ServerboundInteractPacket.Handler() {
+            @Override
+            public void onInteraction(InteractionHand hand) {
+                if (!target.isAlive()) {
+                    return;
+                }
+                withPlayerRelocatedThroughPortal(
+                    player, reachResult.portal(), world,
+                    () -> player.interactOn(target, hand)
+                );
+            }
+            
+            @Override
+            public void onInteraction(InteractionHand hand, Vec3 pos) {
+                if (target.isRemoved()) {
+                    return;
+                }
+                withPlayerRelocatedThroughPortal(
+                    player, reachResult.portal(), world,
+                    () -> {
+                        if (target.interactAt(player, pos, hand).consumesAction()) {
+                            player.swing(hand, true);
+                        }
+                    }
+                );
+            }
+            
+            @Override
+            public void onAttack() {
+                doProcessAttack(world, player, target, reachResult.portal());
+            }
+        });
+    }
+    
+    /**
+     * Cross-portal melee attack. Relocates the player through the portal so knockback
+     * and the sword sweep use the target's dimension.
+     */
+    @IPVanillaCopy
+    private static void doProcessAttack(
+        ServerLevel world, ServerPlayer player, Entity target, @Nullable Portal portal
+    ) {
+        if (target instanceof ItemEntity || target instanceof ExperienceOrb || target == player
+            || (target instanceof AbstractArrow arrow && !arrow.isAttackable())
+        ) {
+            LOGGER.warn(
+                "Player {} tried to attack an invalid entity through a portal",
+                player.getName().getString()
+            );
+            return;
+        }
+        
+        ItemStack itemStack = player.getItemInHand(InteractionHand.MAIN_HAND);
+        if (!itemStack.isItemEnabled(world.enabledFeatures())) {
+            return;
+        }
+        
+        withPlayerRelocatedThroughPortal(player, portal, world, () -> player.attack(target));
+    }
+    
+    /**
+     * Runs {@code action} with the player virtually relocated through {@code portal}
+     * (position, rotation, and world for cross-dimension portals) so vanilla
+     * interaction logic uses the target's dimension. Always restores the player.
+     */
+    private static void withPlayerRelocatedThroughPortal(
+        ServerPlayer player, @Nullable Portal portal, ServerLevel world, Runnable action
+    ) {
+        if (portal == null) {
+            action.run();
+            return;
+        }
+        
+        Vec3 oldPos = player.position();
+        float oldYaw = player.getYRot();
+        float oldPitch = player.getXRot();
+        Level oldLevel = player.level();
+        
+        Vec3 newPos = portal.transformPoint(oldPos);
+        Vec3 newLook = portal.transformLocalVecNonScale(player.getLookAngle()).normalize();
+        double newYaw = Math.toDegrees(Math.atan2(-newLook.x, newLook.z));
+        double newPitch = Math.toDegrees(Math.asin(
+            Mth.clamp(-newLook.y, -1.0, 1.0)
+        ));
+        
+        player.setPos(newPos);
+        player.setYRot((float) newYaw);
+        player.setXRot((float) newPitch);
+        // cross-dimension: point the player at the target's world so sweep/world queries are correct
+        if (oldLevel != world) {
+            ((IEEntity) player).ip_setWorld(world);
+        }
+        try {
+            action.run();
+        }
+        finally {
+            if (oldLevel != world) {
+                ((IEEntity) player).ip_setWorld(oldLevel);
+            }
+            player.setPos(oldPos);
+            player.setYRot(oldYaw);
+            player.setXRot(oldPitch);
+        }
+    }
+    
+    /**
+     * Portal-aware reach check mirroring {@link #canPlayerReach}. Returns the portal
+     * used (null when reachable directly); {@link EntityReachResult#reachable()} is
+     * false when the target cannot be reached at all.
+     */
+    private static EntityReachResult getEntityReachResult(
+        ResourceKey<Level> dimension,
+        ServerPlayer player,
+        Entity target
+    ) {
+        if (!canDoCrossPortalInteractionEvent.invoker().test(player)) {
+            return new EntityReachResult(false, null);
+        }
+        
+        double playerScale = PehkuiInterface.invoker.computeBlockReachScale(player);
+        
+        AABB targetBox = target.getBoundingBox();
+        Vec3 playerEyePos = player.getEyePosition();
+        double distanceSquareLimit = ServerGamePacketListenerImpl.MAX_INTERACTION_DISTANCE
+            * playerScale * playerScale;
+        Portal portal = IPMcHelper.getNearbyPortals(
+            player,
+            IPGlobal.maxNormalPortalRadius
+        )        .filter(p -> p.getDestDim() == dimension && p.isInteractableBy(player))
+        .filter(p -> {
+            Vec3 transformedEyePos = p.transformPoint(playerEyePos);
+            return targetBox.distanceToSqr(transformedEyePos)
+                < distanceSquareLimit * p.getScale() * p.getScale();
+        })
+        .findFirst()
+        .orElse(null);
+        
+        if (portal != null) {
+            return new EntityReachResult(true, portal);
+        }
+        
+        if (player.level().dimension() == dimension
+            && targetBox.distanceToSqr(playerEyePos) < distanceSquareLimit) {
+            return new EntityReachResult(true, null);
+        }
+        
+        return new EntityReachResult(false, null);
     }
     
     /**
