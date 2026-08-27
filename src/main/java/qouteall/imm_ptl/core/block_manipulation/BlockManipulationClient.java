@@ -6,13 +6,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Tuple;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -21,10 +24,13 @@ import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
 import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
+import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalPlaceholderBlock;
 import qouteall.imm_ptl.core.portal.PortalUtils;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 public class BlockManipulationClient {
@@ -178,7 +184,7 @@ public class BlockManipulationClient {
             }
         );
 
-        // Sable ships: the traverseBlocks lambda above bypasses level.clip, so sub-levels
+        // IPSable Intergration: the traverseBlocks lambda above bypasses level.clip, so sub-levels
         // (native ones in the dest world AND foreign straddle projections into it) are
         // invisible to it. Run the overlay-aware clip too; if it hits a ship (plot-coord
         // result) that is frame-closer than the terrain hit, prefer it.
@@ -208,13 +214,83 @@ public class BlockManipulationClient {
             );
         }
         
+        // if an entity is closer than the block/fluid hit, target it instead
+        // (this is what allows melee attacks and interactions to reach through a portal)
+        EntityHitResult entityHitResult = raytraceEntitiesThroughPortal(world, from, to);
+        if (entityHitResult != null) {
+            double entityDistSq = from.distanceToSqr(entityHitResult.getLocation());
+            double blockDistSq = hitResultIsMissedOrNull(remoteHitResult)
+                ? Double.MAX_VALUE
+                : from.distanceToSqr(remoteHitResult.getLocation());
+            if (entityDistSq < blockDistSq) {
+                remoteHitResult = entityHitResult;
+            }
+        }
+        
         if (remoteHitResult != null) {
-            if (!world.getBlockState(((BlockHitResult) remoteHitResult).getBlockPos()).isAir()) {
+            if (remoteHitResult instanceof EntityHitResult) {
+                client.hitResult = createMissedHitResult(from, to);
+                remotePointedDim = portal.getDestDim();
+            }
+            else if (!world.getBlockState(((BlockHitResult) remoteHitResult).getBlockPos()).isAir()) {
                 client.hitResult = createMissedHitResult(from, to);
                 remotePointedDim = portal.getDestDim();
             }
         }
         
+    }
+    
+    /**
+     * Raytraces entities in the destination world along the portal-transformed ray,
+     * mirroring the algorithm used by vanilla entity picking (see
+     * {@code net.minecraft.world.entity.projectile.ProjectileUtil#getEntityHitResult}),
+     * but without needing a "shooter" entity to anchor it (the player entity does not
+     * exist in the remote {@link ClientLevel}).
+     */
+    @Nullable
+    private static EntityHitResult raytraceEntitiesThroughPortal(
+        ClientLevel world, Vec3 from, Vec3 to
+    ) {
+        double closestDistSq = from.distanceToSqr(to);
+        
+        AABB searchBox = new AABB(from, to).inflate(1.0);
+        
+        List<Entity> candidates = world.getEntities(
+            (Entity) null, searchBox,
+            entity -> entity.isPickable() && !entity.isSpectator() && !(entity instanceof Portal)
+        );
+        
+        Entity closestEntity = null;
+        Vec3 closestHitPos = null;
+        
+        for (Entity entity : candidates) {
+            AABB entityBox = entity.getBoundingBox().inflate(entity.getPickRadius());
+            
+            if (entityBox.contains(from)) {
+                if (closestEntity == null || closestDistSq > 0) {
+                    closestEntity = entity;
+                    closestHitPos = from;
+                    closestDistSq = 0;
+                }
+                continue;
+            }
+            
+            Optional<Vec3> hit = entityBox.clip(from, to);
+            if (hit.isPresent()) {
+                double distSq = from.distanceToSqr(hit.get());
+                if (distSq < closestDistSq) {
+                    closestEntity = entity;
+                    closestHitPos = hit.get();
+                    closestDistSq = distSq;
+                }
+            }
+        }
+        
+        if (closestEntity == null) {
+            return null;
+        }
+        
+        return new EntityHitResult(closestEntity, closestHitPos);
     }
     
     /**
