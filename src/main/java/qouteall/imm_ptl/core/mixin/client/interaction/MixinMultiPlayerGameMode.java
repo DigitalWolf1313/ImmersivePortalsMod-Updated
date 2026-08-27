@@ -7,6 +7,7 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.resources.ResourceKey;
@@ -112,6 +113,42 @@ public abstract class MixinMultiPlayerGameMode implements IEClientPlayerInteract
         return ip_redirectPacket(packet);
     }
     
+    // redirects melee attacks through a portal to the correct dimension
+    @ModifyArg(
+        method = "attack",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"
+        )
+    )
+    private Packet<?> redirectSendInAttack(Packet<?> packet) {
+        return ip_redirectPacket(packet);
+    }
+    
+    // redirects right-click entity interactions (interact) through a portal to the correct dimension
+    @ModifyArg(
+        method = "interact",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"
+        )
+    )
+    private Packet<?> redirectSendInInteract(Packet<?> packet) {
+        return ip_redirectPacket(packet);
+    }
+    
+    // redirects right-click entity interactions (interact-at) through a portal to the correct dimension
+    @ModifyArg(
+        method = "interactAt",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"
+        )
+    )
+    private Packet<?> redirectSendInInteractAt(Packet<?> packet) {
+        return ip_redirectPacket(packet);
+    }
+    
     private static Packet<?> ip_redirectPacket(Packet<?> packet) {
         if (ClientWorldLoader.getIsWorldSwitched()) {
             ResourceKey<Level> dimension = Minecraft.getInstance().level.dimension();
@@ -133,6 +170,16 @@ public abstract class MixinMultiPlayerGameMode implements IEClientPlayerInteract
                 
                 return McRemoteProcedureCall.createPacketToSendToServer(
                     "qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer.RemoteCallables.processUseItemOnPacket",
+                    dimension,
+                    IPMcHelper.bufToBytes(buf)
+                );
+            }
+            else if (packet instanceof ServerboundInteractPacket interactPacket) {
+                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                ServerboundInteractPacket.STREAM_CODEC.encode(buf, interactPacket);
+                
+                return McRemoteProcedureCall.createPacketToSendToServer(
+                    "qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer.RemoteCallables.processInteractPacket",
                     dimension,
                     IPMcHelper.bufToBytes(buf)
                 );
