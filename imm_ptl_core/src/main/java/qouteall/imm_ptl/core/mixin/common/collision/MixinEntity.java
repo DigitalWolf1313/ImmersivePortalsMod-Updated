@@ -315,6 +315,10 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
         }
         
         ip_portalCollisionHandler.notifyCollidingWithPortal(this_, ((Portal) portal));
+        
+        if (level.isClientSide) {
+            IPMcHelper.onClientEntityTick(this_);
+        }
     }
     
     @Override

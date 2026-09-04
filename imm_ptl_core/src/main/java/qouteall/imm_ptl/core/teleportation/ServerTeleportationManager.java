@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -491,6 +492,8 @@ public class ServerTeleportationManager {
         
         TeleportationUtil.transformEntityVelocity(portal, entity, TeleportationUtil.PortalPointVelocity.zero);
         
+        applyRotationTransformation(entity, portal);
+        
         if (portal.dimensionTo != entity.level().dimension()) {
             entity = changeEntityDimension(entity, portal.dimensionTo, newEyePos, true);
             
@@ -515,7 +518,10 @@ public class ServerTeleportationManager {
                 "qouteall.imm_ptl.core.teleportation.ClientTeleportationManager.RemoteCallables.updateEntityPos",
                 entity.level().dimension(),
                 entity.getId(),
-                entity.position()
+                entity.position(),
+                entity.getYRot(),
+                entity.getXRot(),
+                entity.getYHeadRot()
             )
         );
         
@@ -546,8 +552,35 @@ public class ServerTeleportationManager {
             collidingPoint = portal.getPointProjectedToPlane(eyePosThisTick);
         }
         
-        Vec3 result = portal.transformPoint(collidingPoint).add(portal.getContentDirection().scale(0.05));
+        Vec3 transformedDirection = portal.transformLocalVecNonScale(deltaMovementDirection).normalize();
+        if (transformedDirection.lengthSqr() < 1.0E-6) {
+            transformedDirection = portal.getContentDirection();
+        }
+        
+        Vec3 result = portal.transformPoint(collidingPoint)
+            .add(transformedDirection.scale(0.05));
         return result;
+    }
+    
+    /**
+     * Rotates {@code entity}'s yaw, pitch and head yaw by {@code portal}'s rotation
+     * transformation, so that its facing direction after teleporting matches the
+     * orientation of the destination side of the portal.
+     * <p>
+     * {@link qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer} does the
+     * same yaw/pitch computation for cross-portal block interaction.
+     */
+    private static void applyRotationTransformation(Entity entity, Portal portal) {
+        Vec3 newLookAngle = portal.transformLocalVecNonScale(entity.getLookAngle()).normalize();
+        
+        float newYaw = (float) Math.toDegrees(Math.atan2(-newLookAngle.x, newLookAngle.z));
+        float newPitch = (float) Math.toDegrees(Math.asin(
+            Mth.clamp(-newLookAngle.y, -1.0, 1.0)
+        ));
+        
+        entity.setYRot(newYaw);
+        entity.setXRot(newPitch);
+        entity.setYHeadRot(newYaw);
     }
     
     /**

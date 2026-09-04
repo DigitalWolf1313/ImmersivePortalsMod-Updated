@@ -9,6 +9,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -671,7 +672,10 @@ public class ClientTeleportationManager {
         public static void updateEntityPos(
             ResourceKey<Level> dim,
             int entityId,
-            Vec3 pos
+            Vec3 pos,
+            float yaw,
+            float pitch,
+            float headYaw
         ) {
             ClientLevel world = ClientWorldLoader.getWorld(dim);
             
@@ -683,12 +687,23 @@ public class ClientTeleportationManager {
             }
             
             // both of them are important for Minecart
+            entity.setPos(pos);
+            McHelper.setPosAndLastTickPos(entity, pos, pos);
             entity.lerpTo(
                 pos.x, pos.y, pos.z,
-                entity.getYRot(), entity.getXRot(),
+                yaw, pitch,
                 0, false
             );
             entity.setPos(pos);
+            entity.setYRot(yaw);
+            entity.setXRot(pitch);
+            entity.setYHeadRot(headYaw);
+            entity.yRotO = yaw;
+            entity.xRotO = pitch;
+            if (entity instanceof LivingEntity livingEntity) {
+                livingEntity.yBodyRot = yaw;
+                livingEntity.yBodyRotO = yaw;
+            }
         }
     }
 }
