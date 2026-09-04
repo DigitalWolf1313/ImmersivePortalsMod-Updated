@@ -126,10 +126,14 @@ dependencies {
     include("com.github.iPortalTeam:DimLib:${dimlib_version}")
 
 
-    modApi("dev.ryanhcode.sable:sable-common-${project.minecraft_version}:2.0.3")
+    modCompileOnly("dev.ryanhcode.sable:sable-common-${project.minecraft_version}:2.0.3") {
+    exclude (group: "io.github.ocelot")
+    exclude group: "foundry.veil"
+    }
 
     modCompileOnly("foundry.veil:veil-fabric-${project.minecraft_version}:4.3.0") {
     exclude group: "maven.modrinth"
+    exclude group: "io.github.ocelot"
     exclude group: "me.fallenbreath"
     exclude(group: "net.fabricmc.fabric-api")
     }
