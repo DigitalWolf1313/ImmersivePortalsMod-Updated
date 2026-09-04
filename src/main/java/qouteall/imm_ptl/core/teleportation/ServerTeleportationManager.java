@@ -552,6 +552,8 @@ public class ServerTeleportationManager {
             portal, entity, TeleportationUtil.PortalPointVelocity.ZERO, oldPos
         );
         
+        applyRotationTransformation(entity, portal);
+        
         if (portal.getDestDim() != entity.level().dimension()) {
             entity = changeEntityDimension(entity, portal.getDestDim(), newEyePos, true);
             
@@ -576,7 +578,10 @@ public class ServerTeleportationManager {
                 "qouteall.imm_ptl.core.teleportation.ClientTeleportationManager.RemoteCallables.updateEntityPos",
                 entity.level().dimension(),
                 entity.getId(),
-                entity.position()
+                entity.position(),
+                entity.getYRot(),
+                entity.getXRot(),
+                entity.getYHeadRot()
             )
         );
         
@@ -607,9 +612,32 @@ public class ServerTeleportationManager {
             collidingPoint = eyePosLastTick;
         }
         
+        Vec3 transformedDirection = portal.transformLocalVecNonScale(deltaMovementDirection).normalize();
+        
         Vec3 result = portal.transformPoint(collidingPoint)
-            .add(deltaMovementDirection.scale(0.05));
+            .add(transformedDirection.scale(0.05));
         return result;
+    }
+    
+    /**
+     * Rotates {@code entity}'s yaw, pitch and head yaw by {@code portal}'s rotation
+     * transformation, so that its facing direction after teleporting matches the
+     * orientation of the destination side of the portal.
+     * <p>
+     * {@link qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer} does the
+     * same yaw/pitch computation for cross-portal block interaction.
+     */
+    private static void applyRotationTransformation(Entity entity, Portal portal) {
+        Vec3 newLookAngle = portal.transformLocalVecNonScale(entity.getLookAngle()).normalize();
+        
+        float newYaw = (float) Math.toDegrees(Math.atan2(-newLookAngle.x, newLookAngle.z));
+        float newPitch = (float) Math.toDegrees(Math.asin(
+            Math.clamp(-newLookAngle.y, -1.0, 1.0)
+        ));
+        
+        entity.setYRot(newYaw);
+        entity.setXRot(newPitch);
+        entity.setYHeadRot(newYaw);
     }
     
     /**

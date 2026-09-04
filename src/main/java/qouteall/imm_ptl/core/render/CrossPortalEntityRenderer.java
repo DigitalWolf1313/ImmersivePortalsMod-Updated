@@ -376,7 +376,6 @@ public class CrossPortalEntityRenderer {
                 return false;
             }
             
-            // client colliding portal update is not immediate
             if (collidingPortal != null && !(entity instanceof LocalPlayer)) {
                 if (renderingPortal instanceof Portal) {
                     if (!Portal.isReversePortal(collidingPortal, ((Portal) renderingPortal))) {
