@@ -201,6 +201,10 @@ public class TransformationManager {
             player.xBob = finalPitch;
             player.yBobO = finalYaw;
             player.xBobO = finalPitch;
+            player.yBodyRot = finalYaw;
+            player.yBodyRotO = finalYaw;
+            player.yHeadRot = finalYaw;
+            player.yHeadRotO = finalYaw;
             
             // now we need to keep immediate final rotation unchanged, to keep teleportation seamless.
             // no need to consider portalRot for now.

@@ -89,8 +89,11 @@ public class O_O {
         return new ImmPtlClientChunkMap(world, loadDistance);
     }
     
+    private static final boolean IS_PEHKUI_PRESENT =
+        FabricLoader.getInstance().isModLoaded("pehkui");
+    
     public static boolean getIsPehkuiPresent() {
-        return FabricLoader.getInstance().isModLoaded("pehkui");
+        return IS_PEHKUI_PRESENT;
     }
     
     @Nullable
