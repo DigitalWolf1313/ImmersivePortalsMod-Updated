@@ -22,8 +22,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.IPGlobal;
+import qouteall.imm_ptl.core.chunk_loading.NewChunkTrackingGraph;
 import qouteall.imm_ptl.core.ducks.IEThreadedAnvilChunkStorage;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -102,6 +104,15 @@ public abstract class MixinChunkMap_C implements IEThreadedAnvilChunkStorage {
     private void onUpdateChunkTracking(ServerPlayer player, ChunkPos chunkPos, MutableObject<ClientboundLevelChunkWithLightPacket> packetCache, boolean wasLoaded, boolean load, CallbackInfo ci) {
         ci.cancel();
         // Note C2ME redirects getTickingChunk (1.18.2)
+    }
+
+     @Inject(
+        method = "getPlayers",
+        at = @At("HEAD"),
+        cancellable = true
+    )
+    public void getPlayers(ChunkPos pos, boolean boundaryOnly, CallbackInfoReturnable<List<ServerPlayer>> cir) {
+        cir.setReturnValue(NewChunkTrackingGraph.getPlayersViewingChunk(this.level.dimension(), pos.x, pos.z, boundaryOnly));
     }
     
     // do my packet sending
