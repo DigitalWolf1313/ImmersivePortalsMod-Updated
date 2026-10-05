@@ -61,10 +61,7 @@ public class EntitySync {
                         IETrackedEntity ieTrackedEntity = (IETrackedEntity) trackedEntity;
                         
                         long chunkPos = ieTrackedEntity.ip_getEntity().chunkPosition().toLong();
-                        // Sable plot chunks are far outside vanilla distance manager range.
-                        // Sable wraps ChunkMap/ServerLevel calls to treat them as ticking;
-                        // EntitySync calls DistanceManager directly, so we must special-case.
-                        // Without this, quite alot of things break as they never broadcasted their changes to the client.
+                        // Sable plot chunks bypass vanilla ticking range checks so special-case them here.
                         if (distanceManager.inEntityTickingRange(chunkPos)
                             || (IPSableCompat.isSablePresent && SableInterface.isSablePlotChunk(world, chunkPos))
                         ) {

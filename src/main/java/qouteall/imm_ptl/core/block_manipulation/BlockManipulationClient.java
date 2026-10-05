@@ -184,10 +184,8 @@ public class BlockManipulationClient {
             }
         );
 
-        // IPSable Intergration: the traverseBlocks lambda above bypasses level.clip, so sub-levels
-        // (native ones in the dest world AND foreign straddle projections into it) are
-        // invisible to it. Run the overlay-aware clip too; if it hits a ship (plot-coord
-        // result) that is frame-closer than the terrain hit, prefer it.
+        // IPSable integration: traverseBlocks bypasses level.clip, so sub-levels are hidden.
+        // Run an overlay-aware clip as well and prefer a ship hit when it is closer than terrain.
         if (IPSableCompat.isSablePresent&& IPSableCompat.isIPSablePresent) {
             BlockHitResult overlayHit = world.clip(new ClipContext(
                 from, to, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
