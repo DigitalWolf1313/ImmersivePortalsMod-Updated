@@ -35,6 +35,7 @@ import qouteall.q_misc_util.my_util.LimitedLogger;
 
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class CollisionHelper {
@@ -490,6 +491,52 @@ public class CollisionHelper {
                 ((IEEntity) entity).ip_notifyCollidingWithPortal(portal);
             }
         );
+    }
+    
+    /**
+     * Register portals the entity may collide with while moving to the target position.
+     * <p>
+     * The normal update predicts movement from velocity, which fails for server-side players
+     * (the server applies client-sent movement) and for entities that move fast or change velocity
+     * abruptly, making the server miss portals and clip the movement against blocks behind them.
+     * Using the actual movement before it's applied fixes that.
+     * <p>
+     * The entity's current position decides whether it can collide, same as the normal update.
+     */
+    public static void notifyCollidingPortalsForMovement(Entity entity, Vec3 targetPos) {
+        Vec3 movement = targetPos.subtract(entity.position());
+        
+        if (movement.lengthSqr() > 20 * 20) {
+            // same limit as in cross-portal collision calculation
+            return;
+        }
+        
+        AABB currentBox = entity.getBoundingBox();
+        AABB sweptBox = currentBox.minmax(currentBox.move(movement));
+        
+        Consumer<Portal> notifier = portal -> {
+            if (!portal.isTeleportable()) {
+                return;
+            }
+            
+            if (!portal.getBoundingBox().intersects(sweptBox)) {
+                return;
+            }
+            
+            if (canCollideWithPortal(entity, portal, 0)) {
+                ((IEEntity) entity).ip_notifyCollidingWithPortal(portal);
+            }
+        };
+        
+        McHelper.findEntitiesByBox(
+            Portal.class,
+            entity.level(),
+            sweptBox,
+            IPGlobal.maxNormalPortalRadius,
+            p -> true
+        ).forEach(notifier);
+        
+        GlobalPortalStorage.getGlobalPortals(entity.level()).forEach(notifier);
     }
     
     public static AABB getStretchedBoundingBox(Entity entity) {
