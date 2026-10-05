@@ -26,6 +26,7 @@ import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.chunk_loading.NewChunkTrackingGraph;
+import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.compat.GravityChangerInterface;
 import qouteall.imm_ptl.core.compat.PehkuiInterface;
 import qouteall.imm_ptl.core.ducks.IEEntity;
@@ -82,7 +83,7 @@ public class ServerTeleportationManager {
             }
         }
         
-        manageGlobalPortalTeleportation();
+        manageCollidingPortalTeleportation();
     }
     
     public static boolean shouldEntityTeleport(Portal portal, Entity entity) {
@@ -125,10 +126,15 @@ public class ServerTeleportationManager {
         }
         
         double motion = McHelper.lastTickPosOf(entity).distanceToSqr(entity.position());
-        if (motion > 20) {
+        if (motion > 20 * 20) {
             return;
         }
         IPGlobal.serverTaskList.addTask(() -> {
+            // may be already teleported by another portal or by the colliding portal check
+            if (entity.isRemoved()) {
+                return true;
+            }
+            
             try {
                 teleportRegularEntity(entity, portal);
             }
@@ -413,16 +419,27 @@ public class ServerTeleportationManager {
         player.connection.send(packet);
     }
     
-    private void manageGlobalPortalTeleportation() {
+    /**
+     * Teleports regular entities through the portals they are colliding with.
+     * Global portals don't tick, and the portal tick only finds entities near the portal,
+     * so fast entities that end the tick far behind the portal are missed.
+     */
+    private void manageCollidingPortalTeleportation() {
         for (ServerLevel world : MiscHelper.getServer().getAllLevels()) {
             for (Entity entity : world.getAllEntities()) {
-                if (!(entity instanceof ServerPlayer)) {
-                    Portal collidingPortal = ((IEEntity) entity).ip_getCollidingPortal();
-                    
-                    if (collidingPortal != null && collidingPortal.getIsGlobal()) {
-                        if (shouldEntityTeleport(collidingPortal, entity)) {
-                            startTeleportingRegularEntity(collidingPortal, entity);
-                        }
+                if (entity instanceof ServerPlayer || entity instanceof Portal) {
+                    continue;
+                }
+                
+                PortalCollisionHandler handler = ((IEEntity) entity).ip_getPortalCollisionHandler();
+                if (handler == null || !handler.hasCollisionEntry()) {
+                    continue;
+                }
+                
+                for (Portal collidingPortal : handler.getCollidingPortals()) {
+                    if (shouldEntityTeleport(collidingPortal, entity)) {
+                        startTeleportingRegularEntity(collidingPortal, entity);
+                        break;
                     }
                 }
             }
@@ -468,8 +485,8 @@ public class ServerTeleportationManager {
             return;
         }
         
-        if (portal.getDistanceToNearestPointInPortal(entity.getEyePosition()) > 5) {
-            Helper.err("Entity is too far to teleport " + entity + portal);
+        if (portal.getDistanceToNearestPointInPortal(entity.getEyePosition()) > 20) {
+            LOGGER.error("Entity is too far to teleport {} {}", entity, portal);
             return;
         }
         
@@ -543,8 +560,11 @@ public class ServerTeleportationManager {
         Vec3 deltaMovement = eyePosThisTick.subtract(eyePosLastTick);
         Vec3 deltaMovementDirection = deltaMovement.normalize();
         
+        // the entity may have moved far past the portal (e.g. falling boats accelerate without limit)
+        double backwardRange = Math.max(5, deltaMovement.length() * 2);
+        
         Vec3 collidingPoint = portal.rayTrace(
-            eyePosThisTick.subtract(deltaMovementDirection.scale(5)),
+            eyePosThisTick.subtract(deltaMovementDirection.scale(backwardRange)),
             eyePosThisTick.add(deltaMovementDirection)
         );
         
