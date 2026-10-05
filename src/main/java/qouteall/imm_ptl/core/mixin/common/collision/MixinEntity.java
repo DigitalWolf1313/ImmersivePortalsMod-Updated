@@ -27,6 +27,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.api.ImmPtlEntityExtension;
+import qouteall.imm_ptl.core.collision.CollisionHelper;
 import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
@@ -114,6 +115,15 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
             }
             
             return Vec3.ZERO;
+        }
+        
+        if (IPGlobal.crossPortalCollision
+            && ip_portalCollisionHandler != null
+            && !(entity instanceof Player)
+        ) {
+            // velocity-based portal prediction misses fast or accelerating entities
+            // register portals by the actual movement, like the server-side player movement does
+            CollisionHelper.notifyCollidingPortalsForMovement(entity, entity.position().add(attemptedMove));
         }
         
         if (!IPGlobal.crossPortalCollision

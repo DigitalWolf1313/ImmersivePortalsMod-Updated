@@ -32,6 +32,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.IPGlobal;
+import qouteall.imm_ptl.core.collision.CollisionHelper;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.ducks.IEPlayerMoveC2SPacket;
 import qouteall.imm_ptl.core.ducks.IEPlayerPositionLookS2CPacket;
@@ -171,6 +172,36 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
         else {
             ip_wrongMovePacketCount = 0;
         }
+    }
+    
+    /**
+     * Register portals before applying the client's movement.
+     * See {@link CollisionHelper#notifyCollidingPortalsForMovement}
+     */
+    @Inject(
+        method = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;handleMovePlayer(Lnet/minecraft/network/protocol/game/ServerboundMovePlayerPacket;)V",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/server/level/ServerPlayer;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V"
+        )
+    )
+    private void onBeforeApplyingMovePacket(ServerboundMovePlayerPacket packet, CallbackInfo ci) {
+        if (!IPGlobal.crossPortalCollision) {
+            return;
+        }
+        
+        if (!packet.hasPosition()) {
+            return;
+        }
+        
+        CollisionHelper.notifyCollidingPortalsForMovement(
+            player,
+            new Vec3(
+                packet.getX(player.getX()),
+                packet.getY(player.getY()),
+                packet.getZ(player.getZ())
+            )
+        );
     }
     
     /**
