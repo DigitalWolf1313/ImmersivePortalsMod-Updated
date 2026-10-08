@@ -8,6 +8,7 @@
     "flywheel.MixinFlywheelCrumblingRenderer",
     "flywheel.MixinFlywheelProgramCompiler",
     "flywheel.MixinFlywheelQuadConverter",
+    "iris.MixinIrisCompositeRenderer",
     "iris.MixinIrisClearPass",
     "iris.MixinIrisFinalPassRenderer",
     "iris.MixinIrisHandRenderer",
