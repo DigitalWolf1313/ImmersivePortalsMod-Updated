@@ -52,6 +52,14 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         return skipClearing;
     }
     
+    // Vanilla clears the whole depth buffer before drawing the hand.
+    // That would erase the depth of the outer world, because the portal content shares its framebuffer.
+    // The outer world draws the hand over the portal areas instead.
+    @Override
+    public boolean shouldRenderHand(PortalLike portal) {
+        return false;
+    }
+    
     @Override
     public void onBeforeTranslucentRendering(PoseStack matrixStack) {
 //        doPortalRendering(matrixStack);
