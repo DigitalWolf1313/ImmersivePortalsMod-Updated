@@ -1,8 +1,13 @@
 package qouteall.imm_ptl.core.compat.mixin.iris;
 
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.pipeline.CompositeRenderer;
+import net.irisshaders.iris.shadows.ShadowRenderTargets;
+import net.irisshaders.iris.uniforms.FrameUpdateNotifier;
+import net.irisshaders.iris.uniforms.custom.CustomUniforms;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -15,7 +20,10 @@ import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeline {
     @Shadow private boolean isRenderingWorld;
     
-//    @Shadow private ShadowRenderTargets shadowRenderTargets;
+    @Shadow private ShadowRenderTargets shadowRenderTargets;
+    @Shadow @Final private CompositeRenderer compositeRenderer;
+    @Shadow @Final private FrameUpdateNotifier updateNotifier;
+    @Shadow @Final private CustomUniforms customUniforms;
     
     @Inject(
         method = "finalizeLevelRendering", at = @At("HEAD"), cancellable = true
@@ -47,8 +55,14 @@ public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeli
         isRenderingWorld = cond;
     }
     
-//    @Override
-//    public ShadowRenderTargets ip_getShadowRenderTargets() {
-//        return shadowRenderTargets;
-//    }
+    @Override
+    public ShadowRenderTargets ip_getShadowRenderTargets() {
+        return shadowRenderTargets;
+    }
+    
+    @Override
+    public void ip_refreshFrameState() {
+        updateNotifier.onNewFrame();
+        customUniforms.update();
+    }
 }
