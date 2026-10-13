@@ -5,9 +5,13 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
+import net.irisshaders.iris.shadows.ShadowRenderTargets;
+import net.irisshaders.iris.uniforms.CapturedRenderingState;
 import net.irisshaders.iris.uniforms.SystemTimeUniforms;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.lwjgl.opengl.GL11;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -19,6 +23,7 @@ import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 import qouteall.imm_ptl.core.render.renderer.PortalRenderer;
 import qouteall.imm_ptl.core.render.renderer.RendererUsingStencil;
+import qouteall.q_misc_util.Helper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -133,42 +138,87 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     public void invokeWorldRendering(WorldRenderInfo worldRenderInfo) {
         WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipeline().get();
         
-//        ShadowMapSwapper.Storage shadowMapCache = null;
-//
-//        if (pipeline instanceof NewWorldRenderingPipeline newWorldRenderingPipeline) {
-//            ShadowRenderTargets shadowRenderTargets = ((IEIrisNewWorldRenderingPipeline) newWorldRenderingPipeline).ip_getShadowRenderTargets();
-//
-//            if (shadowRenderTargets != null) {
-//                ShadowMapSwapper shadowMapSwapper = ((IEIrisShadowRenderTargets) shadowRenderTargets).getShadowMapSwapper();
-//
-//                shadowMapCache = shadowMapSwapper.acquireStorage();
-//
-//                if (shadowMapCache != null) {
-//                    shadowMapCache.copyFromIrisShadowRenderTargets();
-//                }
-//            }
-//        }
+        ShadowMapSwapper.Storage shadowMapCache = null;
         
-        IrisInterface.invoker.updatePerFrameUniforms();
-        
-        
-        SystemTimeUniforms.COUNTER.beginFrame(); // is it necessary?
-        super.invokeWorldRendering(worldRenderInfo);
-        SystemTimeUniforms.COUNTER.beginFrame(); // make Iris to update the uniforms
-        
-        if (pipeline instanceof IrisRenderingPipeline newWorldRenderingPipeline) {
-            // this is important to hand rendering
-            newWorldRenderingPipeline.isBeforeTranslucent = true;
+        if (pipeline instanceof IrisRenderingPipeline irisPipeline) {
+            ShadowRenderTargets shadowRenderTargets =
+                ((IEIrisNewWorldRenderingPipeline) (Object) irisPipeline).ip_getShadowRenderTargets();
+            
+            if (shadowRenderTargets != null) {
+                ShadowMapSwapper shadowMapSwapper =
+                    ((IEIrisShadowRenderTargets) (Object) shadowRenderTargets).getShadowMapSwapper();
+                
+                if (shadowMapSwapper != null) {
+                    shadowMapCache = shadowMapSwapper.acquireStorage();
+                    
+                    if (shadowMapCache != null) {
+                        shadowMapCache.copyFromIrisShadowRenderTargets();
+                    }
+                }
+            }
         }
         
-        // Avoid Iris from force-disabling depth mask
-        ((IEIrisNewWorldRenderingPipeline) (Object) pipeline)
-            .ip_setIsRenderingWorld(false);
+        // Nested portal rendering overwrites Iris's captured G-buffer matrices.
+        // The outer ones are saved as copies because Iris stores the model view by reference.
+        Matrix4f savedGbufferModelView = copyOrNull(CapturedRenderingState.INSTANCE.getGbufferModelView());
+        Matrix4f savedGbufferProjection = copyOrNull(CapturedRenderingState.INSTANCE.getGbufferProjection());
         
-//        if (shadowMapCache != null) {
-//            shadowMapCache.copyToIrisShadowRenderTargets();
-//            shadowMapCache.restitute();
-//        }
+        try {
+            IrisInterface.invoker.updatePerFrameUniforms();
+            
+            SystemTimeUniforms.COUNTER.beginFrame(); // is it necessary?
+            super.invokeWorldRendering(worldRenderInfo);
+            SystemTimeUniforms.COUNTER.beginFrame(); // make Iris to update the uniforms
+            
+            if (pipeline instanceof IrisRenderingPipeline newWorldRenderingPipeline) {
+                // this is important to hand rendering
+                newWorldRenderingPipeline.isBeforeTranslucent = true;
+            }
+            
+            // Avoid Iris from force-disabling depth mask
+            ((IEIrisNewWorldRenderingPipeline) (Object) pipeline)
+                .ip_setIsRenderingWorld(false);
+            
+            // Custom uniforms may read the G-buffer matrices, so they are restored before the refresh.
+            restoreIrisGbufferMatrices(savedGbufferModelView, savedGbufferProjection);
+            
+            // Iris updates its camera trackers and custom uniforms during the nested render.
+            // They are refreshed here so that they match the outer camera again.
+            if (pipeline instanceof IrisRenderingPipeline) {
+                ((IEIrisNewWorldRenderingPipeline) (Object) pipeline).ip_refreshFrameState();
+            }
+        }
+        finally {
+            // Restore again in case an exception skipped the restore above.
+            restoreIrisGbufferMatrices(savedGbufferModelView, savedGbufferProjection);
+            
+            // Portal rendering overwrites the shadow map, so the outer world's one is put back.
+            if (shadowMapCache != null) {
+                shadowMapCache.copyToIrisShadowRenderTargets();
+                shadowMapCache.restitute();
+            }
+        }
+    }
+    
+    @Nullable
+    private static Matrix4f copyOrNull(@Nullable Matrix4fc matrix) {
+        return matrix == null ? null : new Matrix4f(matrix);
+    }
+
+    private static void restoreIrisGbufferMatrices(
+        @Nullable Matrix4f modelView, @Nullable Matrix4f projection
+    ) {
+        CapturedRenderingState state = CapturedRenderingState.INSTANCE;
+        
+        if (modelView != null) {
+            // Iris keeps the model view by reference, so it gets its own copy.
+            state.setGbufferModelView(new Matrix4f(modelView));
+        }
+        
+        if (projection != null) {
+            // Iris copies the projection internally.
+            state.setGbufferProjection(projection);
+        }
     }
     
     protected void doPortalRendering(Matrix4f modelView) {
