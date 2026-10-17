@@ -109,11 +109,12 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     }
     
     protected void restoreDepthOfPortalViewArea(
-        Portal portal, Matrix4f modelView
+        Portal portal, Matrix4f modelView,
+        int portalStencilValue
     ) {
         client.getMainRenderTarget().bindWrite(false);
         
-        setStencilStateForWorldRendering();
+        setStencilLimitation(portalStencilValue);
         
         int originalDepthFunc = GL11.glGetInteger(GL_DEPTH_FUNC);
         
@@ -299,14 +300,14 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         
         renderPortalContent(portal);
         
+        PortalRendering.popPortalLayer();
+        // pop portal layer before restoring depth, for clipping, see ViewAreaRenderer
+        
         if (!portal.isFuseView()) {
-            // TODO sync from RendererUsingStencil
-            restoreDepthOfPortalViewArea(portal, modelView);
+            restoreDepthOfPortalViewArea(portal, modelView, thisPortalStencilValue);
         }
         
         clampStencilValue(outerPortalStencilValue);
-        
-        PortalRendering.popPortalLayer();
         
         return true;
     }
@@ -415,8 +416,12 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     private void setStencilStateForWorldRendering() {
         int thisPortalStencilValue = PortalRendering.getPortalLayer();
         
+        setStencilLimitation(thisPortalStencilValue);
+    }
+    
+    public static void setStencilLimitation(int stencilValue) {
         //draw content in the mask
-        GL11.glStencilFunc(GL_EQUAL, thisPortalStencilValue, 0xFF);
+        GL11.glStencilFunc(GL_EQUAL, stencilValue, 0xFF);
         
         //do not manipulate stencil buffer now
         GL11.glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
