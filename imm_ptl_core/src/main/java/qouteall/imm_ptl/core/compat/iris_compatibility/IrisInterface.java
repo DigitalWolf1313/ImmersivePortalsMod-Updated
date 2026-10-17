@@ -1,6 +1,7 @@
 package qouteall.imm_ptl.core.compat.iris_compatibility;
 
 import net.irisshaders.iris.Iris;
+import net.irisshaders.iris.pipeline.PipelineManager;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shadows.ShadowRenderer;
 import net.irisshaders.iris.uniforms.SystemTimeUniforms;
@@ -33,6 +34,15 @@ public class IrisInterface {
         
         }
         
+        // Iris's current pipeline (switched per dimension by preparePipeline)
+        public Object getCurrentPipeline() {
+            return null;
+        }
+        
+        public void setCurrentPipeline(Object pipeline) {
+        
+        }
+        
         public void reloadPipelines() {
 
         }
@@ -51,6 +61,12 @@ public class IrisInterface {
         
         private Field worldRendererPipelineField = Helper.noError(() -> {
             Field field = LevelRenderer.class.getDeclaredField("pipeline");
+            field.setAccessible(true);
+            return field;
+        });
+        
+        private Field pipelineManagerPipelineField = Helper.noError(() -> {
+            Field field = PipelineManager.class.getDeclaredField("pipeline");
             field.setAccessible(true);
             return field;
         });
@@ -83,6 +99,21 @@ public class IrisInterface {
         public void setPipeline(LevelRenderer worldRenderer, Object pipeline) {
             Helper.noError(() -> {
                 worldRendererPipelineField.set(worldRenderer, pipeline);
+                return null;
+            });
+        }
+        
+        @Override
+        public Object getCurrentPipeline() {
+            return Helper.noError(() ->
+                (WorldRenderingPipeline) pipelineManagerPipelineField.get(Iris.getPipelineManager())
+            );
+        }
+        
+        @Override
+        public void setCurrentPipeline(Object pipeline) {
+            Helper.noError(() -> {
+                pipelineManagerPipelineField.set(Iris.getPipelineManager(), pipeline);
                 return null;
             });
         }

@@ -105,7 +105,7 @@ public abstract class MixinChunkMap_C implements IEThreadedAnvilChunkStorage {
         ci.cancel();
         // Note C2ME redirects getTickingChunk (1.18.2)
     }
-
+    
      @Inject(
         method = "getPlayers",
         at = @At("HEAD"),

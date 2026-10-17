@@ -57,9 +57,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         return skipClearing;
     }
     
-    // Vanilla clears the whole depth buffer before drawing the hand.
-    // That would erase the depth of the outer world, because the portal content shares its framebuffer.
-    // The outer world draws the hand over the portal areas instead.
+    // Vanilla clears the whole depth buffer before the hand, which would erase the outer world's depth.
     @Override
     public boolean shouldRenderHand(PortalLike portal) {
         return false;
@@ -79,8 +77,9 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         doPortalRendering(matrixStack);
         
         // Resume Iris world rendering
-        ((IEIrisNewWorldRenderingPipeline) (Object) Iris.getPipelineManager().getPipeline().get())
-            .ip_setIsRenderingWorld(true);
+        if (Iris.getPipelineManager().getPipeline().orElse(null) instanceof IEIrisNewWorldRenderingPipeline pipeline) {
+            pipeline.ip_setIsRenderingWorld(true);
+        }
     }
     
     @Override
@@ -160,8 +159,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
             }
         }
         
-        // Nested portal rendering overwrites Iris's captured G-buffer matrices.
-        // The outer ones are saved as copies because Iris stores the model view by reference.
+        // nested rendering overwrites the captured G-buffer matrices. Iris keeps the model view by reference, so copy
         Matrix4f savedGbufferModelView = copyOrNull(CapturedRenderingState.INSTANCE.getGbufferModelView());
         Matrix4f savedGbufferProjection = copyOrNull(CapturedRenderingState.INSTANCE.getGbufferProjection());
         
@@ -181,20 +179,19 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
             ((IEIrisNewWorldRenderingPipeline) (Object) pipeline)
                 .ip_setIsRenderingWorld(false);
             
-            // Custom uniforms may read the G-buffer matrices, so they are restored before the refresh.
+            // custom uniforms may read them, so restore before the refresh
             restoreIrisGbufferMatrices(savedGbufferModelView, savedGbufferProjection);
             
-            // Iris updates its camera trackers and custom uniforms during the nested render.
-            // They are refreshed here so that they match the outer camera again.
+            // the nested render updated camera trackers and custom uniforms. match the outer camera again
             if (pipeline instanceof IrisRenderingPipeline) {
                 ((IEIrisNewWorldRenderingPipeline) (Object) pipeline).ip_refreshFrameState();
             }
         }
         finally {
-            // Restore again in case an exception skipped the restore above.
+            // in case an exception skipped the restore above
             restoreIrisGbufferMatrices(savedGbufferModelView, savedGbufferProjection);
             
-            // Portal rendering overwrites the shadow map, so the outer world's one is put back.
+            // put back the outer world's shadow map
             if (shadowMapCache != null) {
                 shadowMapCache.copyToIrisShadowRenderTargets();
                 shadowMapCache.restitute();
@@ -206,19 +203,17 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     private static Matrix4f copyOrNull(@Nullable Matrix4fc matrix) {
         return matrix == null ? null : new Matrix4f(matrix);
     }
-
+    
     private static void restoreIrisGbufferMatrices(
         @Nullable Matrix4f modelView, @Nullable Matrix4f projection
     ) {
         CapturedRenderingState state = CapturedRenderingState.INSTANCE;
         
         if (modelView != null) {
-            // Iris keeps the model view by reference, so it gets its own copy.
             state.setGbufferModelView(new Matrix4f(modelView));
         }
         
         if (projection != null) {
-            // Iris copies the projection internally.
             state.setGbufferProjection(projection);
         }
     }

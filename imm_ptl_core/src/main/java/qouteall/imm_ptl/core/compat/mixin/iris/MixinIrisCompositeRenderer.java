@@ -37,7 +37,7 @@ public class MixinIrisCompositeRenderer {
         
         original.call(framebuffer);
     }
-
+    
     @WrapOperation(
         method = "renderAll",
         at = @At(

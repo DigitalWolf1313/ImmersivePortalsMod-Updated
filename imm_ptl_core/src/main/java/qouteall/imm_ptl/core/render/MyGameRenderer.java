@@ -158,6 +158,8 @@ public class MyGameRenderer {
         ((IEWorldRenderer) oldWorldRenderer).portal_setChunkInfoList(newChunkInfoList);
         
         Object irisPipeline = IrisInterface.invoker.getPipeline(worldRenderer);
+        // the nested render switches Iris's current pipeline to the destination dimension
+        Object irisCurrentPipeline = IrisInterface.invoker.getCurrentPipeline();
         
         //switch
         ((IEMinecraftClient) client).setWorldRenderer(worldRenderer);
@@ -197,61 +199,63 @@ public class MyGameRenderer {
             helper.lightmapTexture.updateLightTexture(0);
         }
         
-        //invoke rendering
-        invokeWrapper.accept(() -> {
-            client.getProfiler().push("render_portal_content");
-            client.gameRenderer.renderLevel(
-                tickDelta,
-                Util.getNanos(),
-                new PoseStack()
-            );
-            client.getProfiler().pop();
-        });
-        
-        SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
-        
-        //recover
-        
-        ((IEMinecraftClient) client).setWorldRenderer(oldWorldRenderer);
-        client.level = oldWorld;
-        ieGameRenderer.setLightmapTextureManager(oldLightmap);
-        client.getBlockEntityRenderDispatcher().level = oldWorld;
-        client.player.noPhysics = oldNoClip;
-        client.gameRenderer.setRenderHand(oldDoRenderHand);
-        
-        ((IEParticleManager) client.particleEngine).ip_setWorld(oldWorld);
-        client.hitResult = oldCrosshairTarget;
-        ieGameRenderer.setCamera(oldCamera);
-        
-        ((IEWorldRenderer) worldRenderer).portal_setTransparencyShader(oldTransparencyShader);
-        
-        FogRendererContext.swappingManager.popSwapping();
-        
-        ((IEWorldRenderer) oldWorldRenderer).portal_setChunkInfoList(oldChunkInfoList);
-        VisibleSectionDiscovery.returnList(newChunkInfoList);
-        
-        ((IEWorldRenderer) worldRenderer).ip_setRenderBuffers(oldRenderBuffers);
-        ((IEMinecraftClient) client).ip_setRenderBuffers(oldClientRenderBuffers);
-        if (newRenderBuffers != null) {
-            returnRenderBuffersObject(newRenderBuffers);
+        try {
+            //invoke rendering
+            invokeWrapper.accept(() -> {
+                client.getProfiler().push("render_portal_content");
+                client.gameRenderer.renderLevel(
+                    tickDelta,
+                    Util.getNanos(),
+                    new PoseStack()
+                );
+                client.getProfiler().pop();
+            });
         }
-        
-        ((IEWorldRenderer) worldRenderer).portal_setFrustum(oldFrustum);
-        
-        client.gameRenderer.resetProjectionMatrix(oldProjectionMatrix);
-        
-        IrisInterface.invoker.setPipeline(worldRenderer, irisPipeline);
-        
-        client.getEntityRenderDispatcher()
-            .prepare(
-                client.level,
-                oldCamera,
-                client.crosshairPickEntity
-            );
-        
-        CHelper.checkGlError();
-        
-        client.smartCull = true;
+        finally {
+            SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
+            
+            ((IEMinecraftClient) client).setWorldRenderer(oldWorldRenderer);
+            client.level = oldWorld;
+            ieGameRenderer.setLightmapTextureManager(oldLightmap);
+            client.getBlockEntityRenderDispatcher().level = oldWorld;
+            client.player.noPhysics = oldNoClip;
+            client.gameRenderer.setRenderHand(oldDoRenderHand);
+            
+            ((IEParticleManager) client.particleEngine).ip_setWorld(oldWorld);
+            client.hitResult = oldCrosshairTarget;
+            ieGameRenderer.setCamera(oldCamera);
+            
+            ((IEWorldRenderer) worldRenderer).portal_setTransparencyShader(oldTransparencyShader);
+            
+            FogRendererContext.swappingManager.popSwapping();
+            
+            ((IEWorldRenderer) oldWorldRenderer).portal_setChunkInfoList(oldChunkInfoList);
+            VisibleSectionDiscovery.returnList(newChunkInfoList);
+            
+            ((IEWorldRenderer) worldRenderer).ip_setRenderBuffers(oldRenderBuffers);
+            ((IEMinecraftClient) client).ip_setRenderBuffers(oldClientRenderBuffers);
+            if (newRenderBuffers != null) {
+                returnRenderBuffersObject(newRenderBuffers);
+            }
+            
+            ((IEWorldRenderer) worldRenderer).portal_setFrustum(oldFrustum);
+            
+            client.gameRenderer.resetProjectionMatrix(oldProjectionMatrix);
+            
+            IrisInterface.invoker.setPipeline(worldRenderer, irisPipeline);
+            IrisInterface.invoker.setCurrentPipeline(irisCurrentPipeline);
+            
+            client.getEntityRenderDispatcher()
+                .prepare(
+                    client.level,
+                    oldCamera,
+                    client.crosshairPickEntity
+                );
+            
+            CHelper.checkGlError();
+            
+            client.smartCull = true;
+        }
     }
     
     /**
