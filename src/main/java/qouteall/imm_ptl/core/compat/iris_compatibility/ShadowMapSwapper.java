@@ -15,11 +15,8 @@ import qouteall.q_misc_util.Helper;
 
 import java.util.ArrayDeque;
 
-/**
- * Keeps a small pool of copies of Iris's shadow map, including its depth and color buffers.
- * The outer world's shadow map is copied into a {@link Storage} before a portal world overwrites it.
- * It is copied back after the portal world is rendered.
- */
+// pool of shadow map backups (depth + color). The outer world's shadow map is copied into a Storage
+// before a portal world overwrites it, and copied back afterwards
 public class ShadowMapSwapper {
     public static class Storage {
         public final DepthTexture depthTexture;
@@ -27,10 +24,10 @@ public class ShadowMapSwapper {
         private final int resolution;
         private final ShadowMapSwapper shadowMapSwapper;
         
-        // Backup textures of the shadowcolor buffers. A zero means that it is not created yet.
+        // shadowcolor backups. 0 means not created yet
         private final int[] colorTextures;
         
-        // Whether the shadowcolor buffer existed during the latest copy from Iris.
+        // whether the shadowcolor buffer existed at the last copy
         private final boolean[] colorBackedUp;
         
         public Storage(int resolution, ShadowMapSwapper shadowMapSwapper) {
