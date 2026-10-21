@@ -42,6 +42,7 @@ import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalUtils;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -57,11 +58,9 @@ public class BlockManipulationServer {
     }
     
     /**
-     * Whether a player can reach an entity across a portal, plus the portal to
-     * virtually relocate through when not reachable directly (null portal = direct).
+     * The maximum number of portals that one cross-portal interaction can chain through.
      */
-    private record EntityReachResult(boolean reachable, @Nullable Portal portal) {
-    }
+    public static final int MAX_PORTAL_LAYERS = 5;
     
     public static final ThreadLocal<Context> REDIRECT_CONTEXT =
         ThreadLocal.withInitial(() -> null);
@@ -81,6 +80,17 @@ public class BlockManipulationServer {
                 return true;
             });
     
+    /**
+     * The distance limit gets multiplied by the scale of each portal that a search passes through.
+     */
+    private record ReachQuery(
+        ServerPlayer player,
+        ResourceKey<Level> targetDimension,
+        Vec3 targetPos,
+        double distanceSquare
+    ) {
+    }
+    
     private static boolean canPlayerReach(
         ResourceKey<Level> dimension,
         ServerPlayer player,
@@ -91,67 +101,156 @@ public class BlockManipulationServer {
         }
         
         double playerScale = ScaleUtils.computeBlockReachScale(player);
-        
-        Vec3 pos = Vec3.atCenterOf(requestPos);
-        Vec3 playerPos = player.position();
         double distanceSquare = 6 * 6 * 4 * 4 * playerScale * playerScale;
-        if (player.level().dimension() == dimension) {
-            if (IPSableIntegration.frameAwareDistanceSqr(player.level(), playerPos, pos)
-                < distanceSquare) {
-                return true;
-            }
-        }
-        return IPMcHelper.getNearbyPortals(
-            player,
-            IPGlobal.maxNormalPortalRadius
-        ).anyMatch(portal -> {
-            if (portal.getDestDim() != dimension || !portal.isInteractableBy(player)) {
-                return false;
-            }
-            net.minecraft.server.level.ServerLevel destLevel =
-                player.server.getLevel(portal.getDestDim());
-            Vec3 transformed = portal.transformPoint(playerPos);
-            double distSq = destLevel != null
-                ? IPSableIntegration.frameAwareDistanceSqr(destLevel, transformed, pos)
-                : transformed.distanceToSqr(pos);
-            return distSq < distanceSquare * portal.getScale() * portal.getScale();
-        });
+        
+        return findPortalChain(
+            player, dimension, Vec3.atCenterOf(requestPos), distanceSquare
+        ) != null;
     }
     
+    /**
+     * Finds the shortest chain of portals that brings the player within reach of the target.
+     * Returns an empty list when the target is reachable without any portal.
+     * Returns null when the target is not reachable.
+     */
+    @Nullable
+    private static List<Portal> findPortalChain(
+        ServerPlayer player,
+        ResourceKey<Level> targetDimension,
+        Vec3 targetPos,
+        double distanceSquare
+    ) {
+        ReachQuery query = new ReachQuery(player, targetDimension, targetPos, distanceSquare);
+        
+        for (int depth = 0; depth <= MAX_PORTAL_LAYERS; depth++) {
+            List<Portal> chain = searchPortalChain(
+                query, player.level(), player.position(), null, 1.0, new ArrayList<>(), depth
+            );
+            if (chain != null) {
+                return chain;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Searches for a chain of exactly {@code remainingDepth} more portals that ends within reach of the target.
+     * Returns null when there is no such chain.
+     */
+    @Nullable
+    private static List<Portal> searchPortalChain(
+        ReachQuery query,
+        Level world,
+        Vec3 viewerPos,
+        @Nullable Vec3 previousViewerPos,
+        double scale,
+        List<Portal> chain,
+        int remainingDepth
+    ) {
+        if (remainingDepth == 0) {
+            boolean inReach = world.dimension() == query.targetDimension()
+                && IPSableIntegration.frameAwareDistanceSqr(world, viewerPos, query.targetPos())
+                < query.distanceSquare() * scale * scale;
+            return inReach ? new ArrayList<>(chain) : null;
+        }
+        
+        List<Portal> portals = IPMcHelper.getNearbyPortals(
+            world, viewerPos, IPGlobal.maxNormalPortalRadius
+        ).filter(portal -> portal.isInteractableBy(query.player())).toList();
+        
+        for (Portal portal : portals) {
+            Level destWorld = portal.getDestinationWorld();
+            if (destWorld == null) {
+                continue;
+            }
+            
+            Vec3 newViewerPos = portal.transformPoint(viewerPos);
+            
+            // Going back through the portal that was just used only revisits the previous position.
+            if (previousViewerPos != null
+                && destWorld.dimension() == chain.get(chain.size() - 1).getOriginWorld().dimension()
+                && newViewerPos.distanceToSqr(previousViewerPos) < 1.0E-6
+            ) {
+                continue;
+            }
+            
+            chain.add(portal);
+            List<Portal> result = searchPortalChain(
+                query, destWorld, newViewerPos, viewerPos,
+                scale * portal.getScale(), chain, remainingDepth - 1
+            );
+            chain.remove(chain.size() - 1);
+            
+            if (result != null) {
+                return result;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Returns the hit result and the dimension to use for placing a block.
+     * A block face that touches a global portal makes the placement continue through that portal.
+     * The continuation repeats when the destination block face touches another global portal.
+     */
     public static Tuple<BlockHitResult, ResourceKey<Level>> getHitResultForPlacing(
         Level world,
         BlockHitResult blockHitResult
     ) {
-        Direction side = blockHitResult.getDirection();
-        Vec3 sideVec = Vec3.atLowerCornerOf(side.getNormal());
+        Level currentWorld = world;
         BlockPos hitPos = blockHitResult.getBlockPos();
-        Vec3 hitCenter = Vec3.atCenterOf(hitPos);
+        Direction side = blockHitResult.getDirection();
+        boolean passedPortal = false;
         
-        List<Portal> globalPortals = GlobalPortalStorage.getGlobalPortals(world);
-        
-        Portal portal = globalPortals.stream().filter(p ->
-            p.getNormal().dot(sideVec) < -0.9
-                && p.getPortalShape().isBoxInPortalProjection(
-                p.getThisSideState(),
-                new AABB(hitPos)
-            ) && p.getDistanceToPlane(hitCenter) < 0.6
-        ).findFirst().orElse(null);
-        
-        if (portal == null) {
-            return new Tuple<>(blockHitResult, world.dimension());
+        for (int layer = 0; layer < MAX_PORTAL_LAYERS; layer++) {
+            Portal portal = findPortalAtBlockFace(currentWorld, hitPos, side);
+            if (portal == null) {
+                break;
+            }
+            
+            Vec3 sideVec = Vec3.atLowerCornerOf(side.getNormal());
+            Vec3 newCenter = portal.transformPoint(
+                Vec3.atCenterOf(hitPos).add(sideVec.scale(0.501))
+            );
+            Vec3 newSideVec = portal.transformLocalVecNonScale(sideVec);
+            
+            currentWorld = portal.getDestinationWorld();
+            hitPos = BlockPos.containing(newCenter);
+            side = Direction.getNearest(newSideVec.x, newSideVec.y, newSideVec.z);
+            passedPortal = true;
         }
         
-        Vec3 newCenter = portal.transformPoint(hitCenter.add(sideVec.scale(0.501)));
-        BlockPos placingBlockPos = BlockPos.containing(newCenter);
+        if (!passedPortal) {
+            return new Tuple<>(blockHitResult, world.dimension());
+        }
         
         BlockHitResult newHitResult = new BlockHitResult(
             Vec3.ZERO,
             side.getOpposite(),
-            placingBlockPos,
+            hitPos,
             blockHitResult.isInside()
         );
         
-        return new Tuple<>(newHitResult, portal.getDestDim());
+        return new Tuple<>(newHitResult, currentWorld.dimension());
+    }
+    
+    /**
+     * Returns the global portal that the face of the block touches, or null if there is none.
+     */
+    @Nullable
+    private static Portal findPortalAtBlockFace(Level world, BlockPos blockPos, Direction side) {
+        Vec3 sideVec = Vec3.atLowerCornerOf(side.getNormal());
+        Vec3 blockCenter = Vec3.atCenterOf(blockPos);
+        
+        return GlobalPortalStorage.getGlobalPortals(world).stream().filter(p ->
+            p.getNormal().dot(sideVec) < -0.9
+                && p.getPortalShape().isBoxInPortalProjection(
+                p.getThisSideState(),
+                new AABB(blockPos)
+            ) && p.getDistanceToPlane(blockCenter) < 0.6
+        ).findFirst().orElse(null);
     }
     
     public static class RemoteCallables {
@@ -294,8 +393,8 @@ public class BlockManipulationServer {
             return;
         }
         
-        EntityReachResult reachResult = getEntityReachResult(world.dimension(), player, target);
-        if (!reachResult.reachable()) {
+        List<Portal> portalChain = findEntityPortalChain(world.dimension(), player, target);
+        if (portalChain == null) {
             LOGGER.error("Reject cross-portal entity interact {} {} {}", player, world, target);
             return;
         }
@@ -306,8 +405,8 @@ public class BlockManipulationServer {
                 if (!target.isAlive()) {
                     return;
                 }
-                withPlayerRelocatedThroughPortal(
-                    player, reachResult.portal(), world,
+                withPlayerRelocatedThroughPortals(
+                    player, portalChain, world,
                     () -> player.interactOn(target, hand)
                 );
             }
@@ -317,8 +416,8 @@ public class BlockManipulationServer {
                 if (target.isRemoved()) {
                     return;
                 }
-                withPlayerRelocatedThroughPortal(
-                    player, reachResult.portal(), world,
+                withPlayerRelocatedThroughPortals(
+                    player, portalChain, world,
                     () -> {
                         if (target.interactAt(player, pos, hand).consumesAction()) {
                             player.swing(hand, true);
@@ -329,18 +428,18 @@ public class BlockManipulationServer {
             
             @Override
             public void onAttack() {
-                doProcessAttack(world, player, target, reachResult.portal());
+                doProcessAttack(world, player, target, portalChain);
             }
         });
     }
     
     /**
-     * Cross-portal melee attack. Relocates the player through the portal so knockback
+     * Cross-portal melee attack. Relocates the player through the portals so knockback
      * and the sword sweep use the target's dimension.
      */
     @IPVanillaCopy
     private static void doProcessAttack(
-        ServerLevel world, ServerPlayer player, Entity target, @Nullable Portal portal
+        ServerLevel world, ServerPlayer player, Entity target, List<Portal> portalChain
     ) {
         if (target instanceof ItemEntity || target instanceof ExperienceOrb || target == player
             || (target instanceof AbstractArrow arrow && !arrow.isAttackable())
@@ -357,18 +456,18 @@ public class BlockManipulationServer {
             return;
         }
         
-        withPlayerRelocatedThroughPortal(player, portal, world, () -> player.attack(target));
+        withPlayerRelocatedThroughPortals(player, portalChain, world, () -> player.attack(target));
     }
     
     /**
-     * Runs {@code action} with the player virtually relocated through {@code portal}
-     * (position, rotation, and world for cross-dimension portals) so vanilla
+     * Runs {@code action} with the player virtually relocated through {@code portals}
+     * in order (position, rotation, and world for cross-dimension portals) so vanilla
      * interaction logic uses the target's dimension. Always restores the player.
      */
-    private static void withPlayerRelocatedThroughPortal(
-        ServerPlayer player, @Nullable Portal portal, ServerLevel world, Runnable action
+    private static void withPlayerRelocatedThroughPortals(
+        ServerPlayer player, List<Portal> portals, ServerLevel world, Runnable action
     ) {
-        if (portal == null) {
+        if (portals.isEmpty()) {
             action.run();
             return;
         }
@@ -378,8 +477,13 @@ public class BlockManipulationServer {
         float oldPitch = player.getXRot();
         Level oldLevel = player.level();
         
-        Vec3 newPos = portal.transformPoint(oldPos);
-        Vec3 newLook = portal.transformLocalVecNonScale(player.getLookAngle()).normalize();
+        Vec3 newPos = oldPos;
+        Vec3 newLook = player.getLookAngle();
+        for (Portal portal : portals) {
+            newPos = portal.transformPoint(newPos);
+            newLook = portal.transformLocalVecNonScale(newLook);
+        }
+        newLook = newLook.normalize();
         double newYaw = Math.toDegrees(Math.atan2(-newLook.x, newLook.z));
         double newPitch = Math.toDegrees(Math.asin(
             Math.clamp(-newLook.y, -1.0, 1.0)
@@ -406,51 +510,27 @@ public class BlockManipulationServer {
     }
     
     /**
-     * Portal-aware reach check mirroring {@link #canPlayerReach}. Returns the portal
-     * used (null when reachable directly); {@link EntityReachResult#reachable()} is
-     * false when the target cannot be reached at all.
+     * Portal-aware reach check mirroring {@link #canPlayerReach}.
+     * Returns the portals to relocate the player through, which is empty when the target is reachable directly.
+     * Returns null when the target cannot be reached.
      */
-    private static EntityReachResult getEntityReachResult(
+    @Nullable
+    private static List<Portal> findEntityPortalChain(
         ResourceKey<Level> dimension,
         ServerPlayer player,
         Entity target
     ) {
         if (!canDoCrossPortalInteractionEvent.invoker().test(player)) {
-            return new EntityReachResult(false, null);
+            return null;
         }
         
         double playerScale = ScaleUtils.computeBlockReachScale(player);
-        
-        AABB targetBox = target.getBoundingBox();
-        Vec3 playerPos = player.position();
         double reach = player.entityInteractionRange() + 1.0;
         double distanceSquareLimit = reach * reach * playerScale * playerScale;
-        Portal portal = IPMcHelper.getNearbyPortals(
-            player,
-            IPGlobal.maxNormalPortalRadius
-        ).filter(p -> p.getDestDim() == dimension && p.isInteractableBy(player))
-            .filter(p -> {
-                ServerLevel destLevel = player.server.getLevel(p.getDestDim());
-                Vec3 transformed = p.transformPoint(playerPos);
-                double distSq = destLevel != null
-                    ? IPSableIntegration.frameAwareDistanceSqr(destLevel, transformed, targetBox.getCenter())
-                    : transformed.distanceToSqr(targetBox.getCenter());
-                return distSq < distanceSquareLimit * p.getScale() * p.getScale();
-            })
-            .findFirst()
-            .orElse(null);
         
-        if (portal != null) {
-            return new EntityReachResult(true, portal);
-        }
-        
-        if (player.level().dimension() == dimension
-            && IPSableIntegration.frameAwareDistanceSqr(player.level(), playerPos, targetBox.getCenter())
-            < distanceSquareLimit) {
-            return new EntityReachResult(true, null);
-        }
-        
-        return new EntityReachResult(false, null);
+        return findPortalChain(
+            player, dimension, target.getBoundingBox().getCenter(), distanceSquareLimit
+        );
     }
     
     /**

@@ -1,5 +1,6 @@
 package qouteall.imm_ptl.core.block_manipulation;
 
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -28,6 +29,7 @@ import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalPlaceholderBlock;
 import qouteall.imm_ptl.core.portal.PortalUtils;
+import qouteall.q_misc_util.my_util.RayTraceResult;
 
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +63,27 @@ public class BlockManipulationClient {
         return bhr == null || bhr.getType() == HitResult.Type.MISS;
     }
     
+    /**
+     * Moves the start of a ray slightly along the ray.
+     * It keeps the ray from hitting a portal that lies on the same plane as the exit it came out of.
+     * Floating point error would otherwise make it randomly enter such a back-facing portal.
+     */
+    private static Vec3 movePastExit(Vec3 from, Vec3 to) {
+        return from.add(to.subtract(from).normalize().scale(0.001));
+    }
+    
+    /**
+     * Returns whether the portal maps the exit point back to the point where the ray entered.
+     * Such a portal is the reverse or a flipped twin of the portal that the ray just passed through.
+     * Entering it would send the ray back to the previous world.
+     */
+    private static boolean leadsBackToEntry(
+        Portal portal, ResourceKey<Level> previousDim, Vec3 exitPos, Vec3 entryPos
+    ) {
+        return portal.getDestDim() == previousDim
+            && portal.transformPoint(exitPos).distanceToSqr(entryPos) < 0.0001;
+    }
+    
     public static void updatePointedBlock(float partialTick) {
         if (client.gameMode == null || client.level == null || client.player == null) {
             return;
@@ -87,7 +110,6 @@ public class BlockManipulationClient {
                 updateTargetedBlockThroughPortal(
                     cameraPos,
                     client.player.getViewVector(partialTick),
-                    client.player.level().dimension(),
                     distanceToPortalPointing,
                     reachDistance,
                     portal
@@ -116,22 +138,111 @@ public class BlockManipulationClient {
             client.level, cameraPos, client.hitResult.getLocation()));
     }
     
+    /**
+     * Traces the view ray through the portal and through any further portals that the ray enters.
+     * The final world and hit are stored in {@link #remotePointedDim} and {@link #remoteHitResult}.
+     */
     private static void updateTargetedBlockThroughPortal(
         Vec3 cameraPos,
         Vec3 viewVector,
-        ResourceKey<Level> playerDimension,
         double beginDistance,
         double endDistance,
         Portal portal
     ) {
         
-        Vec3 from = portal.transformPoint(
-            cameraPos.add(viewVector.scale(beginDistance))
-        );
+        Vec3 entryPos = cameraPos.add(viewVector.scale(beginDistance));
+        Vec3 exitPos = portal.transformPoint(entryPos);
+        ResourceKey<Level> previousDim = client.player.level().dimension();
+        
         Vec3 to = portal.transformPoint(
             cameraPos.add(viewVector.scale(endDistance))
         );
+        Vec3 from = movePastExit(exitPos, to);
+        ClientLevel world = ClientWorldLoader.getWorld(portal.getDestDim());
         
+        HitResult hitResult;
+        
+        for (int layer = 1; ; layer++) {
+            BlockHitResult blockHit = raytraceBlocksInWorld(world, from, to);
+            EntityHitResult entityHit = raytraceEntitiesThroughPortal(world, from, to);
+            
+            // An entity that is closer than the block or fluid hit is targeted instead.
+            // This allows melee attacks and interactions to reach through a portal.
+            if (entityHit != null
+                && distanceToHit(world, from, entityHit) < distanceToHit(world, from, blockHit)
+            ) {
+                hitResult = entityHit;
+            }
+            else {
+                hitResult = blockHit;
+            }
+            
+            if (layer >= BlockManipulationServer.MAX_PORTAL_LAYERS) {
+                break;
+            }
+            
+            ResourceKey<Level> returnDim = previousDim;
+            Vec3 returnEntryPos = entryPos;
+            Vec3 returnExitPos = exitPos;
+            Optional<Pair<Portal, RayTraceResult>> nextPortalHit = PortalUtils.raytracePortals(
+                world, from, to, true,
+                p -> p.isInteractableBy(client.player)
+                    && !leadsBackToEntry(p, returnDim, returnExitPos, returnEntryPos)
+            );
+            if (nextPortalHit.isEmpty()) {
+                break;
+            }
+            
+            Portal nextPortal = nextPortalHit.get().getFirst();
+            Vec3 portalHitPos = nextPortalHit.get().getSecond().hitPos();
+            
+            // The small tolerance lets the ray enter a portal that overlaps a block surface.
+            if (portalHitPos.distanceTo(from) >= distanceToHit(world, from, hitResult) + 0.0001) {
+                break;
+            }
+            
+            Vec3 newFrom = nextPortal.transformPoint(portalHitPos);
+            Vec3 newTo = nextPortal.transformPoint(to);
+            
+            previousDim = world.dimension();
+            entryPos = portalHitPos;
+            exitPos = newFrom;
+            from = movePastExit(newFrom, newTo);
+            to = newTo;
+            world = ClientWorldLoader.getWorld(nextPortal.getDestDim());
+        }
+        
+        remoteHitResult = hitResult;
+        
+        if (hitResult instanceof EntityHitResult
+            || !world.getBlockState(((BlockHitResult) hitResult).getBlockPos()).isAir()
+        ) {
+            client.hitResult = createMissedHitResult(from, to);
+            remotePointedDim = world.dimension();
+        }
+    
+    }
+    
+    /**
+     * Returns the distance from the start to the hit location.
+     * Returns {@link Double#MAX_VALUE} when there is no hit.
+     */
+    private static double distanceToHit(ClientLevel world, Vec3 from, @Nullable HitResult hitResult) {
+        if (hitResultIsMissedOrNull(hitResult)) {
+            return Double.MAX_VALUE;
+        }
+        
+        // Frame-aware: a hit on a Sable sub-level is in PLOT coordinates, so the raw distance is huge.
+        return Math.sqrt(IPSableIntegration.frameAwareDistanceSqr(
+            world, from, hitResult.getLocation()
+        ));
+    }
+    
+    /**
+     * Raytraces the blocks and fluids of one world between the two points.
+     * Returns a miss result when nothing is hit.
+     */
+    private static BlockHitResult raytraceBlocksInWorld(ClientLevel world, Vec3 from, Vec3 to) {
         ClipContext context = new ClipContext(
             from,
             to,
@@ -140,9 +251,7 @@ public class BlockManipulationClient {
             client.player
         );
         
-        ClientLevel world = ClientWorldLoader.getWorld(portal.getDestDim());
-        
-        remoteHitResult = BlockGetter.traverseBlocks(
+        BlockHitResult blockHit = BlockGetter.traverseBlocks(
             from, to,
             context,
             (rayTraceContext, blockPos) -> {
@@ -183,7 +292,7 @@ public class BlockManipulationClient {
                 );
             }
         );
-
+        
         // IPSable integration: traverseBlocks bypasses level.clip, so sub-levels are hidden.
         // Run an overlay-aware clip as well and prefer a ship hit when it is closer than terrain.
         if (IPSableCompat.isSablePresent&& IPSableCompat.isIPSablePresent) {
@@ -192,50 +301,27 @@ public class BlockManipulationClient {
             if (overlayHit != null && overlayHit.getType() == HitResult.Type.BLOCK
                 && (Math.abs(overlayHit.getBlockPos().getX()) >= 1_000_000
                     || Math.abs(overlayHit.getBlockPos().getZ()) >= 1_000_000)) {
-                double terrainDistSq = hitResultIsMissedOrNull(remoteHitResult)
+                double terrainDistSq = hitResultIsMissedOrNull(blockHit)
                     ? Double.MAX_VALUE
-                    : from.distanceToSqr(remoteHitResult.getLocation());
+                    : from.distanceToSqr(blockHit.getLocation());
                 double shipDistSq = IPSableIntegration.frameAwareDistanceSqr(
                     world, from, overlayHit.getLocation());
                 if (shipDistSq < terrainDistSq) {
-                    remoteHitResult = overlayHit;
+                    blockHit = overlayHit;
                 }
             }
         }
-
-        if (remoteHitResult.getLocation().y < world.getMinBuildHeight() + 0.1) {
-            remoteHitResult = new BlockHitResult(
-                remoteHitResult.getLocation(),
+        
+        if (blockHit.getLocation().y < world.getMinBuildHeight() + 0.1) {
+            blockHit = new BlockHitResult(
+                blockHit.getLocation(),
                 Direction.DOWN,
-                ((BlockHitResult) remoteHitResult).getBlockPos(),
-                ((BlockHitResult) remoteHitResult).isInside()
+                blockHit.getBlockPos(),
+                blockHit.isInside()
             );
         }
         
-        // if an entity is closer than the block/fluid hit, target it instead
-        // (this is what allows melee attacks and interactions to reach through a portal)
-        EntityHitResult entityHitResult = raytraceEntitiesThroughPortal(world, from, to);
-        if (entityHitResult != null) {
-            double entityDistSq = from.distanceToSqr(entityHitResult.getLocation());
-            double blockDistSq = hitResultIsMissedOrNull(remoteHitResult)
-                ? Double.MAX_VALUE
-                : from.distanceToSqr(remoteHitResult.getLocation());
-            if (entityDistSq < blockDistSq) {
-                remoteHitResult = entityHitResult;
-            }
-        }
-        
-        if (remoteHitResult != null) {
-            if (remoteHitResult instanceof EntityHitResult) {
-                client.hitResult = createMissedHitResult(from, to);
-                remotePointedDim = portal.getDestDim();
-            }
-            else if (!world.getBlockState(((BlockHitResult) remoteHitResult).getBlockPos()).isAir()) {
-                client.hitResult = createMissedHitResult(from, to);
-                remotePointedDim = portal.getDestDim();
-            }
-        }
-        
+        return blockHit;
     }
     
     /**
