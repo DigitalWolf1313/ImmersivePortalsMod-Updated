@@ -460,11 +460,13 @@ public class ServerTeleportationManager {
         if (vehicle != null) {
             Vec3 offset = McHelper.getVehicleOffsetFromPassenger(vehicle, player);
             Vec3 vehiclePos = player.position().add(offset);
-            vehicle = teleportVehicleAcrossDimensions(
-                vehicle,
-                toWorld.dimension(),
-                vehiclePos.add(McHelper.getEyeOffset(vehicle))
-            );
+            if (vehicle.level() != toWorld) {
+                vehicle = teleportVehicleAcrossDimensions(
+                    vehicle,
+                    toWorld.dimension(),
+                    vehiclePos.add(McHelper.getEyeOffset(vehicle))
+                );
+            }
             McHelper.setPosAndLastTickPos(
                 vehicle,
                 player.position().add(offset),

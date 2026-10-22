@@ -44,6 +44,7 @@ import qouteall.imm_ptl.core.network.PacketRedirection;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalUtils;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
+import qouteall.imm_ptl.core.teleportation.ServerTeleportationManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -486,7 +487,8 @@ public class BlockManipulationServer {
     /**
      * Runs {@code action} with the player virtually relocated through {@code portals}
      * in order (position, rotation, and world for cross-dimension portals) so vanilla
-     * interaction logic uses the target's dimension. Always restores the player.
+     * interaction logic uses the target's dimension. Restores the player unless the
+     * interaction mounted them, in which case it completes the teleport.
      */
     private static void withPlayerRelocatedThroughPortals(
         ServerPlayer player, List<Portal> portals, ServerLevel world, Runnable action
@@ -500,6 +502,7 @@ public class BlockManipulationServer {
         float oldYaw = player.getYRot();
         float oldPitch = player.getXRot();
         Level oldLevel = player.level();
+        Entity oldVehicle = player.getVehicle();
         
         Vec3 newPos = oldPos;
         Vec3 newLook = player.getLookAngle();
@@ -520,16 +523,32 @@ public class BlockManipulationServer {
         if (oldLevel != world) {
             ((IEEntity) player).ip_setWorld(world);
         }
+        boolean actionCompleted = false;
         try {
             action.run();
+            actionCompleted = true;
         }
         finally {
+            boolean mountedDuringInteraction =
+                actionCompleted && player.getVehicle() != oldVehicle;
+            Vec3 interactedPos = player.position();
+            
             if (oldLevel != world) {
                 ((IEEntity) player).ip_setWorld(oldLevel);
             }
-            player.setPos(oldPos);
-            player.setYRot(oldYaw);
-            player.setXRot(oldPitch);
+            
+            if (mountedDuringInteraction) {
+                PacketRedirection.withForceRedirectDisabled(
+                    () -> ServerTeleportationManager.of(player.server).forceTeleportPlayer(
+                        player, world.dimension(), interactedPos
+                    )
+                );
+            }
+            else {
+                player.setPos(oldPos);
+                player.setYRot(oldYaw);
+                player.setXRot(oldPitch);
+            }
         }
     }
     
