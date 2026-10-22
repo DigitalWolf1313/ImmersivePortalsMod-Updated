@@ -1,18 +1,17 @@
 {
   "schemaVersion": 1,
-  "id": "immersive_portals",
-  "provides": ["iportal", "imm_ptl_core", "immersive_portals_core"],
+  "id": "immersive_portals_updated",
+  "provides": ["immersive_portals", "iportal", "imm_ptl_core", "immersive_portals_core"],
   "version": "${version}",
-  "name": "Immersive Portals",
+  "name": "Immersive Portals Updated",
   "description": "See through portals and travel between dimensions seamlessly.",
   "authors": [
-    "qouteall", "Other Contributors (see GitHub)"
+    "qouteall", "DigitalWolf", "Other Contributors (see GitHub)"
   ],
   "contact": {
     "homepage": "https://qouteall.fun/immptl",
-    "sources": "https://github.com/iPortalTeam/ImmersivePortalsMod",
-    "issues": "https://github.com/iPortalTeam/ImmersivePortalsMod/discussions",
-    "email": "qouteall@163.com",
+    "sources": "https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated",
+    "issues": "https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/issues",
     "discord": "https://discord.gg/BZxgURK"
   },
   "license": "Apache-2.0",
