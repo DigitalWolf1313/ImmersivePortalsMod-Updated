@@ -71,6 +71,17 @@ public class PacketRedirection {
         });
     }
     
+    public static void withForceRedirectDisabled(Runnable func) {
+        ResourceKey<Level> oldRedirection = serverPacketRedirection.get();
+        serverPacketRedirection.set(null);
+        try {
+            func.run();
+        }
+        finally {
+            serverPacketRedirection.set(oldRedirection);
+        }
+    }
+    
     @SuppressWarnings("UnusedReturnValue")
     public static <T> T withForceRedirectAndGet(ServerLevel world, Supplier<T> func) {
         if (((IEWorld) world).portal_getThread() != Thread.currentThread()) {
