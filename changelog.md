@@ -1,3 +1,9 @@
-- Optimized clouds with sodium
-- Improved Voxy Support
-- Improved the Indirect loading radius cap Option
+- Fixed entities not being able to be attacked/interacted via a portal
+- Added support for Portal Recursion in Compatibility mode
+- Made Teleportation more smooth/correct for entities and players
+- Fixed Vanilla backport's sulfur cubes not being able to place trough portals
+- Fully fixed the hand not rendering between portals
+- Fixed Cross Portal Entity Rendering Not working with shaders
+- Fixed underwater fog/effects not working with portals
+- Heavily fixed infinitely falling For both entities and players
+- Fixed axiom (Thanks ro1net & Moulberry)
