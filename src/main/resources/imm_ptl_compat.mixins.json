@@ -4,6 +4,8 @@
   "compatibilityLevel": "JAVA_17",
   "plugin": "qouteall.imm_ptl.core.compat.IPCompatMixinPlugin",
   "mixins": [
+    "vanillabackport.MixinVanillaBackportProjectileUtils",
+    "vanillabackport.MixinVanillaBackportLivingEntity",
     "voxy.MixinVoxyRenderDistanceTracker",
     "voxy.MixinVoxyMipGen",
     "voxy.MixinVoxyViewportSelector",
