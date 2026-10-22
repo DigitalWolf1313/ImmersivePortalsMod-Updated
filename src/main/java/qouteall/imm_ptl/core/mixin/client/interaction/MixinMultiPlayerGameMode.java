@@ -9,6 +9,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
@@ -174,6 +175,16 @@ public abstract class MixinMultiPlayerGameMode implements IEClientPlayerInteract
                     IPMcHelper.bufToBytes(buf)
                 );
             }
+            else if (packet instanceof ServerboundUseItemPacket useItemPacket) {
+                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                ServerboundUseItemPacket.STREAM_CODEC.encode(buf, useItemPacket);
+                
+                return McRemoteProcedureCall.createPacketToSendToServer(
+                    "qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer.RemoteCallables.processUseItemPacket",
+                    dimension,
+                    IPMcHelper.bufToBytes(buf)
+                );
+            }
             else if (packet instanceof ServerboundInteractPacket interactPacket) {
                 FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
                 ServerboundInteractPacket.STREAM_CODEC.encode(buf, interactPacket);
@@ -184,7 +195,6 @@ public abstract class MixinMultiPlayerGameMode implements IEClientPlayerInteract
                     IPMcHelper.bufToBytes(buf)
                 );
             }
-            // ServerboundUseItemPacket is not redirected
         }
         
         return packet;
