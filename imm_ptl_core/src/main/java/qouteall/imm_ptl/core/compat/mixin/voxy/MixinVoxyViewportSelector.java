@@ -59,7 +59,7 @@ public class MixinVoxyViewportSelector {
     }
 
     @Unique
-    private static final int iPortals$MAX_PORTAL_VIEWPORTS = 10;
+    private static final int iPortals$MAX_PORTAL_VIEWPORTS = 30;
 
     // Access-ordered so the eldest entry is LRU-evictable. Deliberately not Voxy's own
     // extraViewports map, so portal entries don't collide with VR/Iris-shadow entries.
