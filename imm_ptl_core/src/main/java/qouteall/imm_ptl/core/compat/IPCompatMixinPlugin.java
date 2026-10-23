@@ -55,6 +55,10 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return voxyLoaded;
         }
         
+        if (mixinClassName.contains("VanillaBackport")) {
+            return fabricLoader.isModLoaded("vanillabackport");
+        }
+        
         return false;
     }
     

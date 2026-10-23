@@ -13,6 +13,7 @@ import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer;
 import qouteall.imm_ptl.core.portal.PortalUtils;
 
 import java.util.ArrayList;
@@ -41,7 +42,7 @@ public class MixinBucketItem {
             player,
             ClipContext.Block.OUTLINE, fluid,
             new ArrayList<>(),
-            1
+            BlockManipulationServer.MAX_PORTAL_LAYERS
         );
         
         if (r != null) {

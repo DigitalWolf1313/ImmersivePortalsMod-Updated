@@ -190,9 +190,9 @@ public class PortalUtils {
             double portalDistance = portalHit.get().getSecond().distanceTo(startingPoint);
             Portal portal = portalHit.get().getFirst();
             
-            Vec3 newStartingPoint = portal.transformPoint(portalHit.get().getSecond())
-                .add(portal.getContentDirection().scale(0.001));
             Vec3 newDirection = portal.transformLocalVecNonScale(direction);
+            Vec3 newStartingPoint = portal.transformPoint(portalHit.get().getSecond())
+                .add(newDirection.normalize().scale(0.001));
             double restDistance = maxDistance - portalDistance;
             if (restDistance < 0) {
                 return null;

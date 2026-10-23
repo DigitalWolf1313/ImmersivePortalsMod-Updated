@@ -9,6 +9,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -25,8 +26,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
@@ -290,6 +293,27 @@ public class BlockManipulationServer {
                 () -> {
                     doProcessUseItemOn(world, player, packet);
                 }
+            );
+        }
+        
+        /**
+         * {@link qouteall.imm_ptl.core.mixin.client.interaction.MixinMultiPlayerGameMode#ip_redirectPacket}
+         */
+        @SuppressWarnings("JavadocReference")
+        public static void processUseItemPacket(
+            ServerPlayer player,
+            ResourceKey<Level> dimension,
+            byte[] packetBytes
+        ) {
+            FriendlyByteBuf buf = IPMcHelper.bytesToBuf(packetBytes);
+            ServerboundUseItemPacket packet = new ServerboundUseItemPacket(buf);
+            
+            ServerLevel world = player.server.getLevel(dimension);
+            Validate.notNull(world, "missing %s", dimension.location());
+            
+            withRedirect(
+                new Context(world, null),
+                () -> doProcessUseItem(world, player, packet)
             );
         }
         
@@ -579,6 +603,48 @@ public class BlockManipulationServer {
                 dimension,
                 new ClientboundBlockUpdatePacket(world, offseted)
             );
+        }
+    }
+    
+    /**
+     * {@link ServerGamePacketListenerImpl#handleUseItem(ServerboundUseItemPacket)}
+     */
+    @IPVanillaCopy
+    private static void doProcessUseItem(
+        ServerLevel world, ServerPlayer player, ServerboundUseItemPacket packet
+    ) {
+        player.connection.ackBlockChangesUpTo(packet.getSequence());
+        InteractionHand hand = packet.getHand();
+        ItemStack itemStack = player.getItemInHand(hand);
+        player.resetLastActionTime();
+        
+        if (itemStack.isEmpty() || !itemStack.isItemEnabled(world.enabledFeatures())) {
+            return;
+        }
+        
+        PortalUtils.PortalAwareRaytraceResult raytrace = PortalUtils.portalAwareRayTraceFull(
+            player.level(),
+            player.getEyePosition(),
+            player.getViewVector(1),
+            5.0,
+            player,
+            ClipContext.Block.OUTLINE,
+            ClipContext.Fluid.ANY,
+            new ArrayList<>(),
+            MAX_PORTAL_LAYERS
+        );
+        if (raytrace == null
+            || raytrace.world() != world
+            || raytrace.hitResult().getType() != HitResult.Type.BLOCK
+            || !canPlayerReach(world.dimension(), player, raytrace.hitResult().getBlockPos())
+        ) {
+            LOGGER.warn("Reject cross-portal item use {} {}", player, world);
+            return;
+        }
+        
+        InteractionResult actionResult = player.gameMode.useItem(player, world, itemStack, hand);
+        if (actionResult.shouldSwing()) {
+            player.swing(hand, true);
         }
     }
     
