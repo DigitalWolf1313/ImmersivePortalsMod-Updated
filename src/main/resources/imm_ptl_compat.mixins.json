@@ -5,7 +5,8 @@
   "plugin": "qouteall.imm_ptl.core.compat.IPCompatMixinPlugin",
   "mixins": [
     "vanillabackport.MixinVanillaBackportProjectileUtils",
-    "vanillabackport.MixinVanillaBackportLivingEntity",
+    "vanillabackport.MixinVanillaBackportPiercingWeapon",
+    "vanillabackport.MixinVanillaBackportKineticWeapon",
     "voxy.MixinVoxyRenderDistanceTracker",
     "voxy.MixinVoxyMipGen",
     "voxy.MixinVoxyViewportSelector",
