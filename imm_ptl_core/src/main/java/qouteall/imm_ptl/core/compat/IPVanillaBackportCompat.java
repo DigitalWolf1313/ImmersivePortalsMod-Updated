@@ -12,30 +12,35 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalPlaceholderBlock;
 import qouteall.imm_ptl.core.portal.PortalUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 /**
- * Provides portal-aware target selection and knockback handling for Vanilla Backport spear attacks.
+ * Provides portal-aware target selection and attack handling for Vanilla Backport spear attacks.
  */
 public class IPVanillaBackportCompat {
-    private record HitPathRecord(long gameTime, float attackerYaw, List<Portal> path) {}
+    private record HitPathRecord(long gameTime, List<Portal> path) {}
     
-    private static final Map<Entity, HitPathRecord> HIT_PATHS =
-        Collections.synchronizedMap(new WeakHashMap<>());
+    /**
+     * Maps each target to its recorded hit paths by attacker UUID.
+     * The values never reference the target, so the weak keys can be collected.
+     */
+    private static final Map<Entity, Map<UUID, HitPathRecord>> HIT_PATHS = new WeakHashMap<>();
     
     /**
      * @return {@code null} when no portal is crossed; otherwise the hits along the portal path,
@@ -67,10 +72,10 @@ public class IPVanillaBackportCompat {
                 Entity entity = hit.getEntity();
                 List<Portal> path = pathOfEntity.get(entity);
                 if (path != null && !path.isEmpty() && recorded.add(entity)) {
-                    HIT_PATHS.put(entity, new HitPathRecord(level.getGameTime(), source.getYRot(), path));
+                    recordHitPath(entity, source, level.getGameTime(), path);
                 }
                 else if (path == null || path.isEmpty()) {
-                    HIT_PATHS.remove(entity);
+                    takeHitPath(entity, source);
                 }
             }
         }
@@ -120,7 +125,6 @@ public class IPVanillaBackportCompat {
         // segment start if the dead zone was already used up before the portal.
         double minDist = Math.max(0.0, minPoint.subtract(start).dot(dir));
         
-        int hitsBefore = out.size();
         if (endDist > minDist + 1.0E-9) {
             collectEntities(
                 world, source,
@@ -196,7 +200,7 @@ public class IPVanillaBackportCompat {
             
             if (hitPos != null) {
                 out.add(new EntityHitResult(entity, toAttackerFrame(path, hitPos)));
-                pathOfEntity.put(entity, new ArrayList<>(path));
+                pathOfEntity.put(entity, List.copyOf(path));
             }
         }
     }
@@ -224,49 +228,98 @@ public class IPVanillaBackportCompat {
         );
     }
     
-    private static boolean applyingKnockbackFix = false;
-    
-    /**
-     * @return The corrected {@code (x, z)} direction, or {@code null} if no portal hit applies.
-     */
-    @Nullable
-    public static double[] getFixedKnockbackDirection(Entity target, double x, double z) {
-        if (applyingKnockbackFix) {
-            return null;
+    private static void recordHitPath(
+        Entity target, Entity attacker, long gameTime, List<Portal> path
+    ) {
+        synchronized (HIT_PATHS) {
+            Map<UUID, HitPathRecord> byAttacker =
+                HIT_PATHS.computeIfAbsent(target, k -> new HashMap<>());
+            byAttacker.values().removeIf(record -> record.gameTime() != gameTime);
+            byAttacker.put(attacker.getUUID(), new HitPathRecord(gameTime, path));
         }
-        
-        HitPathRecord record = HIT_PATHS.get(target);
-        if (record == null) {
-            return null;
-        }
-        
-        if (Math.abs(target.level().getGameTime() - record.gameTime()) > 2) {
-            HIT_PATHS.remove(target);
-            return null;
-        }
-        
-        // Only fix the knockback that is based on the attacker's yaw
-        double yawRad = record.attackerYaw() * Mth.DEG_TO_RAD;
-        if (Math.abs(x - Mth.sin((float) yawRad)) > 1.0E-3
-            || Math.abs(z - (-Mth.cos((float) yawRad))) > 1.0E-3
-        ) {
-            return null;
-        }
-        
-        // The direction the target gets pushed in (knockback pushes along -(x, z))
-        Vec3 pushDir = new Vec3(-Mth.sin((float) yawRad), 0, Mth.cos((float) yawRad));
-        for (Portal portal : record.path()) {
-            pushDir = portal.transformLocalVecNonScale(pushDir);
-        }
-        
-        if (pushDir.x * pushDir.x + pushDir.z * pushDir.z < 1.0E-8) {
-            return null;
-        }
-        
-        return new double[]{-pushDir.x, -pushDir.z};
     }
     
-    public static void setApplyingKnockbackFix(boolean value) {
-        applyingKnockbackFix = value;
+    /**
+     * Removes and returns the attacker's record for the target.
+     * Returns {@code null} when there is none.
+     */
+    @Nullable
+    private static HitPathRecord takeHitPath(Entity target, Entity attacker) {
+        synchronized (HIT_PATHS) {
+            Map<UUID, HitPathRecord> byAttacker = HIT_PATHS.get(target);
+            if (byAttacker == null) {
+                return null;
+            }
+            
+            HitPathRecord record = byAttacker.remove(attacker.getUUID());
+            if (byAttacker.isEmpty()) {
+                HIT_PATHS.remove(target);
+            }
+            return record;
+        }
+    }
+    
+    /**
+     * Runs a Vanilla Backport target attack with its attacker relocated through the recorded
+     * portal path, allowing Vanilla Backport to calculate knockback from the transformed yaw.
+     */
+    public static boolean withAttackerRelocatedForHit(
+        Entity attacker, Entity target, BooleanSupplier action
+    ) {
+        Level level = attacker.level();
+        if (level.isClientSide()) {
+            return action.getAsBoolean();
+        }
+        
+        HitPathRecord record = takeHitPath(target, attacker);
+        // A record only applies to the tick in which its raytrace happened.
+        if (record == null || record.gameTime() != level.getGameTime()) {
+            return action.getAsBoolean();
+        }
+        
+        return withAttackerRelocated(attacker, record.path(), target.level(), action);
+    }
+    
+    private static boolean withAttackerRelocated(
+        Entity attacker, List<Portal> path, Level targetLevel, BooleanSupplier action
+    ) {
+        IEEntity ieAttacker = (IEEntity) attacker;
+        Level oldLevel = attacker.level();
+        Vec3 oldPos = attacker.position();
+        float oldYaw = attacker.getYRot();
+        float oldPitch = attacker.getXRot();
+        float oldHeadYaw = attacker.getYHeadRot();
+        
+        Vec3 newEyePos = attacker.getEyePosition();
+        Vec3 newLook = attacker.getLookAngle();
+        for (Portal portal : path) {
+            newEyePos = portal.transformPoint(newEyePos);
+            newLook = portal.transformLocalVecNonScale(newLook);
+        }
+        newLook = newLook.normalize();
+        float newYaw = (float) Math.toDegrees(Math.atan2(-newLook.x, newLook.z));
+        float newPitch = (float) Math.toDegrees(Math.asin(Mth.clamp(-newLook.y, -1.0, 1.0)));
+        Vec3 newPos = newEyePos.subtract(0, attacker.getEyeHeight(), 0);
+        
+        try {
+            // The raw setter does not notify the level, so the attacker stays in its old entity section.
+            ieAttacker.ip_setPositionWithoutTriggeringCallback(newPos);
+            attacker.setYRot(newYaw);
+            attacker.setXRot(newPitch);
+            attacker.setYHeadRot(newYaw);
+            if (oldLevel != targetLevel) {
+                ieAttacker.ip_setWorld(targetLevel);
+            }
+            return action.getAsBoolean();
+        }
+        finally {
+            if (oldLevel != targetLevel) {
+                ieAttacker.ip_setWorld(oldLevel);
+            }
+            ieAttacker.ip_setPositionWithoutTriggeringCallback(oldPos);
+            attacker.setYRot(oldYaw);
+            attacker.setXRot(oldPitch);
+            attacker.setYHeadRot(oldHeadYaw);
+        }
     }
 }
