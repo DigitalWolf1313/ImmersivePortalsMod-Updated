@@ -213,6 +213,9 @@ public class BlockManipulationClient {
         }
         
         remoteHitResult = hitResult;
+        client.crosshairPickEntity = hitResult instanceof EntityHitResult entityHit
+            ? entityHit.getEntity()
+            : null;
         
         if (hitResult instanceof EntityHitResult
             || !world.getBlockState(((BlockHitResult) hitResult).getBlockPos()).isAir()
