@@ -44,6 +44,8 @@ logs/
 /misc/mesh_to_visualize.json
 
 /remappedSrc
+/renderDoc
+/minecraft-And-Mods-src
 
 crowdin-translate-1.2.jar
 src/main/resources/immersive_portals.timestamp
