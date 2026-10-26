@@ -27,6 +27,9 @@ public class IPConfig implements ConfigData {
     public int maxPortalLayer = 5;
     @ConfigEntry.Category("client")
     @ConfigEntry.Gui.Tooltip
+    public boolean irisPortalShadow = true;
+    @ConfigEntry.Category("client")
+    @ConfigEntry.Gui.Tooltip
     public boolean lagAttackProof = true;
     @ConfigEntry.Category("client")
     public boolean enableCrossPortalSound = true;
@@ -180,6 +183,7 @@ public class IPConfig implements ConfigData {
         IPGlobal.enableMirrorCreation = enableMirrorCreation;
         IPGlobal.doCheckGlError = doCheckGlError;
         IPGlobal.maxPortalLayer = maxPortalLayer;
+        IPGlobal.irisPortalShadow = irisPortalShadow;
         IPGlobal.lagAttackProof = lagAttackProof;
         IPGlobal.portalRenderLimit = portalRenderLimit;
         IPGlobal.netherPortalFindingRadius = portalSearchingRange;

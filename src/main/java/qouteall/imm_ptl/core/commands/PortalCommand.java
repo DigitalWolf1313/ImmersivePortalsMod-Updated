@@ -1030,6 +1030,10 @@ public class PortalCommand {
             Portal::isVisible, Portal::setIsVisible
         );
         registerToggleCommand(
+            toggleBuilder, "irisShadow",
+            Portal::getRenderIrisShadow, PortalCommand::setIrisShadowForFlippedPortals
+        );
+        registerToggleCommand(
             toggleBuilder, "crossPortalCollisionEnabled",
             Portal::isCrossPortalCollisionEnabled, Portal::setCrossPortalCollisionEnabled
         );
@@ -1041,6 +1045,16 @@ public class PortalCommand {
         builder.then(toggleBuilder);
     }
     
+    private static void setIrisShadowForFlippedPortals(Portal portal, boolean renderIrisShadow) {
+        portal.setRenderIrisShadow(renderIrisShadow);
+
+        Portal flippedPortal = PortalManipulation.findFlippedPortal(portal);
+        if (flippedPortal != null) {
+            flippedPortal.setRenderIrisShadow(renderIrisShadow);
+            reloadPortal(flippedPortal);
+        }
+    }
+
     private static void registerToggleCommand(
         LiteralArgumentBuilder<CommandSourceStack> builder,
         String property, Function<Portal, Boolean> getter, BiConsumer<Portal, Boolean> setter

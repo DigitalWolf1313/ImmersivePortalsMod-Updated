@@ -192,6 +192,8 @@ public class Portal extends Entity implements
      */
     protected boolean visible = true;
     
+    protected boolean renderIrisShadow = true;
+    
     @Nullable
     protected List<String> commandsOnTeleported;
     
@@ -364,6 +366,13 @@ public class Portal extends Entity implements
             visible = true;
         }
         
+        if (compoundTag.contains("renderIrisShadow")) {
+            renderIrisShadow = compoundTag.getBoolean("renderIrisShadow");
+        }
+        else {
+            renderIrisShadow = true;
+        }
+        
         animation.readFromTag(compoundTag);
         
         READ_PORTAL_DATA_SIGNAL.invoker().accept(this, compoundTag);
@@ -416,6 +425,8 @@ public class Portal extends Entity implements
         compoundTag.putBoolean("doRenderPlayer", doRenderPlayer);
         
         compoundTag.putBoolean("isVisible", visible);
+        
+        compoundTag.putBoolean("renderIrisShadow", renderIrisShadow);
         
         if (commandsOnTeleported != null) {
             ListTag list = new ListTag();
@@ -698,6 +709,22 @@ public class Portal extends Entity implements
      */
     public void setIsVisible(boolean visible) {
         this.visible = visible;
+    }
+    
+    /**
+     * @return Whether Iris includes this portal in shadow rendering.
+     */
+    public boolean getRenderIrisShadow() {
+        return renderIrisShadow;
+    }
+    
+    /**
+     * Set whether Iris includes this portal in shadow rendering.
+     *
+     * @param renderIrisShadow whether to render this portal in Iris shadows
+     */
+    public void setRenderIrisShadow(boolean renderIrisShadow) {
+        this.renderIrisShadow = renderIrisShadow;
     }
     
     /**
