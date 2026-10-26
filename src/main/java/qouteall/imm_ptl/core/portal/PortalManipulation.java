@@ -431,7 +431,7 @@ public class PortalManipulation {
     
     public static boolean isOtherSideBoxInside(AABB transformedBoundingBox, Portal renderingPortal) {
         boolean intersects = Arrays.stream(Helper.eightVerticesOf(transformedBoundingBox))
-            .anyMatch(p -> renderingPortal.isOnDestinationSide(p, 0));
+            .anyMatch(p -> renderingPortal.isOnDestinationSide(p, -0.2));
         return intersects;
     }
     
