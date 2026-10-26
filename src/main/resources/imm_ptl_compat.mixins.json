@@ -28,6 +28,7 @@
     "iris.MixinIrisIris",
     "iris.MixinIrisRenderingPipeline",
     "iris.MixinIrisShadowRenderTargets",
+    "iris.MixinIrisShadowRenderer",
     "iris.MixinIrisSodiumShader",
     "iris.MixinIrisTransformPatcher",
     "sodium.IESodiumWorldRenderer",

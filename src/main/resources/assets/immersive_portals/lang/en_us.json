@@ -186,6 +186,8 @@
   "text.autoconfig.immersive_portals.option.enableWarning": "Enable Warning",
   "text.autoconfig.immersive_portals.option.maxPortalLayer": "Max Portal Rendering Recursion Layer",
   "text.autoconfig.immersive_portals.option.maxPortalLayer.@Tooltip": "Controls the max level of portal-in-portal rendering",
+  "text.autoconfig.immersive_portals.option.irisPortalShadow": "Include Portals in Iris Shadows",
+  "text.autoconfig.immersive_portals.option.irisPortalShadow.@Tooltip": "Controls whether portal surfaces cast shadows while shaders are enabled",
   "text.autoconfig.immersive_portals.option.lagAttackProof": "Lag Attack Proof",
   "text.autoconfig.immersive_portals.option.lagAttackProof.@Tooltip": "Rendering fewer portal content when lagging",
   "text.autoconfig.immersive_portals.option.compatibilityRenderMode": "Compatibility Render Mode",

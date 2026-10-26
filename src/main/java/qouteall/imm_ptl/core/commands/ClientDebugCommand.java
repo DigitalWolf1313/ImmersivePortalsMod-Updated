@@ -651,6 +651,11 @@ public class ClientDebugCommand {
         );
         registerSwitchCommand(
             builder,
+            "iris_portal_shadow",
+            cond -> IPGlobal.irisPortalShadow = cond
+        );
+        registerSwitchCommand(
+            builder,
             "portal_rendering_cave_culling",
             cond -> MyGameRenderer.enablePortalCaveCulling = cond
         );

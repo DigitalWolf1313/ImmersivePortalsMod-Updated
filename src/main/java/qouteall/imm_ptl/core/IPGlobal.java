@@ -53,6 +53,8 @@ public class IPGlobal {
         return indirectLoadingRadiusCap;
     }
     
+    public static boolean irisPortalShadow = true;
+    
     public static boolean lagAttackProof = true;
     
     public static RenderMode renderMode = RenderMode.normal;
