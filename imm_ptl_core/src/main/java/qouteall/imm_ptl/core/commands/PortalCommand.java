@@ -90,6 +90,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -998,6 +999,73 @@ public class PortalCommand {
         );
         
         builder.then(shapeBuilder);
+        
+        var toggleBuilder = Commands.literal("toggle");
+        
+        registerToggleCommand(
+            toggleBuilder, "interactable",
+            Portal::isInteractable, Portal::setInteractable
+        );
+        registerToggleCommand(
+            toggleBuilder, "teleportable",
+            Portal::isTeleportable, Portal::setTeleportable
+        );
+        registerToggleCommand(
+            toggleBuilder, "teleportChangesScale",
+            Portal::getTeleportChangesScale, Portal::setTeleportChangesScale
+        );
+        registerToggleCommand(
+            toggleBuilder, "teleportChangesGravity",
+            Portal::getTeleportChangesGravity, Portal::setTeleportChangesGravity
+        );
+        registerToggleCommand(
+            toggleBuilder, "fuseView",
+            Portal::isFuseView, (portal, value) -> portal.fuseView = value
+        );
+        registerToggleCommand(
+            toggleBuilder, "visible",
+            Portal::isVisible, Portal::setIsVisible
+        );
+        registerToggleCommand(
+            toggleBuilder, "irisShadow",
+            Portal::getRenderIrisShadow, PortalCommand::setIrisShadowForFlippedPortals
+        );
+        registerToggleCommand(
+            toggleBuilder, "crossPortalCollisionEnabled",
+            Portal::getHasCrossPortalCollision, (portal, value) -> portal.hasCrossPortalCollision = value
+        );
+        registerToggleCommand(
+            toggleBuilder, "doRenderPayer",
+            Portal::getDoRenderPlayer, (portal, value) -> portal.doRenderPlayer = value
+        );
+        
+        builder.then(toggleBuilder);
+    }
+    
+    private static void setIrisShadowForFlippedPortals(Portal portal, boolean renderIrisShadow) {
+        portal.setRenderIrisShadow(renderIrisShadow);
+
+        Portal flippedPortal = PortalManipulation.findFlippedPortal(portal);
+        if (flippedPortal != null) {
+            flippedPortal.setRenderIrisShadow(renderIrisShadow);
+            reloadPortal(flippedPortal);
+        }
+    }
+
+    private static void registerToggleCommand(
+        LiteralArgumentBuilder<CommandSourceStack> builder,
+        String property, Function<Portal, Boolean> getter, BiConsumer<Portal, Boolean> setter
+    ) {
+        builder.then(Commands.literal(property)
+            .executes(context -> processPortalTargetedCommand(context, portal -> {
+                boolean newValue = !getter.apply(portal);
+                setter.accept(portal, newValue);
+                reloadPortal(portal);
+                sendMessage(
+                    context, "Set %s to %s".formatted(property, newValue)
+                );
+            }))
+        );
     }
     
     private static void invokeSetPortalNbt(

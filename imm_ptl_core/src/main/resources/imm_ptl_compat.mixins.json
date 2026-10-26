@@ -21,6 +21,7 @@
     "iris.MixinIrisIris",
     "iris.MixinIrisRenderingPipeline",
     "iris.MixinIrisShadowRenderTargets",
+    "iris.MixinIrisShadowRenderer",
     "iris.MixinIrisSodiumChunkShaderInterface",
     "iris.MixinIrisSodiumSodiumTerrainPipeline",
     "sodium.IESodiumWorldRenderer",
