@@ -287,6 +287,12 @@ public class CommandStickItem extends Item {
             "make_visible", "nbt {isVisible:true}"
         );
         registerPortalSubCommandStick(
+            "enable_portal_shadows", "nbt {renderIrisShadow:true}"
+        );
+        registerPortalSubCommandStick(
+            "disable_portal_shadows", "nbt {renderIrisShadow:false}"
+        );
+        registerPortalSubCommandStick(
             "disable_default_animation", "nbt {defaultAnimation:{durationTicks:0}}"
         );
         

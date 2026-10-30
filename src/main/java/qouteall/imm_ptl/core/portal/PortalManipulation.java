@@ -278,6 +278,7 @@ public class PortalManipulation {
         PortalExtension.get(to).bindCluster = PortalExtension.get(from).bindCluster;
         to.animation.defaultAnimation = from.animation.defaultAnimation.copy();
         to.setIsVisible(from.isVisible());
+        to.setRenderIrisShadow(from.getRenderIrisShadow());
         
         if (includeSpecialProperties) {
             to.portalTag = from.portalTag;
