@@ -14,6 +14,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -21,6 +22,7 @@ import qouteall.imm_ptl.core.portal.PortalLike;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
+import qouteall.imm_ptl.core.render.PortalFogRenderer;
 import qouteall.imm_ptl.core.render.PortalRenderable;
 import qouteall.imm_ptl.core.render.PortalRenderer;
 import qouteall.imm_ptl.core.render.RendererUsingStencil;
@@ -245,9 +247,10 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         
         List<PortalRenderable> portalsToRender = getPortalsToRender(matrixStack);
         List<PortalRenderable> reallyRenderedPortals = new ArrayList<>();
+        PortalFogRenderer.FogState fog = PortalFogRenderer.capture();
         
         for (PortalRenderable portal : portalsToRender) {
-            boolean reallyRendered = doRenderPortal(portal, matrixStack);
+            boolean reallyRendered = doRenderPortal(portal, matrixStack, fog);
             
             if (reallyRendered) {
                 reallyRenderedPortals.add(portal);
@@ -270,7 +273,8 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     // return true if it really rendered the portal
     private boolean doRenderPortal(
         PortalRenderable portal,
-        PoseStack matrixStack
+        PoseStack matrixStack,
+        PortalFogRenderer.FogState fog
     ) {
         PortalLike portalLike = portal.getPortalLike();
         if (RendererUsingStencil.shouldSkipRenderingInsideFuseViewPortal(portal)) {
@@ -311,11 +315,37 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         
         if (!portalLike.isFuseView()) {
             restoreDepthOfPortalViewArea(portal, matrixStack, thisPortalStencilValue);
+            renderPortalFog(portal, matrixStack, fog);
         }
         
         clampStencilValue(outerPortalStencilValue);
         
         return true;
+    }
+
+    private void renderPortalFog(
+        PortalRenderable portal, PoseStack matrixStack, PortalFogRenderer.FogState fog
+    ) {
+        if (!fog.enabled() || fog.alpha() <= 0) {
+            return;
+        }
+
+        WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipeline().orElse(null);
+        if (!(pipeline instanceof IrisRenderingPipeline)) {
+            return;
+        }
+
+        int drawFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        int readFramebuffer = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        try {
+            ((IEIrisNewWorldRenderingPipeline) pipeline)
+                .ip_getPortalFogFramebuffer().bindAsDrawBuffer();
+            PortalFogRenderer.render(portal, matrixStack.last().pose(), fog);
+        }
+        finally {
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawFramebuffer);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFramebuffer);
+        }
     }
     
     public void onAfterIrisDeferredCompositeRendering() {

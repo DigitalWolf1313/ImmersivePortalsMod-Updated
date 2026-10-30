@@ -3,6 +3,7 @@ package qouteall.imm_ptl.core.compat.mixin.iris;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.irisshaders.iris.gl.texture.DepthBufferFormat;
+import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.CompositeRenderer;
 import net.irisshaders.iris.shaderpack.properties.PackDirectives;
@@ -34,8 +35,10 @@ public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeli
     @Shadow @Final private CompositeRenderer compositeRenderer;
     @Shadow @Final private FrameUpdateNotifier updateNotifier;
     @Shadow @Final private CustomUniforms customUniforms;
+    @Shadow @Final private RenderTargets renderTargets;
     
     @Unique private int ip_seenResizeGeneration;
+    @Unique private GlFramebuffer ip_portalFogFramebuffer;
     
     // let cross-dimension portals share the G-buffers of the outer world (see IrisRenderTargetSharing)
     @WrapOperation(
@@ -157,5 +160,16 @@ public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeli
     public void ip_refreshFrameState() {
         updateNotifier.onNewFrame();
         customUniforms.update();
+    }
+
+    @Override
+    public GlFramebuffer ip_getPortalFogFramebuffer() {
+        if (ip_portalFogFramebuffer == null) {
+            // Use the same side of colortex0 that subsequent composite passes will read.
+            ip_portalFogFramebuffer = renderTargets.createGbufferFramebuffer(
+                ((IrisRenderingPipeline) (Object) this).getFlippedAfterTranslucent(), new int[]{0}
+            );
+        }
+        return ip_portalFogFramebuffer;
     }
 }

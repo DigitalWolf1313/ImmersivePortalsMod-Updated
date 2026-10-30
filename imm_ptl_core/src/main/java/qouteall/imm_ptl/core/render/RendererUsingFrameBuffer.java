@@ -78,7 +78,8 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     
     protected void doRenderPortal(
         PortalRenderable portal,
-        PoseStack matrixStack
+        PoseStack matrixStack,
+        PortalFogRenderer.FogState fog
     ) {
         int portalLayer = PortalRendering.getPortalLayer();
         
@@ -128,6 +129,8 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         renderSecondBufferIntoMainBuffer(portal, matrixStack, secondaryFrameBuffer);
         CHelper.disableDepthClamp();
         
+        PortalFogRenderer.render(portal, matrixStack.last().pose(), fog);
+        
         MyRenderHelper.debugFramebufferDepth();
     }
     
@@ -170,9 +173,10 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     
     protected void renderPortals(PoseStack matrixStack) {
         List<PortalRenderable> portalsToRender = getPortalsToRender(matrixStack);
+        PortalFogRenderer.FogState fog = PortalFogRenderer.capture();
         
         for (PortalRenderable portal : portalsToRender) {
-            doRenderPortal(portal, matrixStack);
+            doRenderPortal(portal, matrixStack, fog);
         }
     }
 }

@@ -67,9 +67,10 @@ public class RendererUsingStencil extends PortalRenderer {
     
     protected void renderPortals(PoseStack matrixStack) {
         List<PortalRenderable> portalsToRender = getPortalsToRender(matrixStack);
+        PortalFogRenderer.FogState fog = PortalFogRenderer.capture();
         
         for (PortalRenderable portal : portalsToRender) {
-            doRenderPortal(portal, matrixStack);
+            doRenderPortal(portal, matrixStack, fog);
         }
     }
     
@@ -118,7 +119,8 @@ public class RendererUsingStencil extends PortalRenderer {
     
     protected void doRenderPortal(
         PortalRenderable portal,
-        PoseStack matrixStack
+        PoseStack matrixStack,
+        PortalFogRenderer.FogState fog
     ) {
         PortalLike portalLike = portal.getPortalLike();
         
@@ -160,6 +162,7 @@ public class RendererUsingStencil extends PortalRenderer {
         
         if (!portalLike.isFuseView()) {
             restoreDepthOfPortalViewArea(portal, matrixStack, thisPortalStencilValue);
+            PortalFogRenderer.render(portal, matrixStack.last().pose(), fog);
         }
         
         clampStencilValue(outerPortalStencilValue);
