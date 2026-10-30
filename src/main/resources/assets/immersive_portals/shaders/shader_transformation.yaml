@@ -32,6 +32,7 @@ configs:
       - rendertype_entity_translucent_emissive
       - rendertype_entity_translucent_cull
       - portal_area
+      - portal_fog
       - particle
     transformations:
       - pattern: |-

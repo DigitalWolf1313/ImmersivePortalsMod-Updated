@@ -13,11 +13,13 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
+import qouteall.imm_ptl.core.render.PortalFogRenderer;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
@@ -240,9 +242,10 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         
         List<Portal> portalsToRender = getPortalsToRender(modelView);
         List<Portal> reallyRenderedPortals = new ArrayList<>();
+        PortalFogRenderer.FogState fog = PortalFogRenderer.capture();
         
         for (Portal portal : portalsToRender) {
-            boolean reallyRendered = doRenderPortal(portal, modelView);
+            boolean reallyRendered = doRenderPortal(portal, modelView, fog);
             
             if (reallyRendered) {
                 reallyRenderedPortals.add(portal);
@@ -265,7 +268,8 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     // return true if it really rendered the portal
     private boolean doRenderPortal(
         Portal portal,
-        Matrix4f modelView
+        Matrix4f modelView,
+        PortalFogRenderer.FogState fog
     ) {
         if (RendererUsingStencil.shouldSkipRenderingInsideFuseViewPortal(portal)) {
             return false;
@@ -305,11 +309,38 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         
         if (!portal.isFuseView()) {
             restoreDepthOfPortalViewArea(portal, modelView, thisPortalStencilValue);
+            renderPortalFog(portal, modelView, fog);
         }
         
         clampStencilValue(outerPortalStencilValue);
         
         return true;
+    }
+
+    private void renderPortalFog(Portal portal, Matrix4f modelView, PortalFogRenderer.FogState fog) {
+        if (!fog.enabled() || fog.alpha() <= 0) {
+            return;
+        }
+
+        WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipeline().orElse(null);
+        if (!(pipeline instanceof IrisRenderingPipeline)) {
+            return;
+        }
+
+        int drawFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        int readFramebuffer = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        try {
+            // The main framebuffer's color is replaced by Iris's final pass. Blend only
+            // into the shared scene color, keeping the other G-buffer attachments intact.
+            // The shared depth/stencil attachment retains this portal's visibility mask.
+            ((IEIrisNewWorldRenderingPipeline) pipeline).ip_getPortalFogFramebuffer().bindAsDrawBuffer();
+            PortalFogRenderer.render(portal, modelView, fog);
+        }
+        finally {
+            // Framebuffer creation can change both bindings.
+            GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawFramebuffer);
+            GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFramebuffer);
+        }
     }
     
     public void onAfterIrisDeferredCompositeRendering() {

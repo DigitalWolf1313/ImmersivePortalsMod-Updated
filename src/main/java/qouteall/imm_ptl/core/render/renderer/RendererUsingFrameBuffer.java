@@ -15,6 +15,7 @@ import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
+import qouteall.imm_ptl.core.render.PortalFogRenderer;
 import qouteall.imm_ptl.core.render.QueryManager;
 import qouteall.imm_ptl.core.render.SecondaryFrameBuffer;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
@@ -23,7 +24,7 @@ import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import java.util.List;
 
 public class RendererUsingFrameBuffer extends PortalRenderer {
-
+    
     private SecondaryFrameBuffer[] secondaryFrameBuffers = new SecondaryFrameBuffer[]{
         new SecondaryFrameBuffer()
     };
@@ -76,14 +77,15 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         GlStateManager._enableDepthTest();
         
         GL11.glDisable(GL11.GL_STENCIL_TEST);
-    
+        
         IPPortingLibCompat.setIsStencilEnabled(client.getMainRenderTarget(), false);
 //        ((IEFrameBuffer) client.getMainRenderTarget()).setIsStencilBufferEnabledAndReload(false);
     }
     
     protected void doRenderPortal(
         Portal portal,
-        Matrix4f modelView
+        Matrix4f modelView,
+        PortalFogRenderer.FogState fog
     ) {
         int portalLayer = PortalRendering.getPortalLayer();
         
@@ -133,6 +135,8 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         renderSecondBufferIntoMainBuffer(portal, modelView, secondaryFrameBuffer);
         CHelper.disableDepthClamp();
         
+        PortalFogRenderer.render(portal, modelView, fog);
+        
         MyRenderHelper.debugFramebufferDepth();
     }
     
@@ -175,9 +179,10 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     
     protected void renderPortals(Matrix4f modelView) {
         List<Portal> portalsToRender = getPortalsToRender(modelView);
-    
+        PortalFogRenderer.FogState fog = PortalFogRenderer.capture();
+        
         for (Portal portal : portalsToRender) {
-            doRenderPortal(portal, modelView);
+            doRenderPortal(portal, modelView, fog);
         }
     }
 }

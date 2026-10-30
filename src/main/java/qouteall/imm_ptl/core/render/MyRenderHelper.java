@@ -59,6 +59,18 @@ public class MyRenderHelper {
         new SignalBiArged<>();
     
     public static void init() {
+        loadShaderSignal.connect((resourceManager, resultConsumer) -> {
+            try {
+                ShaderInstance shader = new ShaderInstance(
+                    getResourceFactory(resourceManager), "portal_fog", DefaultVertexFormat.POSITION_COLOR
+                );
+                resultConsumer.accept(shader);
+                PortalFogRenderer.shader = shader;
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
         
         loadShaderSignal.connect((resourceManager, resultConsumer) -> {
             try {
