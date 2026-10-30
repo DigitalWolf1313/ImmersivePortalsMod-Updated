@@ -1420,6 +1420,10 @@ public class Portal extends Entity implements
         }
     }
     
+    public static boolean isSameDimensionPortal(Portal portal) {
+        return portal != null && portal.level().dimension().equals(portal.getDestDim());
+    }
+    
     public static boolean isParallelPortal(Portal a, Portal b) {
         if (a == b) {
             return false;

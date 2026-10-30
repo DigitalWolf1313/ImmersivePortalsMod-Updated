@@ -14,7 +14,7 @@ public class IPVoxyCompat {
             isVoxyPresent = true;
         }
     }
-
+    
     private static Portal pendingVoxyViewportSwap;
     // Separate from pendingVoxyViewportSwap even though both are set together: the two
     // mixins consume independently in the same frame (MixinVoxyViewportSelector's
@@ -22,24 +22,24 @@ public class IPVoxyCompat {
     // for the outer camera's pass), so sharing one field would let the first consumer
     // clear it before the second ever sees it.
     private static Portal pendingVoxyRenderDistanceSwap;
-
+    
     public static void requestVoxyViewportSwap(Portal portal) {
         if (!isVoxyPresent) {
             return;
         }
-        if (portal == null || !portal.level().dimension().equals(portal.getDestDim())) {
+        if (!Portal.isSameDimensionPortal(portal)) {
             return;
         }
         pendingVoxyViewportSwap = portal;
         pendingVoxyRenderDistanceSwap = portal;
     }
-
+    
     public static Portal consumeVoxyViewportSwap() {
         Portal portal = pendingVoxyViewportSwap;
         pendingVoxyViewportSwap = null;
         return portal;
     }
-
+    
     public static Portal consumeVoxyRenderDistanceSwap() {
         Portal portal = pendingVoxyRenderDistanceSwap;
         pendingVoxyRenderDistanceSwap = null;
