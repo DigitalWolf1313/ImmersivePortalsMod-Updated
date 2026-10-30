@@ -76,6 +76,11 @@ public class MyRenderHelper {
         "portal_draw_fb_in_area",
         DefaultVertexFormat.POSITION_COLOR
     );
+    
+    public static final ShaderProgram PORTAL_FOG = registerShader(
+        "portal_fog",
+        DefaultVertexFormat.POSITION_COLOR
+    );
 
     private static ShaderProgram registerShader(String name, VertexFormat vertexFormat) {
         ShaderProgram shaderProgram = new ShaderProgram(
