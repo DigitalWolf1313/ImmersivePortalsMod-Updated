@@ -10,6 +10,8 @@
     "voxy.MixinVoxyRenderDistanceTracker",
     "voxy.MixinVoxyMipGen",
     "voxy.MixinVoxyViewportSelector",
+    "voxy.MixinVoxyAbstractRenderPipeline",
+    "voxy.MixinVoxyRenderSystem",
     "sable.MixinSableSubLevelCamera",
     "sable.MixinSableCollisionInfo",
     "sable.MixinSableServerCommonPacketListenerImpl",

@@ -34,10 +34,10 @@ import java.util.function.Supplier;
 @Pseudo
 @Mixin(targets = "me.cortex.voxy.client.core.rendering.ViewportSelector", remap = false)
 public class MixinVoxyViewportSelector {
-
+    
     @Shadow
     private Supplier creator;
-
+    
     // The field's erased type is Viewport (not Object), so @Shadow fails Mixin's exact
     // descriptor match; read it via reflection instead.
     @Unique
@@ -48,37 +48,37 @@ public class MixinVoxyViewportSelector {
             field.setAccessible(true);
             return field;
         });
-
+    
     // The field is final and set in the constructor, so it's safe to cache here.
     @Unique
     private Object iPortals$cachedDefaultViewport;
-
+    
     @Unique
     private Object iPortals$getDefaultViewport() {
         return Helper.noError(() -> iPortals$defaultViewportField.get(this));
     }
-
+    
     @Unique
     private static final int iPortals$MAX_PORTAL_VIEWPORTS = 30;
-
+    
     // Access-ordered so the eldest entry is LRU-evictable. Deliberately not Voxy's own
     // extraViewports map, so portal entries don't collide with VR/Iris-shadow entries.
     @Unique
     private LinkedHashMap<List<Portal>, Object> iPortals$portalViewports;
-
+    
     // The viewport backing the outer camera once a swap has happened, captured from Voxy's
     // own return value rather than shadowed.
     @Unique
     private Object iPortals$outerViewport;
-
+    
     @Unique
     private boolean iPortals$haveSwappedOuter;
-
+    
     // Viewports we created via creator.get(); never contains a Voxy-owned viewport, so
     // nothing is ever freed twice.
     @Unique
     private Set<Object> iPortals$ownedViewports;
-
+    
     // Field-initializer merging is unreliable for @Pseudo mixins, so init here instead.
     @Inject(method = "<init>", at = @At("RETURN"))
     private void iPortals$onConstructed(Supplier viewportCreator, CallbackInfo ci) {
@@ -86,7 +86,7 @@ public class MixinVoxyViewportSelector {
         this.iPortals$portalViewports = new LinkedHashMap<>(8, 0.75f, true);
         this.iPortals$ownedViewports = new HashSet<>();
     }
-
+    
     @Unique
     private void iPortals$evictOverflow() {
         while (this.iPortals$portalViewports.size() > iPortals$MAX_PORTAL_VIEWPORTS) {
@@ -104,7 +104,7 @@ public class MixinVoxyViewportSelector {
             }
         }
     }
-
+    
     // Gated on the original result being Voxy's own defaultViewport, so Vivecraft per-eye
     // and Iris shadow-pass viewports are left alone.
     @Inject(method = "getViewport", at = @At("RETURN"), cancellable = true)
@@ -113,11 +113,12 @@ public class MixinVoxyViewportSelector {
         if (defaultViewport == null || cir.getReturnValue() != defaultViewport) {
             return;
         }
-
+        
         if (PortalRendering.isRendering()) {
             List<Portal> path = PortalRendering.getPortalPath();
-            // Voxy already manages its own viewport for cross-dimension portals.
-            if (path.stream().anyMatch(portal -> !portal.level().dimension().equals(portal.getDestDim()))) {
+            // Keep Voxy's existing behavior for a cross-dimension portal itself. A
+            // same-dimension portal nested inside it still needs a path-specific viewport.
+            if (!Portal.isSameDimensionPortal(PortalRendering.getRenderingPortal())) {
                 return;
             }
             Object viewport = this.iPortals$portalViewports.get(path);
@@ -130,7 +131,7 @@ public class MixinVoxyViewportSelector {
             cir.setReturnValue(viewport);
             return;
         }
-
+        
         // True outer camera - apply any pending teleport swap.
         Portal swapPortal = IPVoxyCompat.consumeVoxyViewportSwap();
         if (swapPortal != null) {
@@ -140,10 +141,10 @@ public class MixinVoxyViewportSelector {
             if (portalViewport != null) {
                 Object previousOuter =
                     this.iPortals$haveSwappedOuter ? this.iPortals$outerViewport : defaultViewport;
-
+                
                 this.iPortals$outerViewport = portalViewport;
                 this.iPortals$haveSwappedOuter = true;
-
+                
                 // Hand the vacated outer viewport to the reverse portal, so looking back
                 // right after teleporting doesn't start from a blank viewport.
                 Portal reversePortal = PortalManipulation.findReversePortal(swapPortal);
@@ -163,12 +164,12 @@ public class MixinVoxyViewportSelector {
                 }
             }
         }
-
+        
         if (this.iPortals$haveSwappedOuter) {
             cir.setReturnValue(this.iPortals$outerViewport);
         }
     }
-
+    
     @Inject(method = "free", at = @At("HEAD"))
     private void iPortals$onFree(CallbackInfo ci) {
         if (iPortals$ownedViewports.remove(this.iPortals$outerViewport)) {
@@ -184,13 +185,13 @@ public class MixinVoxyViewportSelector {
         this.iPortals$haveSwappedOuter = false;
         this.iPortals$ownedViewports.clear();
     }
-
+    
     // Cached `delete` Method per concrete viewport class, so the reflection lookup happens
     // at most once per class.
     @Unique
     private static final Map<Class<?>, java.lang.reflect.Method> iPortals$deleteMethods =
         new ConcurrentHashMap<>();
-
+    
     @Unique
     private static void iPortals$deleteViewport(Object viewport) {
         Class<?> clazz = viewport.getClass();

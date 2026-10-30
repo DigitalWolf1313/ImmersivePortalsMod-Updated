@@ -19,15 +19,15 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public class MixinVoxyMipGen {
     // MODEL_TEXTURE_SIZE is checked <= 16 by Voxy's static initializer, so 16x16 is the max.
     private static final int SCRATCH_SIZE = 16 * 16;
-
+    
     @Unique
     private static final ThreadLocal<short[]> VOXY_SCRATCH =
         ThreadLocal.withInitial(() -> new short[SCRATCH_SIZE]);
-
+    
     @Unique
     private static final ThreadLocal<ByteArrayFIFOQueue> VOXY_QUEUE =
         ThreadLocal.withInitial(() -> new ByteArrayFIFOQueue(SCRATCH_SIZE));
-
+    
     @Redirect(
         method = "solidify",
         at = @At(
@@ -40,7 +40,7 @@ public class MixinVoxyMipGen {
     private static short[] getThreadLocalScratch() {
         return VOXY_SCRATCH.get();
     }
-
+    
     @Redirect(
         method = "solidify",
         at = @At(

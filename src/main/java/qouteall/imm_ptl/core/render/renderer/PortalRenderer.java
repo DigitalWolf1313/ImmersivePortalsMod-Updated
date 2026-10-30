@@ -19,7 +19,6 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPModInfoChecking;
-import qouteall.imm_ptl.core.compat.IPVoxyCompat;
 import qouteall.imm_ptl.core.compat.iris_compatibility.ExperimentalIrisPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisCompatibilityPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
@@ -317,7 +316,6 @@ public abstract class PortalRenderer {
     public void onBeginIrisTranslucentRendering(Matrix4f modelView) {}
     
     private static boolean fabulousWarned = false;
-    private static boolean voxyWarned = false;
     
     public static void switchToCorrectRenderer() {
         if (PortalRendering.isRendering()) {
@@ -331,20 +329,6 @@ public abstract class PortalRenderer {
                 CHelper.printChat(Component.translatable("imm_ptl.fabulous_warning"));
             }
         }
-
-        IPGlobal.RenderMode effectiveRenderMode = IPGlobal.renderMode;
-
-        if (IPVoxyCompat.isVoxyPresent
-            && !IrisInterface.invoker.isShaders()
-            && effectiveRenderMode != IPGlobal.RenderMode.compatibility) {
-
-            if (!voxyWarned) {
-                voxyWarned = true;
-                CHelper.printChat(Component.translatable("imm_ptl.voxy_warning"));
-            }
-
-            effectiveRenderMode = IPGlobal.RenderMode.compatibility;
-        }
         
         IPModInfoChecking.checkShaderpack();
         
@@ -355,7 +339,7 @@ public abstract class PortalRenderer {
                     return;
                 }
                 
-                switch (effectiveRenderMode) {
+                switch (IPGlobal.renderMode) {
                     case normal -> switchRenderer(IrisPortalRenderer.instance);
                     case compatibility -> switchRenderer(IrisCompatibilityPortalRenderer.instance);
                     case debug -> switchRenderer(IrisCompatibilityPortalRenderer.debugModeInstance);
@@ -365,7 +349,7 @@ public abstract class PortalRenderer {
             }
         }
         
-        switch (effectiveRenderMode) {
+        switch (IPGlobal.renderMode) {
             case normal -> switchRenderer(IPCGlobal.rendererUsingStencil);
             case compatibility -> switchRenderer(IPCGlobal.rendererUsingFrameBuffer);
             case debug -> switchRenderer(IPCGlobal.rendererDebug);

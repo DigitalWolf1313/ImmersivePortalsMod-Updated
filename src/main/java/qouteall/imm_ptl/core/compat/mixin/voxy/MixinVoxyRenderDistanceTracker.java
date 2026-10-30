@@ -41,7 +41,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
     @Shadow private int processRate;
     @Shadow private int minSec;
     @Shadow private int maxSec;
-
+    
     // HashMap keyed by full portal path, mirroring MixinVoxyViewportSelector. The outer
     // camera is keyed by the empty path (what getPortalPath() returns when not rendering).
     //
@@ -51,19 +51,19 @@ public abstract class MixinVoxyRenderDistanceTracker {
     // iPortals$onConstructed initializes it instead.
     @Unique
     private Map<List<Portal>, iPortals$View> iPortals$views;
-
+    
     // Reference counts so a node desired by more than one view is only actually unloaded
     // once every view referencing it has released it. Initialized in iPortals$onConstructed
     // for the same reason as iPortals$views.
     @Unique
     private Long2IntOpenHashMap iPortals$nodeReferences;
-
+    
     @Unique
     private int iPortals$renderDistance;
-
+    
     @Unique
     private static final long iPortals$DISCARD_GRACE_NANOS = 30_000_000_000L; // 30s
-
+    
     // Mirrors the real constructor, which initializes renderDistance to 2 before any
     // setRenderDistance() call. Also sets up iPortals$views/iPortals$nodeReferences.
     @Inject(method = "<init>", at = @At("RETURN"))
@@ -76,7 +76,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
         this.iPortals$views = new HashMap<>();
         this.iPortals$nodeReferences = new Long2IntOpenHashMap();
     }
-
+    
     @Inject(method = "setRenderDistance", at = @At("HEAD"), cancellable = true)
     private void iPortals$setRenderDistance(int renderDistance, CallbackInfo ci) {
         if (renderDistance != this.iPortals$renderDistance) {
@@ -87,13 +87,19 @@ public abstract class MixinVoxyRenderDistanceTracker {
         }
         ci.cancel();
     }
-
+    
     @Inject(method = "setCenterAndProcess", at = @At("HEAD"), cancellable = true)
     private void iPortals$setCenterAndProcess(double x, double z, CallbackInfoReturnable<Boolean> cir) {
         // Empty list when rendering the outer world.
         List<Portal> path = PortalRendering.getPortalPath();
+        // Leave cross-dimension portal renders to Voxy, but continue tracking a
+        // same-dimension portal nested beneath one using its full path.
+        if (!path.isEmpty() &&
+            !Portal.isSameDimensionPortal(PortalRendering.getRenderingPortal())) {
+            return;
+        }
         long now = System.nanoTime();
-
+        
         if (path.isEmpty()) {
             // Must run before discardInactiveViews: it may hand a view off to a new key
             // (refreshing its lastSeenNanos), and discard should see that fresh timestamp.
@@ -101,19 +107,19 @@ public abstract class MixinVoxyRenderDistanceTracker {
             // Anchored on the outer camera's call since that's guaranteed every frame.
             this.iPortals$discardInactiveViews(now);
         }
-
+        
         iPortals$View view = this.iPortals$views.computeIfAbsent(path, ignored -> new iPortals$View());
         view.lastSeenNanos = now;
         view.updateCenter(x, z, this.iPortals$renderDistance);
-
+        
         // Only this view's own backlog is drained here; Voxy calls this once per view per
         // frame, so each view still gets its full intended per-frame budget.
         cir.setReturnValue(view.drain(this.processRate, this::iPortals$apply));
     }
-
+    
     @Unique
     private static final List<Portal> iPortals$OUTER_PATH = List.of();
-
+    
     /**
      * Consumes any pending same-dimension teleport notification and hands the outer and
      * portal-destination views off by identity, so neither has to rebuild its nodes from
@@ -125,21 +131,21 @@ public abstract class MixinVoxyRenderDistanceTracker {
         if (swapPortal == null) {
             return;
         }
-
+        
         // The view tracking the portal's destination (roughly where the player now stands);
         // null if the destination was never rendered as its own view.
         iPortals$View promoted = this.iPortals$views.remove(List.of(swapPortal));
-
+        
         // The view tracking the area the player just left, still keyed under the outer path.
         iPortals$View previousOuter = this.iPortals$views.get(iPortals$OUTER_PATH);
-
+        
         if (promoted != null) {
             this.iPortals$views.put(iPortals$OUTER_PATH, promoted);
             promoted.lastSeenNanos = now;
         }
         // else: no pre-built destination view to promote - the outer view keeps its current
         // object and does a normal rebuild in updateCenter below.
-
+        
         if (previousOuter != null) {
             Portal reversePortal = PortalManipulation.findReversePortal(swapPortal);
             if (reversePortal != null) {
@@ -164,7 +170,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
             // outer view (nothing was put over it), so leave it alone.
         }
     }
-
+    
     @Unique
     private void iPortals$discardInactiveViews(long now) {
         var iterator = this.iPortals$views.entrySet().iterator();
@@ -185,14 +191,14 @@ public abstract class MixinVoxyRenderDistanceTracker {
             iterator.remove();
         }
     }
-
+    
     @Unique
     private void iPortals$apply(int x, int z, int delta) {
         for (int y = this.minSec; y <= this.maxSec; y++) {
             long node = iPortals$sectionId(x, y, z);
             int oldReferences = this.iPortals$nodeReferences.addTo(node, delta);
             int newReferences = oldReferences + delta;
-
+            
             if (newReferences <= 0) {
                 if (newReferences < 0) {
                     // Should be unreachable (each view only ever nets +-1 per node per
@@ -213,25 +219,25 @@ public abstract class MixinVoxyRenderDistanceTracker {
             }
         }
     }
-
+    
     @Unique
     private static long iPortals$sectionId(int x, int y, int z) {
         // WorldEngine.getWorldSectionId(4, x, y, z), duplicated to avoid a Voxy linkage.
         return (4L << 60) | ((long) (y & 0xFF) << 52) |
             ((long) (z & 0xFFFFFF) << 28) | ((long) (x & 0xFFFFFF) << 4);
     }
-
+    
     @Unique
     private static long iPortals$cellId(int x, int z) {
         return Integer.toUnsignedLong(x) | (Integer.toUnsignedLong(z) << 32);
     }
-
+    
     @FunctionalInterface
     @Unique
     private interface iPortals$Applier {
         void apply(int x, int z, int delta);
     }
-
+    
     // Static: doesn't touch the outer mixin instance, so no hidden this$0 per view.
     @Unique
     private static final class iPortals$View {
@@ -246,17 +252,17 @@ public abstract class MixinVoxyRenderDistanceTracker {
         private int builtRadius = -1;
         private int[] boundDist;
         private long lastSeenNanos;
-
+        
         private void updateCenter(double x, double z, int radius) {
             int newCenterX = ((int) x) >> 9;
             int newCenterZ = ((int) z) >> 9;
             if (this.centerX == Integer.MIN_VALUE ||
                 128 * 128 < (x - this.centerX * 512.0) * (x - this.centerX * 512.0) +
                     (z - this.centerZ * 512.0) * (z - this.centerZ * 512.0)) {
-
+                
                 int dx = newCenterX - this.centerX;
                 int dz = newCenterZ - this.centerZ;
-
+                
                 if (this.centerX != Integer.MIN_VALUE && this.builtRadius == radius
                     && Math.abs(dx) <= 1 && Math.abs(dz) <= 1) {
                     // Camera drifted by one grid cell; update only the boundary.
@@ -271,7 +277,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
                 }
             }
         }
-
+        
         private void ensureBoundDist(int radius) {
             if (this.boundDist == null) {
                 this.boundDist = new int[radius * 2 + 1];
@@ -280,7 +286,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
                 }
             }
         }
-
+        
         private void moveX(int delta) {
             if (delta == 0) return;
             int radius = this.builtRadius;
@@ -292,7 +298,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
             }
             this.centerX += delta;
         }
-
+        
         private void moveZ(int delta) {
             if (delta == 0) return;
             int radius = this.builtRadius;
@@ -304,19 +310,19 @@ public abstract class MixinVoxyRenderDistanceTracker {
             }
             this.centerZ += delta;
         }
-
+        
         private void markAdd(long cell) {
             if (this.desired.add(cell)) {
                 this.pending.addTo(cell, 1);
             }
         }
-
+        
         private void markRemove(long cell) {
             if (this.desired.remove(cell)) {
                 this.pending.addTo(cell, -1);
             }
         }
-
+        
         private void rebuild(int radius) {
             LongOpenHashSet next = new LongOpenHashSet();
             for (int dx = -radius; dx <= radius; dx++) {
@@ -325,7 +331,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
                     next.add(iPortals$cellId(this.centerX + dx, this.centerZ + dz));
                 }
             }
-
+            
             // Snapshot first: markRemove mutates `desired`, so we can't iterate it live.
             for (long cell : this.desired.toLongArray()) {
                 if (!next.contains(cell)) {
@@ -335,17 +341,17 @@ public abstract class MixinVoxyRenderDistanceTracker {
             for (long cell : next) {
                 this.markAdd(cell);
             }
-
+            
             this.builtRadius = radius;
             this.boundDist = null; // stale - lazily rebuilt by ensureBoundDist on the next incremental move
         }
-
+        
         private void clear() {
             for (long cell : this.desired.toLongArray()) {
                 this.markRemove(cell);
             }
         }
-
+        
         /** Drains up to {@code budget} real (non-cancelled) changes. Returns whether any work was done. */
         private boolean drain(int budget, iPortals$Applier applier) {
             if (budget <= 0 || this.pending.isEmpty()) {
@@ -371,7 +377,7 @@ public abstract class MixinVoxyRenderDistanceTracker {
             }
             return didWork;
         }
-
+        
         /** Drains everything regardless of budget - only used when tearing a view down entirely. */
         private void drainAll(iPortals$Applier applier) {
             var iterator = this.pending.long2IntEntrySet().fastIterator();

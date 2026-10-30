@@ -40,6 +40,7 @@ import qouteall.imm_ptl.core.ducks.IEWorldRenderer;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.mixin.client.render.IERenderSystem;
 import qouteall.imm_ptl.core.mixin.client.render.IESectionRenderDispatcher;
+import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.context_management.DimensionRenderHelper;
 import qouteall.imm_ptl.core.render.context_management.FogRendererContext;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
@@ -251,38 +252,37 @@ public class MyGameRenderer {
                     client.getProfiler().pop();
                 });
             }
-        
+            
             SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
-             if (newWorld.dimension() == oldWorld.dimension()) {
-                if (PortalRendering.getPortalLayer() == 1) {
-                    // After the swap above, newSodiumContext's render list now holds the
-                    // portal's own (just-finished) render list, which is the "other view"
-                    // relative to the outer camera we've just returned to.
-                    SodiumInterface.invoker.forceBlockingSortCatchUp();
-                }
+            if (PortalRendering.getPortalLayer() == 1 &&
+                Portal.isSameDimensionPortal(PortalRendering.getRenderingPortal())) {
+                // After the swap above, newSodiumContext's render list now holds the
+                // portal's own (just-finished) render list, which is the "other view"
+                // relative to the outer camera we've just returned to.
+                SodiumInterface.invoker.forceBlockingSortCatchUp();
             }
         }
         finally {
             //recover
-        
+            
             ((IEMinecraftClient) client).ip_setWorldRenderer(oldWorldRenderer);
             client.level = oldWorld;
             ieGameRenderer.ip_setLightmapTextureManager(oldLightmap);
             client.getBlockEntityRenderDispatcher().level = oldWorld;
             client.player.noPhysics = oldNoClip;
             client.gameRenderer.setRenderHand(oldDoRenderHand);
-        
+            
             ((IEParticleManager) client.particleEngine).ip_setWorld(oldWorld);
             client.hitResult = oldCrosshairTarget;
             ieGameRenderer.ip_setCamera(oldCamera);
-        
+            
             ((IEWorldRenderer) worldRenderer).portal_setTransparencyShader(oldTransparencyShader);
-        
+            
             FogRendererContext.swappingManager.popSwapping();
-        
+            
             ((IEWorldRenderer) oldWorldRenderer).portal_setChunkInfoList(oldChunkInfoList);
             VisibleSectionDiscovery.returnList(newChunkInfoList);
-        
+            
             ((IEWorldRenderer) worldRenderer).ip_setRenderBuffers(oldRenderBuffers);
             ((IEMinecraftClient) client).ip_setRenderBuffers(oldClientRenderBuffers);
             ((IESectionRenderDispatcher) worldRenderer.getSectionRenderDispatcher())
@@ -290,13 +290,13 @@ public class MyGameRenderer {
             if (newRenderBuffers != null) {
                 returnRenderBuffersObject(newRenderBuffers);
             }
-        
+            
             ((IEWorldRenderer) worldRenderer).portal_setFrustum(oldFrustum);
-        
+            
             client.gameRenderer.resetProjectionMatrix(oldProjectionMatrix);
             IERenderSystem.ip_setModelViewStack(oldModelViewStack);
             RenderSystem.applyModelViewMatrix();
-        
+            
             IrisInterface.invoker.setPipeline(worldRenderer, irisPipeline);
             // restore the outer pipeline, otherwise hand and GUI use the destination pipeline
             IrisInterface.invoker.setCurrentPipeline(irisCurrentPipeline);
