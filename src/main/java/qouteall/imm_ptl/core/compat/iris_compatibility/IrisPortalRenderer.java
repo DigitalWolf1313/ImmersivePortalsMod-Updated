@@ -41,18 +41,29 @@ import static org.lwjgl.opengl.GL11.glStencilFunc;
 import static org.lwjgl.opengl.GL11.glStencilOp;
 
 public class IrisPortalRenderer extends PortalRenderer {
-    public static final IrisPortalRenderer instance = new IrisPortalRenderer();
+    public static final IrisPortalRenderer instance = new IrisPortalRenderer(false);
+    // Vista renders while the main view is still in progress, so it needs its own buffers.
+    public static final IrisPortalRenderer vistaInstance = new IrisPortalRenderer(true);
     
     
     private SecondaryFrameBuffer[] deferredFbs = new SecondaryFrameBuffer[0];
     
     private boolean portalRenderingNeeded = false;
     private boolean nextFramePortalRenderingNeeded = false;
+    private final boolean renderEveryView;
     
-    IrisPortalRenderer() {
-        IPGlobal.PRE_GAME_RENDER_EVENT.register(() -> {
-            updateNeedsPortalRendering();
+    IrisPortalRenderer(boolean renderEveryView) {
+        this.renderEveryView = renderEveryView;
+        IPCGlobal.CLIENT_CLEANUP_EVENT.register(() -> {
+            for (SecondaryFrameBuffer fb : deferredFbs) {
+                fb.destroy();
+            }
+            portalRenderingNeeded = false;
+            nextFramePortalRenderingNeeded = false;
         });
+        if (!renderEveryView) {
+            IPGlobal.PRE_GAME_RENDER_EVENT.register(this::updateNeedsPortalRendering);
+        }
     }
     
     @Override
@@ -70,7 +81,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         
         if (deferredFbs.length != PortalRendering.getMaxPortalLayer() + 1) {
             for (SecondaryFrameBuffer fb : deferredFbs) {
-                fb.fb.destroyBuffers();
+                fb.destroy();
             }
             
             deferredFbs = new SecondaryFrameBuffer[PortalRendering.getMaxPortalLayer() + 1];
@@ -120,7 +131,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         RenderTarget mcFrameBuffer = client.getMainRenderTarget();
         int portalLayer = PortalRendering.getPortalLayer();
         
-        if (portalRenderingNeeded) {
+        if (renderEveryView || portalRenderingNeeded) {
             CHelper.doCheckGlError();
             
             // copy depth from mc fb to deferred fb
@@ -166,7 +177,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         
         mcFrameBuffer.bindWrite(true);
     }
-
+    
     
     @Override
     public void onHandRenderingEnded() {
@@ -218,7 +229,7 @@ public class IrisPortalRenderer extends PortalRenderer {
             return;
         }
         
-        if (!portalRenderingNeeded) {
+        if (!renderEveryView && !portalRenderingNeeded) {
             return;
         }
         
@@ -233,7 +244,7 @@ public class IrisPortalRenderer extends PortalRenderer {
     protected void doRenderPortal(Portal portal, Matrix4f modelView) {
         nextFramePortalRenderingNeeded = true;
         
-        if (!portalRenderingNeeded) {
+        if (!renderEveryView && !portalRenderingNeeded) {
             return;
         }
         

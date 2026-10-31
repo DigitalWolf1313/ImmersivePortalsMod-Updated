@@ -46,6 +46,10 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "client": [
+    "vista.MixinVistaCameraController",
+    "vista.MixinVistaLevelRenderer",
+    "vista.MixinVistaFrustumState",
+    "vista.MixinVistaClientWorldLookup",
     "punchymods.MixinPunchyMovesPlayerAnimationEngine",
     "punchymods.MixinPunchyMovement",
     "punchymods.MixinPunchyPendulum",

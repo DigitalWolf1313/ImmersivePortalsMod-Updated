@@ -13,6 +13,7 @@ import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.ScaleUtils;
 import qouteall.imm_ptl.core.commands.PortalCommand;
+import qouteall.imm_ptl.core.compat.IPVistaCompat;
 import qouteall.imm_ptl.core.ducks.IECamera;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
@@ -28,6 +29,11 @@ public class CrossPortalViewRendering {
     // if rendered, return true
     public static boolean renderCrossPortalView() {
         if (!IPGlobal.enableCrossPortalView) {
+            return false;
+        }
+        
+        // The temporary camera would consume Vista's pending mouse input.
+        if (IPVistaCompat.isViewFinderActive()) {
             return false;
         }
         

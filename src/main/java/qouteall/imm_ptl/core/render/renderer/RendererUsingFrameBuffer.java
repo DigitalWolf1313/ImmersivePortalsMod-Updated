@@ -29,6 +29,14 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         new SecondaryFrameBuffer()
     };
     
+    public RendererUsingFrameBuffer() {
+        IPCGlobal.CLIENT_CLEANUP_EVENT.register(() -> {
+            for (SecondaryFrameBuffer fb : secondaryFrameBuffers) {
+                fb.destroy();
+            }
+        });
+    }
+    
     @Override
     public void onBeforeTranslucentRendering(Matrix4f modelView) {
         renderPortals(modelView);
@@ -59,9 +67,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         
         if (secondaryFrameBuffers.length != requiredBufferCount) {
             for (SecondaryFrameBuffer fb : secondaryFrameBuffers) {
-                if (fb.fb != null) {
-                    fb.fb.destroyBuffers();
-                }
+                fb.destroy();
             }
             
             secondaryFrameBuffers = new SecondaryFrameBuffer[requiredBufferCount];

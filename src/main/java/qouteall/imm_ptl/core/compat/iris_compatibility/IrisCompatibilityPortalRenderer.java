@@ -7,6 +7,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import qouteall.imm_ptl.core.CHelper;
+import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -28,6 +29,10 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     public static final IrisCompatibilityPortalRenderer instance = new IrisCompatibilityPortalRenderer(false);
     public static final IrisCompatibilityPortalRenderer debugModeInstance =
         new IrisCompatibilityPortalRenderer(true);
+    public static final IrisCompatibilityPortalRenderer vistaInstance =
+        new IrisCompatibilityPortalRenderer(false);
+    public static final IrisCompatibilityPortalRenderer vistaDebugInstance =
+        new IrisCompatibilityPortalRenderer(true);
     
     // one buffer per possible recursion depth when Portal Recursion in Compatibility mode rendering is
     // enabled (index == PortalRendering.getPortalLayer()). collapses down to a single
@@ -45,6 +50,11 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     
     public IrisCompatibilityPortalRenderer(boolean isDebugMode) {
         this.isDebugMode = isDebugMode;
+        IPCGlobal.CLIENT_CLEANUP_EVENT.register(() -> {
+            for (SecondaryFrameBuffer fb : deferredBuffers) {
+                fb.destroy();
+            }
+        });
     }
     
     @Override
@@ -90,9 +100,7 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         if (deferredBuffers.length != requiredBufferCount) {
             for (SecondaryFrameBuffer fb : deferredBuffers) {
-                if (fb.fb != null) {
-                    fb.fb.destroyBuffers();
-                }
+                fb.destroy();
             }
             
             deferredBuffers = new SecondaryFrameBuffer[requiredBufferCount];
@@ -177,7 +185,7 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         client.getMainRenderTarget().bindWrite(true);
     }
-
+    
     
     @Override
     public void invokeWorldRendering(

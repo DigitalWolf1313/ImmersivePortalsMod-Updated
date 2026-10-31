@@ -456,8 +456,8 @@ public class MyRenderHelper {
         GlStateManager._viewport(
             0,
             0,
-            client.getWindow().getWidth(),
-            client.getWindow().getHeight()
+            client.getMainRenderTarget().viewWidth,
+            client.getMainRenderTarget().viewHeight
         );
     }
     

@@ -50,7 +50,7 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return cardinalCompLoaded;
         }
         
-       if (mixinClassName.contains("Veil")) {
+        if (mixinClassName.contains("Veil")) {
             boolean veilLoaded = fabricLoader.isModLoaded("veil");
             return veilLoaded;
         }
@@ -79,6 +79,10 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
         
         if (mixinClassName.contains("Punchy")) {
             return fabricLoader.isModLoaded("punchy");
+        }
+        
+        if (mixinClassName.contains("Vista")) {
+            return fabricLoader.isModLoaded("vista");
         }
         
         return false;
