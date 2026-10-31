@@ -370,10 +370,14 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
         LevelRenderer instance, Entity entity, double camX, double camY, double camZ, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, Operation<Void> original
     ) {
         CrossPortalEntityRenderer.beforeRenderingEntity(entity, poseStack);
-        original.call(
-            instance, entity, camX, camY, camZ, partialTick, poseStack, bufferSource
-        );
-        CrossPortalEntityRenderer.afterRenderingEntity(entity);
+        try {
+            original.call(
+                instance, entity, camX, camY, camZ, partialTick, poseStack, bufferSource
+            );
+        }
+        finally {
+            CrossPortalEntityRenderer.afterRenderingEntity(entity);
+        }
     }
     
     @Inject(

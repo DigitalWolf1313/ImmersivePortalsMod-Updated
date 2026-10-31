@@ -50,6 +50,10 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return cardinalCompLoaded;
         }
         
+        if (mixinClassName.contains("EntityModelFeatures")) {
+            return fabricLoader.isModLoaded("entity_model_features");
+        }
+        
         return false;
     }
     

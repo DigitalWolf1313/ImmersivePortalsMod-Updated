@@ -28,6 +28,9 @@
     "sodium.MixinSodiumViewport",
     "sodium.MixinSodiumWorldRenderer"
   ],
+  "client": [
+    "emf.MixinEntityModelFeaturesLODHandler"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
