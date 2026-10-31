@@ -9,6 +9,9 @@ import qouteall.imm_ptl.core.portal.Portal;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Final;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -35,6 +38,22 @@ public abstract class MixinCamera implements IECamera {
     private float eyeHeight;
     @Shadow
     private float eyeHeightOld;
+    @Shadow @Final private Quaternionf rotation;
+    @Shadow @Final private Vector3f forwards;
+    @Shadow @Final private Vector3f up;
+    @Shadow @Final private Vector3f left;
+    @Shadow private float xRot;
+    @Shadow private float yRot;
+    
+    @Override
+    public void ip_copyRotation(Camera camera) {
+        rotation.set(camera.rotation());
+        forwards.set(camera.getLookVector());
+        up.set(camera.getUpVector());
+        left.set(camera.getLeftVector());
+        xRot = camera.getXRot();
+        yRot = camera.getYRot();
+    }
     
     @Shadow
     protected abstract void setPosition(Vec3 vec3d_1);
@@ -56,7 +75,7 @@ public abstract class MixinCamera implements IECamera {
     
     // Sample fluid at the portal destination instead of the camera's current position.
     private final Deque<CameraFluidSampleState> fluidSampleStack = new ArrayDeque<>();
-
+    
     @Inject(
         method = "Lnet/minecraft/client/Camera;getFluidInCamera()Lnet/minecraft/world/level/material/FogType;",
         at = @At("HEAD")
@@ -69,12 +88,12 @@ public abstract class MixinCamera implements IECamera {
         if (portal == null) {
             return;
         }
-
+        
         fluidSampleStack.push(new CameraFluidSampleState(this.level, this.position));
         this.level = portal.getDestinationWorld();
         this.setPosition(portal.getDestPos());
     }
-
+    
     @Inject(
         method = "Lnet/minecraft/client/Camera;getFluidInCamera()Lnet/minecraft/world/level/material/FogType;",
         at = @At("RETURN")
@@ -87,7 +106,7 @@ public abstract class MixinCamera implements IECamera {
         this.level = savedState.level();
         this.setPosition(savedState.position());
     }
-
+    
     private record CameraFluidSampleState(BlockGetter level, Vec3 position) {}
     
 //    @Inject(method = "getMaxZoom", at = @At("HEAD"), cancellable = true)
