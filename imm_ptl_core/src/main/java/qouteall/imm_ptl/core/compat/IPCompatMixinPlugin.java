@@ -59,6 +59,10 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return fabricLoader.isModLoaded("vanillabackport");
         }
         
+        if (mixinClassName.contains("EntityModelFeatures")) {
+            return fabricLoader.isModLoaded("entity_model_features");
+        }
+        
         return false;
     }
     
