@@ -36,6 +36,8 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "client": [
+    "punchy.MixinPunchyMovement",
+    "punchy.MixinPunchyPendulum",
     "emf.MixinEntityModelFeaturesLODHandler"
   ],
   "injectors": {
