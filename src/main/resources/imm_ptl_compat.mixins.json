@@ -46,6 +46,7 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "client": [
+    "emf.MixinEntityModelFeaturesLODHandler",
     "veil.MixinVeilPacketContext"
   ],
   "injectors": {

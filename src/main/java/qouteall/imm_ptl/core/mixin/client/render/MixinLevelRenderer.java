@@ -383,13 +383,17 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
         MultiBufferSource vertexConsumerProvider
     ) {
         CrossPortalEntityRenderer.beforeRenderingEntity(entity, matrixStack);
-        renderEntity(
-            entity,
-            cameraX, cameraY, cameraZ,
-            partialTick,
-            matrixStack, vertexConsumerProvider
-        );
-        CrossPortalEntityRenderer.afterRenderingEntity(entity);
+        try {
+            renderEntity(
+                entity,
+                cameraX, cameraY, cameraZ,
+                partialTick,
+                matrixStack, vertexConsumerProvider
+            );
+        }
+        finally {
+            CrossPortalEntityRenderer.afterRenderingEntity(entity);
+        }
     }
     
     @Inject(

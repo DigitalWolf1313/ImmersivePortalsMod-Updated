@@ -48,6 +48,9 @@ public class CrossPortalEntityRenderer {
     
     public static boolean isRenderingEntityProjection = false;
     
+    // EMF shares animation LOD timers between an entity and its projection.
+    public static boolean isRenderingPortalIntersectingEntity = false;
+    
     public static void init() {
         IPGlobal.POST_CLIENT_TICK_EVENT.register(CrossPortalEntityRenderer::onClientTick);
         
@@ -105,6 +108,7 @@ public class CrossPortalEntityRenderer {
     }
     
     public static void beforeRenderingEntity(Entity entity, PoseStack matrixStack) {
+        isRenderingPortalIntersectingEntity = isCrossPortalRenderingEnabled() && collidedEntities.containsKey(entity);
         if (!isCrossPortalRenderingEnabled()) {
             return;
         }
@@ -127,6 +131,7 @@ public class CrossPortalEntityRenderer {
     }
     
     public static void afterRenderingEntity(Entity entity) {
+        isRenderingPortalIntersectingEntity = false;
         if (!isCrossPortalRenderingEnabled()) {
             return;
         }
