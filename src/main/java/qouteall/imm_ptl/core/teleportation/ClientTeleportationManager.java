@@ -32,6 +32,7 @@ import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.compat.GravityChangerInterface;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
 import qouteall.imm_ptl.core.compat.IPVoxyCompat;
+import qouteall.imm_ptl.core.compat.PunchyTeleportCompat;
 import qouteall.imm_ptl.core.ducks.IEAbstractClientPlayer;
 import qouteall.imm_ptl.core.ducks.IEClientPlayNetworkHandler;
 import qouteall.imm_ptl.core.ducks.IEEntity;
@@ -362,6 +363,7 @@ public class ClientTeleportationManager {
         
         Vec3 oldRealVelocity = McHelper.getWorldVelocity(player);
         TransformationManager.managePlayerRotationAndChangeGravity(portal);
+        PunchyTeleportCompat.onTeleport();
         McHelper.setWorldVelocity(player, oldRealVelocity); // reset velocity change
         
         TeleportationUtil.PortalPointVelocity portalPointVelocity = teleportation.portalPointVelocity();
@@ -461,6 +463,7 @@ public class ClientTeleportationManager {
         }
         
         player.setPos(destination.x, destination.y, destination.z);
+        PunchyTeleportCompat.onTeleport();
         McHelper.adjustVehicle(player);
         
         lastPlayerEyePos = null;

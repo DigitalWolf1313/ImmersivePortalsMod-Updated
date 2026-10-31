@@ -73,6 +73,10 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return fabricLoader.isModLoaded("entity_model_features");
         }
         
+        if (mixinClassName.contains("Punchy")) {
+            return fabricLoader.isModLoaded("punchy");
+        }
+        
         return false;
     }
     
