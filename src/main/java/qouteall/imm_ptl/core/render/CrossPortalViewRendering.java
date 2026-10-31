@@ -44,7 +44,7 @@ public class CrossPortalViewRendering {
             isFrontView(),
             RenderStates.getPartialTick()
         );
-    
+        
         Vec3 realCameraPos = camera.getPosition();
         Vec3 isometricAdjustedOriginalCameraPos =
             TransformationManager.getIsometricAdjustedCameraPos(camera);
@@ -81,6 +81,7 @@ public class CrossPortalViewRendering {
         }
         
         ((IECamera) RenderStates.originalCamera).portal_setPos(renderingCameraPos);
+        ((IECamera) RenderStates.originalCamera).ip_copyRotation(camera);
         
         WorldRenderInfo worldRenderInfo = new WorldRenderInfo.Builder()
             .setWorld(ClientWorldLoader.getWorld(portal.getDestDim()))

@@ -9,6 +9,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.entity.Entity;
 import org.joml.Matrix4f;
 import org.joml.Quaternionfc;
 import org.slf4j.Logger;
@@ -25,6 +27,7 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.ducks.IEGameRenderer;
+import qouteall.imm_ptl.core.ducks.IECamera;
 import qouteall.imm_ptl.core.portal.animation.ClientPortalAnimationManagement;
 import qouteall.imm_ptl.core.portal.animation.StableClientTimer;
 import qouteall.imm_ptl.core.render.CrossPortalViewRendering;
@@ -34,12 +37,24 @@ import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.TransformationManager;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
+import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 import qouteall.imm_ptl.core.render.renderer.PortalRenderer;
 import qouteall.imm_ptl.core.teleportation.ClientTeleportationManager;
 import qouteall.q_misc_util.Helper;
 
 @Mixin(GameRenderer.class)
 public abstract class MixinGameRenderer implements IEGameRenderer {
+    @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V"))
+    private void ip_finishPortalCameraSetup(Camera camera, BlockGetter level, Entity entity,
+        boolean detached, boolean mirrored, float partialTick, Operation<Void> original) {
+        original.call(camera, level, entity, detached, mirrored, partialTick);
+        if (WorldRenderInfo.isRendering()) {
+            // Other camera mods can change both position and orientation at the end of setup.
+            // Portal transforms are applied to the already established outer view separately.
+            WorldRenderInfo.adjustCameraPos(camera);
+            ((IECamera) camera).ip_copyRotation(RenderStates.originalCamera);
+        }
+    }
     @Shadow
     @Final
     @Mutable
