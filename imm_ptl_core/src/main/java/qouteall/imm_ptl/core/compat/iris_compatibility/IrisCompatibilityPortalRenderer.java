@@ -44,6 +44,11 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     
     public IrisCompatibilityPortalRenderer(boolean isDebugMode) {
         this.isDebugMode = isDebugMode;
+        IPGlobal.clientCleanupSignal.connect(() -> {
+            for (SecondaryFrameBuffer fb : deferredBuffers) {
+                fb.destroy();
+            }
+        });
     }
     
     @Override
@@ -94,9 +99,7 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         if (deferredBuffers.length != requiredBufferCount) {
             for (SecondaryFrameBuffer fb : deferredBuffers) {
-                if (fb.fb != null) {
-                    fb.fb.destroyBuffers();
-                }
+                fb.destroy();
             }
             
             deferredBuffers = new SecondaryFrameBuffer[requiredBufferCount];

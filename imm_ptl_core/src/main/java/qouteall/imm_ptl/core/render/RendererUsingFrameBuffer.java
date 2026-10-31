@@ -22,6 +22,14 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
     private SecondaryFrameBuffer[] secondaryFrameBuffers = new SecondaryFrameBuffer[]{
         new SecondaryFrameBuffer()
     };
+
+    public RendererUsingFrameBuffer() {
+        IPGlobal.clientCleanupSignal.connect(() -> {
+            for (SecondaryFrameBuffer fb : secondaryFrameBuffers) {
+                fb.destroy();
+            }
+        });
+    }
     
     @Override
     public void onBeforeTranslucentRendering(PoseStack matrixStack) {
@@ -53,9 +61,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         
         if (secondaryFrameBuffers.length != requiredBufferCount) {
             for (SecondaryFrameBuffer fb : secondaryFrameBuffers) {
-                if (fb.fb != null) {
-                    fb.fb.destroyBuffers();
-                }
+                fb.destroy();
             }
             
             secondaryFrameBuffers = new SecondaryFrameBuffer[requiredBufferCount];

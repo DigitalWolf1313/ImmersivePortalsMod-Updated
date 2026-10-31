@@ -54,6 +54,13 @@ public class IrisPortalRenderer extends PortalRenderer {
         IPGlobal.preGameRenderSignal.connect(() -> {
             updateNeedsPortalRendering();
         });
+        IPGlobal.clientCleanupSignal.connect(() -> {
+            for (SecondaryFrameBuffer fb : deferredFbs) {
+                fb.destroy();
+            }
+            portalRenderingNeeded = false;
+            nextFramePortalRenderingNeeded = false;
+        });
     }
     
     @Override
@@ -71,7 +78,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         
         if (deferredFbs.length != PortalRendering.getMaxPortalLayer() + 1) {
             for (SecondaryFrameBuffer fb : deferredFbs) {
-                fb.fb.destroyBuffers();
+                fb.destroy();
             }
             
             deferredFbs = new SecondaryFrameBuffer[PortalRendering.getMaxPortalLayer() + 1];
@@ -168,7 +175,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         mcFrameBuffer.bindWrite(true);
     }
 
-    
+
     @Override
     public void onHandRenderingEnded(PoseStack matrixStack) {
     

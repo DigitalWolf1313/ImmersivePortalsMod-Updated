@@ -6,8 +6,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
-import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.IPCGlobal;
+import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
@@ -71,7 +71,7 @@ public class FrustumCuller {
                 return BoxPredicate.nonePredicate;
             }
             
-            Portal portal = getCurrentNearestVisibleCullablePortal();
+            Portal portal = getCurrentNearestVisibleCullablePortal(new Vec3(cameraX, cameraY, cameraZ));
             if (portal != null) {
                 
                 Vec3 portalOrigin = portal.getOriginPos();
@@ -287,13 +287,16 @@ public class FrustumCuller {
     }
     
     @Nullable
-    private static Portal getCurrentNearestVisibleCullablePortal() {
+    private static Portal getCurrentNearestVisibleCullablePortal(Vec3 cameraPos) {
         if (TransformationManager.isIsometricView) {
             return null;
         }
         
-        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        return CHelper.getClientNearbyPortals(16).filter(
+        var world = Minecraft.getInstance().level;
+        if (world == null) {
+            return null;
+        }
+        return IPMcHelper.getNearbyPortals(world, cameraPos, 16).filter(
             portal -> portal.isInFrontOfPortal(cameraPos)
         ).filter(
             Portal::canDoOuterFrustumCulling
