@@ -1,4 +1,4 @@
-package qouteall.imm_ptl.core.compat.mixin.punchy;
+package qouteall.imm_ptl.core.compat.mixin.punchymods;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;

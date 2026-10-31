@@ -46,8 +46,9 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "client": [
-    "punchy.MixinPunchyMovement",
-    "punchy.MixinPunchyPendulum",
+    "punchymods.MixinPunchyMovesPlayerAnimationEngine",
+    "punchymods.MixinPunchyMovement",
+    "punchymods.MixinPunchyPendulum",
     "emf.MixinEntityModelFeaturesLODHandler",
     "veil.MixinVeilPacketContext"
   ],

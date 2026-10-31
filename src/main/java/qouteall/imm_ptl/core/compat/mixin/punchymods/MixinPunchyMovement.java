@@ -1,4 +1,4 @@
-package qouteall.imm_ptl.core.compat.mixin.punchy;
+package qouteall.imm_ptl.core.compat.mixin.punchymods;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
