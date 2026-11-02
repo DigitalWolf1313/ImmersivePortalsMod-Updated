@@ -73,6 +73,8 @@ public class IPGlobal {
     
     public static boolean correctCrossPortalEntityRendering = true;
     
+    public static boolean particlesCrossPortals = true;
+    
     public static boolean disableTeleportation = false;
     
     public static boolean looseMovementCheck = false;

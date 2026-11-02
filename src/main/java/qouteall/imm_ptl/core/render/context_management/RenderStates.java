@@ -28,6 +28,7 @@ import qouteall.imm_ptl.core.mixin.client.particle.IEParticle;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.animation.StableClientTimer;
 import qouteall.imm_ptl.core.render.ForceMainThreadRebuild;
+import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.QueryManager;
 import qouteall.q_misc_util.Helper;
@@ -231,14 +232,26 @@ public class RenderStates {
         return renderedDimensions.contains(dimensionType);
     }
     
-    public static boolean shouldRenderParticle(Particle particle) {
-        if (((IEParticle) particle).portal_getWorld() != Minecraft.getInstance().level) {
+    public static boolean shouldRenderParticle(Particle particle, float partialTick) {
+        IEParticle ieParticle = (IEParticle) particle;
+        if (ieParticle.portal_getWorld() != Minecraft.getInstance().level) {
             return false;
         }
         if (PortalRendering.isRendering()) {
             Portal renderingPortal = PortalRendering.getRenderingPortal();
-            Vec3 particlePos = particle.getBoundingBox().getCenter();
-            return renderingPortal.isOnDestinationSide(particlePos, 0.5);
+            
+            // The particle is drawn at its interpolated position, not at its tick position.
+            double backFraction = 1.0 - partialTick;
+            Vec3 renderedCenter = particle.getBoundingBox().getCenter().add(
+                (ieParticle.portal_getXo() - ieParticle.portal_getX()) * backFraction,
+                (ieParticle.portal_getYo() - ieParticle.portal_getY()) * backFraction,
+                (ieParticle.portal_getZo() - ieParticle.portal_getZ()) * backFraction
+            );
+            
+            // The clipping plane cuts off the part of the particle outside the destination side.
+            // So particles that are slightly outside only need to be skipped when clipping is not active.
+            double valve = FrontClipping.isClippingEnabled ? -0.5 : 0.5;
+            return renderingPortal.isOnDestinationSide(renderedCenter, valve);
         }
         return true;
     }
