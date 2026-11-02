@@ -97,6 +97,7 @@
     "client.multiworld_awareness.MixinBiomeAmbientSoundPlayer",
     "client.multiworld_awareness.MixinFogRenderer",
     "client.particle.IEParticle",
+    "client.particle.MixinParticle",
     "client.particle.MixinParticleEngine",
     "client.render.MixinBlockEntityRenderDispatcher",
     "client.render.MixinCamera",

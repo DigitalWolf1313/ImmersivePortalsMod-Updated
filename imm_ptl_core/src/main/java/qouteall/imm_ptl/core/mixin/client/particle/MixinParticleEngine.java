@@ -25,6 +25,7 @@ import qouteall.imm_ptl.core.render.TransformationManager;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
+import qouteall.imm_ptl.core.teleportation.ParticleTeleportation;
 
 @Mixin(ParticleEngine.class)
 public class MixinParticleEngine implements IEParticleManager {
@@ -96,7 +97,7 @@ public class MixinParticleEngine implements IEParticleManager {
         )
     )
     private void redirectBuildGeometry(Particle instance, VertexConsumer vertexConsumer, Camera camera, float v) {
-        if (RenderStates.shouldRenderParticle(instance)) {
+        if (RenderStates.shouldRenderParticle(instance, v)) {
             instance.render(vertexConsumer, camera, v);
         }
     }
@@ -107,6 +108,13 @@ public class MixinParticleEngine implements IEParticleManager {
     private void onTickParticle(Particle particle, CallbackInfo ci) {
         if (((IEParticle) particle).portal_getWorld() != Minecraft.getInstance().level) {
             ci.cancel();
+        }
+    }
+    
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void onBeginTick(CallbackInfo ci) {
+        if (level != null) {
+            ParticleTeleportation.refresh(level);
         }
     }
     
