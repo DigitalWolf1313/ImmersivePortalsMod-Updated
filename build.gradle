@@ -88,7 +88,7 @@ allprojects {
 
         modImplementation("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}") {
             exclude module: "fabric-gametest-api-v1"
-            // for now, the gametest module makes client unable to login dev env server
+            // Keep GameTest out of the normal dev runtime; it is added to the test mod below.
         }
 
         modImplementation("me.shedaniel.cloth:cloth-config-fabric:${cloth_config_version}") {
@@ -173,6 +173,14 @@ publishing {
     }
 }
 
+sourceSets {
+    gametest {
+        java.srcDir 'src/gametest/java'
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+}
+
 dependencies {
     include "me.shedaniel.cloth:cloth-config-fabric:${cloth_config_version}"
 
@@ -226,9 +234,49 @@ dependencies {
             modImplementation name
         }
     }
-
     testImplementation(platform('org.junit:junit-bom:5.10.0'))
     testImplementation('org.junit.jupiter:junit-jupiter')
+
+    gametestImplementation sourceSets.main.output
+    def fabricGametestApi = "net.fabricmc.fabric-api:fabric-gametest-api-v1:1.2.12+b3afc78b77"
+    gametestCompileOnly fabricGametestApi
+    // Add the mapped runtime dependency only for explicit GameTest runs.
+    if (gradle.startParameter.taskNames.any {
+        def taskName = it.substring(it.lastIndexOf(":") + 1)
+        taskName.equalsIgnoreCase("runGametest") || taskName.equalsIgnoreCase("runClientGameTest")
+    }) {
+        modImplementation fabricGametestApi
+    }
+}
+
+loom {
+    mods.register("immersive_portals_gametest") {
+        sourceSet sourceSets.gametest
+    }
+
+    runs {
+        gametestServer {
+            server()
+            name "GameTest Server"
+            source sourceSets.gametest
+            runDir "run/gametest"
+        }
+        gametest {
+            inherit gametestServer
+            name "Game Tests"
+            vmArg "-Dfabric-api.gametest"
+            vmArg "-Dfabric-api.gametest.report-file=${project.buildDir}/reports/gametest.xml"
+            runDir "build/gametest"
+        }
+        clientGameTest {
+            client()
+            name "Client Game Tests"
+            source sourceSets.gametest
+            vmArg "-Dfabric-api.gametest"
+            vmArg "-Dfabric-api.gametest.report-file=${project.buildDir}/reports/client-gametest.xml"
+            runDir "build/gametest-client"
+        }
+    }
 }
 
 dependencies {
@@ -249,14 +297,12 @@ task printClasspath {
 
 // Enable ZGC: -XX:+UseZGC
 
-// run test when building will slow down the build process
-// manually run when needed
-//test {
-//    useJUnitPlatform()
-//    testLogging {
-//        events "passed", "skipped", "failed"
-//    }
-//}
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
 
 publishMods {
     file = remapJar.archiveFile
