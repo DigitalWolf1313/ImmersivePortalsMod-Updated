@@ -23,6 +23,7 @@ import qouteall.imm_ptl.core.render.TransformationManager;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
+import qouteall.imm_ptl.core.teleportation.ParticleTeleportation;
 
 @SuppressWarnings("resource")
 @Mixin(ParticleEngine.class)
@@ -98,7 +99,7 @@ public class MixinParticleEngine implements IEParticleManager {
     private boolean redirectBuildGeometry(
         Particle instance, VertexConsumer vertexConsumer, Camera camera, float v
     ) {
-        return RenderStates.shouldRenderParticle(instance);
+        return RenderStates.shouldRenderParticle(instance, v);
     }
     
     // a lava ember particle can generate a smoke particle during ticking
@@ -107,6 +108,14 @@ public class MixinParticleEngine implements IEParticleManager {
     private void onTickParticle(Particle particle, CallbackInfo ci) {
         if (((IEParticle) particle).portal_getWorld() != Minecraft.getInstance().level) {
             ci.cancel();
+        }
+    }
+    
+    // Particles that move through portals look up the portals of the world that is being ticked.
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void onBeginTick(CallbackInfo ci) {
+        if (level != null) {
+            ParticleTeleportation.refresh(level);
         }
     }
     

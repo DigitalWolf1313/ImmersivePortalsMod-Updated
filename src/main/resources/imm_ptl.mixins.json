@@ -105,6 +105,7 @@
     "client.multiworld_awareness.MixinFogRenderer",
     "client.multiworld_awareness.MixinFogRenderer_PortalBiome",
     "client.particle.IEParticle",
+    "client.particle.MixinParticle",
     "client.particle.MixinParticleEngine",
     "client.render.IERenderSystem",
     "client.render.IESectionRenderDispatcher",
