@@ -176,6 +176,12 @@ public abstract class MixinTrackedEntity implements IEEntityTracker {
     }
     
     @Override
+    public void ip_onPortalTeleport() {
+        ((IEEntityTrackerEntry) serverEntity).ip_updateTrackedEntityPosition();
+        entity.hasImpulse = true;
+    }
+    
+    @Override
     public void stopTrackingToAllPlayers_() {
         broadcastRemoved();
     }

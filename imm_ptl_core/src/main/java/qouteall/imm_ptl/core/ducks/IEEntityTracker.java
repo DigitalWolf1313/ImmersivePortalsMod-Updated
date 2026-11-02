@@ -9,6 +9,8 @@ public interface IEEntityTracker {
     
     void updateEntityTrackingStatus(ServerPlayer player);
     
+    void ip_onPortalTeleport();
+    
     void ip_onDimensionRemove();
     
     void resendSpawnPacketToTrackers();

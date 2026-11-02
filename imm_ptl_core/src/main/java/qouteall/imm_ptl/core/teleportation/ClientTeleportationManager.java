@@ -85,12 +85,14 @@ public class ClientTeleportationManager {
         
         IPGlobal.clientCleanupSignal.connect(() -> {
             lastPlayerEyePos = null;
+            ClientEntityPortalHandoff.clear();
 //            disableTeleportFor(2);
         });
     }
     
     private static void tick() {
         tickTimeForTeleportation++;
+        ClientEntityPortalHandoff.tick();
         changePlayerMotionIfCollidingWithPortal();
         
         isTeleportingTick = false;
@@ -680,6 +682,13 @@ public class ClientTeleportationManager {
             float pitch,
             float headYaw
         ) {
+            updateEntityPosWithBodyRotation(dim, entityId, pos, yaw, pitch, headYaw, yaw);
+        }
+        
+        public static void updateEntityPosWithBodyRotation(
+            ResourceKey<Level> dim, int entityId, Vec3 pos,
+            float yaw, float pitch, float headYaw, float bodyYaw
+        ) {
             ClientLevel world = ClientWorldLoader.getWorld(dim);
             
             Entity entity = world.getEntity(entityId);
@@ -691,22 +700,25 @@ public class ClientTeleportationManager {
             
             // both of them are important for Minecart
             entity.setPos(pos);
+            entity.syncPacketPositionCodec(pos.x, pos.y, pos.z);
+            // snap last tick pos so the entity doesn't slide from the old pos
             McHelper.setPosAndLastTickPos(entity, pos, pos);
-            entity.lerpTo(
-                pos.x, pos.y, pos.z,
-                yaw, pitch,
-                0, false
-            );
-            entity.setPos(pos);
+            PortalCollisionHandler collisionHandler = ((IEEntity) entity).ip_getPortalCollisionHandler();
+            if (collisionHandler != null) {
+                collisionHandler.update(entity);
+            }
             entity.setYRot(yaw);
             entity.setXRot(pitch);
             entity.setYHeadRot(headYaw);
             entity.yRotO = yaw;
             entity.xRotO = pitch;
             if (entity instanceof LivingEntity livingEntity) {
-                livingEntity.yBodyRot = yaw;
-                livingEntity.yBodyRotO = yaw;
+                livingEntity.yHeadRotO = headYaw;
+                livingEntity.lerpHeadTo(headYaw, 0);
+                livingEntity.yBodyRot = bodyYaw;
+                livingEntity.yBodyRotO = bodyYaw;
             }
+            ClientEntityPortalHandoff.setInterpolationTarget(entity, pos, yaw, pitch, 0);
         }
     }
 }

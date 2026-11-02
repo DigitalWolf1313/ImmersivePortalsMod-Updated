@@ -1,6 +1,7 @@
 package qouteall.imm_ptl.core.teleportation;
 
 import net.minecraft.world.entity.Entity;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
@@ -16,6 +17,13 @@ import java.util.List;
  * Calculating teleportation between a moving portal and a moving player is tricky.
  */
 public class TeleportationUtil {
+    public static float transformEntityYaw(Portal portal, float yaw) {
+        Vec3 direction = portal.transformLocalVecNonScale(Vec3.directionFromRotation(0, yaw));
+        float transformedYaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+        // Keep the angle near its original value so interpolation does not take a full turn.
+        return yaw + Mth.wrapDegrees(transformedYaw - yaw);
+    }
+    
     /**
      * We have to carefully calculate the relative velocity between a moving player and a moving portal.
      * The velocity in each point is different if the portal is rotating.

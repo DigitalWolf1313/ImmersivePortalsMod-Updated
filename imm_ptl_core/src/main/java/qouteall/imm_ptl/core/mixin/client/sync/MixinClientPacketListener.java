@@ -1,6 +1,10 @@
 package qouteall.imm_ptl.core.mixin.client.sync;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.authlib.GameProfile;
+import it.unimi.dsi.fastutil.ints.IntConsumer;
+import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -19,9 +23,13 @@ import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
 import net.minecraft.network.protocol.game.ClientboundLoginPacket;
+import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
+import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -40,6 +48,7 @@ import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.ducks.IEClientPlayNetworkHandler;
 import qouteall.imm_ptl.core.ducks.IEPlayerPositionLookS2CPacket;
 import qouteall.imm_ptl.core.network.IPNetworkAdapt;
+import qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff;
 import qouteall.imm_ptl.core.teleportation.ClientTeleportationManager;
 import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.dimension.DimensionTypeSync;
@@ -50,6 +59,9 @@ import java.util.UUID;
 
 @Mixin(ClientPacketListener.class)
 public abstract class MixinClientPacketListener implements IEClientPlayNetworkHandler {
+    private static final String AFTER_THREAD_CHECK_TARGET =
+        "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/util/thread/BlockableEventLoop;)V";
+    
     private static final LimitedLogger immptl_limitedLogger = new LimitedLogger(20);
     
     @Shadow
@@ -93,6 +105,47 @@ public abstract class MixinClientPacketListener implements IEClientPlayNetworkHa
     @Override
     public void setPlayerListEntries(Map value) {
         playerInfoMap = value;
+    }
+    
+    // Vanilla's removal lambda still runs for every entity that is not being handed through a portal.
+    @WrapOperation(
+        method = "handleRemoveEntities",
+        at = @At(
+            value = "INVOKE",
+            target = "Lit/unimi/dsi/fastutil/ints/IntList;forEach(Lit/unimi/dsi/fastutil/ints/IntConsumer;)V",
+            remap = false
+        )
+    )
+    private void ip_deferTeleportingEntityRemoval(IntList entityIds, IntConsumer removal, Operation<Void> original) {
+        original.call(entityIds, (IntConsumer) entityId -> {
+            if (!ClientEntityPortalHandoff.deferSourceEntityRemoval(level, entityId)) {
+                removal.accept(entityId);
+            }
+        });
+    }
+    
+    @Inject(method = "handleMoveEntity", at = @At(value = "INVOKE", target = AFTER_THREAD_CHECK_TARGET, shift = At.Shift.AFTER), cancellable = true)
+    private void ip_deferMove(ClientboundMoveEntityPacket packet, CallbackInfo ci) {
+        Entity entity = packet.getEntity(level);
+        if (entity != null && ClientEntityPortalHandoff.deferEntityMovementPacket(entity, packet)) ci.cancel();
+    }
+    
+    @Inject(method = "handleTeleportEntity", at = @At(value = "INVOKE", target = AFTER_THREAD_CHECK_TARGET, shift = At.Shift.AFTER), cancellable = true)
+    private void ip_deferTeleport(ClientboundTeleportEntityPacket packet, CallbackInfo ci) {
+        Entity entity = level.getEntity(packet.getId());
+        if (entity != null && ClientEntityPortalHandoff.deferEntityMovementPacket(entity, packet)) ci.cancel();
+    }
+    
+    @Inject(method = "handleSetEntityMotion", at = @At(value = "INVOKE", target = AFTER_THREAD_CHECK_TARGET, shift = At.Shift.AFTER), cancellable = true)
+    private void ip_deferMotion(ClientboundSetEntityMotionPacket packet, CallbackInfo ci) {
+        Entity entity = level.getEntity(packet.getId());
+        if (entity != null && ClientEntityPortalHandoff.deferEntityMovementPacket(entity, packet)) ci.cancel();
+    }
+    
+    @Inject(method = "handleRotateMob", at = @At(value = "INVOKE", target = AFTER_THREAD_CHECK_TARGET, shift = At.Shift.AFTER), cancellable = true)
+    private void ip_deferHeadRotation(ClientboundRotateHeadPacket packet, CallbackInfo ci) {
+        Entity entity = packet.getEntity(level);
+        if (entity != null && ClientEntityPortalHandoff.deferEntityMovementPacket(entity, packet)) ci.cancel();
     }
     
     @Inject(
