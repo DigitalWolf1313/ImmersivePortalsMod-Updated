@@ -29,6 +29,7 @@ import qouteall.imm_ptl.core.ducks.IEClientWorld;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.Portal;
+import qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff;
 import qouteall.q_misc_util.my_util.LimitedLogger;
 
 import java.util.List;
@@ -117,7 +118,7 @@ public abstract class MixinClientLevel implements IEClientWorld {
     private void onOnEntityAdded(Entity entityIn, CallbackInfo ci) {
         if (ClientWorldLoader.getIsInitialized()) {
             for (ClientLevel world : ClientWorldLoader.getClientWorlds()) {
-                if (world != (Object) this) {
+                if (world != (Object) this && !ClientEntityPortalHandoff.preserveSourceEntity(world, entityIn.getId())) {
                     world.removeEntity(entityIn.getId(), Entity.RemovalReason.DISCARDED);
                 }
             }

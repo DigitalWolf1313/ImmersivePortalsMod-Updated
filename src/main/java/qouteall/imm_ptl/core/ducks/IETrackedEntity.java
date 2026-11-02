@@ -16,6 +16,8 @@ public interface IETrackedEntity {
     
     void ip_sendChanges();
     
+    void ip_onPortalTeleport();
+    
     SectionPos ip_getLastSectionPos();
     
     void ip_setLastSectionPos(SectionPos arg);

@@ -10,9 +10,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.vehicle.VehicleEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.pathfinder.Path;
@@ -30,9 +33,11 @@ import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.compat.GravityChangerInterface;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
 import qouteall.imm_ptl.core.compat.sable_compatibility.IPSableIntegration;
+import qouteall.imm_ptl.core.ducks.IEChunkMap;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.ducks.IEServerPlayNetworkHandler;
 import qouteall.imm_ptl.core.ducks.IEServerPlayerEntity;
+import qouteall.imm_ptl.core.ducks.IETrackedEntity;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
 import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.imm_ptl.core.platform_specific.O_O;
@@ -562,9 +567,24 @@ public class ServerTeleportationManager {
         Vec3 velocity = entity.getDeltaMovement();
         Vec3 oldPos = entity.position();
         
+        // The client needs the source state to transform its own interpolated motion.
+        final float yawBeforeTeleport = entity.getYRot();
+        final float pitchBeforeTeleport = entity.getXRot();
+        final double speedBeforeTeleport = entity.getDeltaMovement().length();
+        final boolean teleportsWithinSameDimension = portal.getDestDim() == entity.level().dimension();
+        
         List<Entity> passengerList = entity.getPassengers();
         
         Vec3 newEyePos = getRegularEntityTeleportedEyePos(entity, portal);
+        
+        if (!teleportsWithinSameDimension && passengerList.isEmpty() &&
+            (entity instanceof LivingEntity || entity instanceof VehicleEntity || entity instanceof ItemEntity)) {
+            Vec3 sourceTarget = portal.inverseTransformPoint(newEyePos).subtract(McHelper.getEyeOffset(entity));
+            McHelper.sendToTrackers(entity, McRemoteProcedureCall.createPacketToSendToClient(
+                "qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff.RemoteCallables.prepareCrossDimensionEntityTeleport",
+                entity.level().dimension(), portal.getDestDim(), entity.getId(), portal.getId(), portal.getUUID(), sourceTarget
+            ));
+        }
         
         TeleportationUtil.transformEntityVelocity(
             portal, entity, TeleportationUtil.PortalPointVelocity.ZERO, oldPos
@@ -587,21 +607,55 @@ public class ServerTeleportationManager {
         McHelper.setEyePos(entity, newEyePos, newEyePos);
         McHelper.updateBoundingBox(entity);
         
-        // living entities do position interpolation
-        // it may interpolate into unloaded chunks and stuck
-        // avoid position interpolation
-        McHelper.sendToTrackers(
-            entity,
-            McRemoteProcedureCall.createPacketToSendToClient(
-                "qouteall.imm_ptl.core.teleportation.ClientTeleportationManager.RemoteCallables.updateEntityPos",
-                entity.level().dimension(),
-                entity.getId(),
-                entity.position(),
-                entity.getYRot(),
-                entity.getXRot(),
-                entity.getYHeadRot()
-            )
-        );
+        if (teleportsWithinSameDimension &&
+            (entity instanceof LivingEntity || entity instanceof VehicleEntity || entity instanceof ItemEntity)) {
+            // The client transforms its interpolated state to preserve motion through the portal.
+            McHelper.sendToTrackers(
+                entity,
+                McRemoteProcedureCall.createPacketToSendToClient(
+                    "qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff.RemoteCallables.updateEntityPosThroughPortal",
+                    entity.level().dimension(),
+                    entity.getId(),
+                    portal.getId(),
+                    portal.getUUID(),
+                    entity.position(),
+                    entity.getYRot(),
+                    entity.getXRot(),
+                    entity.getYHeadRot(),
+                    yawBeforeTeleport,
+                    pitchBeforeTeleport,
+                    speedBeforeTeleport
+                )
+            );
+        }
+        else {
+            // living entities do position interpolation
+            // it may interpolate into unloaded chunks and stuck
+            // avoid position interpolation
+            McHelper.sendToTrackers(
+                entity,
+                McRemoteProcedureCall.createPacketToSendToClient(
+                    "qouteall.imm_ptl.core.teleportation.ClientTeleportationManager.RemoteCallables.updateEntityPosWithBodyRotation",
+                    entity.level().dimension(),
+                    entity.getId(),
+                    entity.position(),
+                    entity.getYRot(),
+                    entity.getXRot(),
+                    entity.getYHeadRot(),
+                    entity instanceof LivingEntity livingEntity ? livingEntity.yBodyRot : entity.getYRot()
+                )
+            );
+        }
+        
+        if (teleportsWithinSameDimension) {
+            // Existing viewers must receive the teleport before destination viewers are paired.
+            var chunkMap = ((ServerLevel) entity.level()).getChunkSource().chunkMap;
+            var tracker = ((IEChunkMap) chunkMap).ip_getEntityTrackerMap().get(entity.getId());
+            if (tracker != null) {
+                ((IETrackedEntity) tracker).ip_onPortalTeleport();
+                ((IETrackedEntity) tracker).ip_updateEntityTrackingStatus();
+            }
+        }
         
         portal.onEntityTeleportedOnServer(entity);
         
@@ -633,15 +687,27 @@ public class ServerTeleportationManager {
             collidingPoint = eyePosLastTick;
         }
         
-        Vec3 transformedDirection = portal.transformLocalVecNonScale(deltaMovementDirection).normalize();
-        
-        Vec3 result = portal.transformPoint(collidingPoint)
-            .add(transformedDirection.scale(0.05));
-        return result;
+        // Preserve motion beyond the crossing point.
+        Vec3 result;
+        if (eyePosThisTick.subtract(collidingPoint).dot(deltaMovementDirection) > 0) {
+            result = portal.transformPoint(eyePosThisTick);
+        }
+        else {
+            result = portal.transformPoint(collidingPoint);
+        }
+        if (!portal.getPortalShape().isPlanar()) {
+            // Box portals have multiple exit faces, so their origin is not an exit plane.
+            Vec3 transformedDirection = portal.transformLocalVecNonScale(deltaMovementDirection).normalize();
+            return result.add(transformedDirection.scale(0.05));
+        }
+        // Clear the exit plane without moving sideways or vertically along a knockback arc.
+        Vec3 exitDirection = portal.getContentDirection();
+        double exitDistance = result.subtract(portal.getDestPos()).dot(exitDirection);
+        return result.add(exitDirection.scale(Math.max(0, 0.001 - exitDistance)));
     }
     
     /**
-     * Rotates {@code entity}'s yaw, pitch and head yaw by {@code portal}'s rotation
+     * Rotates {@code entity}'s yaw, pitch, body yaw and head yaw by {@code portal}'s rotation
      * transformation, so that its facing direction after teleporting matches the
      * orientation of the destination side of the portal.
      * <p>
@@ -649,6 +715,12 @@ public class ServerTeleportationManager {
      * same yaw/pitch computation for cross-portal block interaction.
      */
     private static void applyRotationTransformation(Entity entity, Portal portal) {
+        float headYaw = TeleportationUtil.transformEntityYaw(portal, entity.getYHeadRot());
+        if (entity instanceof LivingEntity livingEntity) {
+            livingEntity.yBodyRot = TeleportationUtil.transformEntityYaw(portal, livingEntity.yBodyRot);
+            livingEntity.yBodyRotO = TeleportationUtil.transformEntityYaw(portal, livingEntity.yBodyRotO);
+            livingEntity.yHeadRotO = TeleportationUtil.transformEntityYaw(portal, livingEntity.yHeadRotO);
+        }
         Vec3 newLookAngle = portal.transformLocalVecNonScale(entity.getLookAngle()).normalize();
         
         float newYaw = (float) Math.toDegrees(Math.atan2(-newLookAngle.x, newLookAngle.z));
@@ -658,7 +730,7 @@ public class ServerTeleportationManager {
         
         entity.setYRot(newYaw);
         entity.setXRot(newPitch);
-        entity.setYHeadRot(newYaw);
+        entity.setYHeadRot(headYaw);
     }
     
     /**
@@ -703,10 +775,20 @@ public class ServerTeleportationManager {
             }
             
             newEntity.restoreFrom(oldEntity);
+            
+            // Destination viewers need the transformed velocity when the entity is paired.
+            newEntity.setDeltaMovement(oldEntity.getDeltaMovement());
+            
             newEntity.setId(oldEntity.getId());
             McHelper.setEyePos(newEntity, newEyePos, newEyePos);
             McHelper.updateBoundingBox(newEntity);
             newEntity.setYHeadRot(oldEntity.getYHeadRot());
+            if (oldEntity instanceof LivingEntity oldLiving && newEntity instanceof LivingEntity newLiving) {
+                // NBT restoration initializes body rotation from yaw and loses the actual pose.
+                newLiving.yBodyRot = oldLiving.yBodyRot;
+                newLiving.yBodyRotO = oldLiving.yBodyRotO;
+                newLiving.yHeadRotO = oldLiving.yHeadRotO;
+            }
             
             // TODO check minecart item duplication
             oldEntity.remove(Entity.RemovalReason.CHANGED_DIMENSION);

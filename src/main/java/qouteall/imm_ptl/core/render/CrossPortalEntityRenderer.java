@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -14,6 +15,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.ClientWorldLoader;
@@ -32,6 +34,7 @@ import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 import qouteall.imm_ptl.core.render.renderer.PortalRenderer;
+import qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff;
 import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.my_util.Plane;
 
@@ -47,6 +50,32 @@ public class CrossPortalEntityRenderer {
     public static boolean isRenderingEntityNormally = false;
     
     public static boolean isRenderingEntityProjection = false;
+    
+    private static Portal projectionLightPortal;
+    private static Entity projectionLightEntity;
+    private static float projectionLightPartialTick;
+    
+    /**
+     * The world and position that the light of a projected entity is read from.
+     */
+    public record ProjectionLightSample(Level level, BlockPos pos) {}
+    
+    /**
+     * Returns where the light should be read for the projected entity being rendered.
+     * Returns null when the light should be read normally.
+     */
+    @Nullable
+    public static ProjectionLightSample getProjectionLightSample(Level level, BlockPos pos, Entity entity) {
+        if (projectionLightPortal == null || level != projectionLightPortal.level()) {
+            return null;
+        }
+        
+        Vec3 probe = entity.getLightProbePosition(projectionLightPartialTick);
+        Vec3 samplePos = entity == projectionLightEntity && BlockPos.containing(probe).equals(pos)
+            ? probe : Vec3.atCenterOf(pos);
+        BlockPos destinationPos = BlockPos.containing(projectionLightPortal.transformPoint(samplePos));
+        return new ProjectionLightSample(ClientWorldLoader.getWorld(projectionLightPortal.getDestDim()), destinationPos);
+    }
     
     // EMF shares animation LOD timers between an entity and its projection.
     public static boolean isRenderingPortalIntersectingEntity = false;
@@ -154,6 +183,7 @@ public class CrossPortalEntityRenderer {
         ResourceKey<Level> clientDim = client.level.dimension();
         
         for (Entity entity : collidedEntities.keySet()) {
+            if (ClientEntityPortalHandoff.hideDestinationEntity(entity)) continue;
             PortalCollisionHandler collisionHandler = ((IEEntity) entity).ip_getPortalCollisionHandler();
             
             if (collisionHandler != null) {
@@ -228,7 +258,7 @@ public class CrossPortalEntityRenderer {
         
         Vec3 entityPos = entity.position();
         Vec3 entityEyePos = McHelper.getEyePos(entity);
-        Vec3 entityLastTickPos = McHelper.lastTickPosOf(entity);
+        Vec3 entityLastTickPos = new Vec3(entity.xOld, entity.yOld, entity.zOld);
         Vec3 entityLastTickEyePos = McHelper.getLastTickEyePos(entity);
         Level oldWorld = entity.level();
         
@@ -237,8 +267,10 @@ public class CrossPortalEntityRenderer {
         if (PortalRendering.isRendering()) {
             Portal renderingPortal = PortalRendering.getRenderingPortal();
             
-            Vec3 transformedEntityPos = newEyePos.subtract(McHelper.getEyeOffset(entity));
-            AABB transformedBoundingBox = McHelper.getBoundingBoxWithMovedPosition(entity, transformedEntityPos);
+            // Portal visibility must use the same interpolated pose as entity rendering.
+            AABB transformedBoundingBox = Helper.transformBox(
+                getInterpolatedRenderBounds(entity), transformingPortal::transformPoint
+            );
             
             boolean intersects = PortalManipulation.isOtherSideBoxInside(transformedBoundingBox, renderingPortal);
             
@@ -276,6 +308,9 @@ public class CrossPortalEntityRenderer {
         }
         
         isRenderingEntityProjection = true;
+        projectionLightPortal = transformingPortal;
+        projectionLightEntity = entity;
+        projectionLightPartialTick = RenderStates.getPartialTick();
         matrixStack.pushPose();
         try {
             // we don't switch the entity position now
@@ -312,6 +347,8 @@ public class CrossPortalEntityRenderer {
         finally {
             matrixStack.popPose();
             isRenderingEntityProjection = false;
+            projectionLightPortal = null;
+            projectionLightEntity = null;
         }
     }
     
@@ -370,6 +407,7 @@ public class CrossPortalEntityRenderer {
     
     public static boolean shouldRenderEntityNow(Entity entity) {
         Validate.notNull(entity);
+        if (ClientEntityPortalHandoff.hideDestinationEntity(entity)) return false;
         if (IrisInterface.invoker.isRenderingShadowMap()) {
             return true;
         }
@@ -395,11 +433,21 @@ public class CrossPortalEntityRenderer {
                 }
             }
             
-            return renderingPortal.isOnDestinationSide(
-                getRenderingCameraPos(entity), -0.01
-            );
+            // The body can cross the destination plane before the interpolated eye does.
+            // GPU clipping removes the portion outside the destination side.
+            return entity instanceof LocalPlayer
+                ? renderingPortal.isOnDestinationSide(getRenderingCameraPos(entity), -0.01)
+                : PortalManipulation.isOtherSideBoxInside(getInterpolatedRenderBounds(entity), renderingPortal);
         }
         return true;
+    }
+    
+    private static AABB getInterpolatedRenderBounds(Entity entity) {
+        // Entity rendering uses xOld/yOld/zOld, which can differ from xo/yo/zo outside normal ticks.
+        Vec3 renderedPos = new Vec3(entity.xOld, entity.yOld, entity.zOld)
+            .lerp(entity.position(), RenderStates.getPartialTick());
+        
+        return entity.getBoundingBoxForCulling().move(renderedPos.subtract(entity.position()));
     }
     
     public static boolean shouldRenderPlayerNormally(Entity entity) {

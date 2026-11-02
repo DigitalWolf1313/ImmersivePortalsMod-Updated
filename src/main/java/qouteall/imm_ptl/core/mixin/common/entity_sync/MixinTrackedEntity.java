@@ -310,6 +310,14 @@ public abstract class MixinTrackedEntity implements IETrackedEntity {
     }
     
     @Override
+    public void ip_onPortalTeleport() {
+        // The portal RPC already supplies the absolute destination.
+        // Future movement deltas must start there instead of repeating the teleport.
+        ((IEEntityTrackerEntry) serverEntity).ip_updateTrackedEntityPosition();
+        entity.hasImpulse = true;
+    }
+    
+    @Override
     public SectionPos ip_getLastSectionPos() {
         return lastSectionPos;
     }
