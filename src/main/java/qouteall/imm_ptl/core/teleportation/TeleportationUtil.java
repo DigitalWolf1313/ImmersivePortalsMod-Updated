@@ -2,6 +2,7 @@ package qouteall.imm_ptl.core.teleportation;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -20,6 +21,13 @@ import java.util.List;
  */
 public class TeleportationUtil {
     private static final Logger LOGGER = LogUtils.getLogger();
+    
+    public static float transformEntityYaw(Portal portal, float yaw) {
+        Vec3 direction = portal.transformLocalVecNonScale(Vec3.directionFromRotation(0, yaw));
+        float transformedYaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+        // Keep the angle near its original value so interpolation does not take a full turn.
+        return yaw + Mth.wrapDegrees(transformedYaw - yaw);
+    }
     
     /**
      * We have to carefully calculate the relative velocity between a moving player and a moving portal.
