@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_17",
   "plugin": "qouteall.imm_ptl.core.compat.IPCompatMixinPlugin",
   "mixins": [
+    "vanillabackport.MixinVanillaBackportPlatformEntityData",
     "vanillabackport.MixinVanillaBackportProjectileUtils",
     "vanillabackport.MixinVanillaBackportPiercingWeapon",
     "vanillabackport.MixinVanillaBackportKineticWeapon",
@@ -46,6 +47,7 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "client": [
+    "vanillabackport.MixinVanillaBackportPlatformEntityDataPayload",
     "vista.MixinVistaCameraController",
     "vista.MixinVistaLevelRenderer",
     "vista.MixinVistaFrustumState",
