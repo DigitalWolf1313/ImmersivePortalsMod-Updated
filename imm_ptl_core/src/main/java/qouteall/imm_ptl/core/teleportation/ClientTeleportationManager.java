@@ -343,6 +343,7 @@ public class ClientTeleportationManager {
         
         McHelper.setEyePos(player, newThisTickEyePos, newLastTickEyePos);
         McHelper.updateBoundingBox(player);
+        CrossPortalSound.onPlayerTeleported(portal);
         
         PehkuiInterface.invoker.onClientPlayerTeleported(portal);
         
