@@ -55,7 +55,8 @@
     "punchymods.MixinPunchyMovement",
     "punchymods.MixinPunchyPendulum",
     "emf.MixinEntityModelFeaturesLODHandler",
-    "veil.MixinVeilPacketContext"
+    "veil.MixinVeilPacketContext",
+    "veil.MixinVeilVanillaShaderProcessor"
   ],
   "injectors": {
     "defaultRequire": 1
