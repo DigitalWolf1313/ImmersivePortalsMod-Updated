@@ -40,6 +40,10 @@ public abstract class MixinShaderInstance implements IEShader {
     private void onLoadReferences(CallbackInfo ci) {
         Shader this_ = (Shader) (Object) this;
         
+        if (ip_clippingEquation != null) {
+            return;
+        }
+        
         if (ShaderCodeTransformation.shouldAddUniform(name)) {
             ip_clippingEquation = new Uniform(
                 "iportal_ClippingEquation",
