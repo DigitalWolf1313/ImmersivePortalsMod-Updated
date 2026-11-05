@@ -3,6 +3,7 @@ package qouteall.imm_ptl.core.render.optimization;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.client.Minecraft;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL30;
 
@@ -14,8 +15,8 @@ public class GLResourceCache {
     private final Consumer<int[]> generator;
     private final IntList bufferIds = new IntArrayList();
     
-    public static GLResourceCache bufferCache = new GLResourceCache(GL15::glGenBuffers);
-    public static GLResourceCache vertexArrayCache = new GLResourceCache(GL30::glGenVertexArrays);
+    public static GLResourceCache bufferCache = new GLResourceCache(GLResourceCache::generateBuffers);
+    public static GLResourceCache vertexArrayCache = new GLResourceCache(GLResourceCache::generateVertexArrays);
     
     public GLResourceCache(Consumer<int[]> generator) {
         this.generator = generator;
@@ -38,6 +39,29 @@ public class GLResourceCache {
         int[] buf = new int[num];
         generator.accept(buf);
         bufferIds.addElements(bufferIds.size(), buf);
+    }
+    
+    // A generated name only becomes an object when it is first bound.
+    // Labeling it or using direct state access on it before that raises GL errors on strict drivers.
+    // So every generated name is bound once, and the previous binding is restored.
+    private static void generateBuffers(int[] ids) {
+        GL15.glGenBuffers(ids);
+        
+        int previousBinding = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
+        for (int id : ids) {
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, id);
+        }
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, previousBinding);
+    }
+    
+    private static void generateVertexArrays(int[] ids) {
+        GL30.glGenVertexArrays(ids);
+        
+        int previousBinding = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
+        for (int id : ids) {
+            GL30.glBindVertexArray(id);
+        }
+        GL30.glBindVertexArray(previousBinding);
     }
     
     private int getExpectedBufferSize() {
