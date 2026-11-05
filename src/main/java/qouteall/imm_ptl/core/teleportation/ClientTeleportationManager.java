@@ -91,6 +91,7 @@ public class ClientTeleportationManager {
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(() -> {
             lastPlayerEyePos = null;
             ClientEntityPortalHandoff.clear();
+            CrossPortalSound.onClientCleanup();
 //            disableTeleportFor(2);
         });
     }
@@ -359,6 +360,7 @@ public class ClientTeleportationManager {
         
         McHelper.setEyePos(player, newThisTickEyePos, newLastTickEyePos);
         McHelper.updateBoundingBox(player);
+        CrossPortalSound.onPlayerTeleported(portal);
         
         Vec3 oldRealVelocity = McHelper.getWorldVelocity(player);
         TransformationManager.managePlayerRotationAndChangeGravity(portal);
