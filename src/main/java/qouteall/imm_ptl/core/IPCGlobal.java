@@ -40,6 +40,8 @@ public class IPCGlobal {
     
     public static boolean irisUniformUpdate = true;
     
+    public static boolean irisTemporalHistory = true;
+    
     /**
      * Fired when client exits world or doing conventional dimension travel (with loading screen).
      */
