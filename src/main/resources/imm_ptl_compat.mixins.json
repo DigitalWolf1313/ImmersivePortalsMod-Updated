@@ -33,7 +33,11 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "client": [
-    "emf.MixinEntityModelFeaturesLODHandler"
+    "emf.MixinEntityModelFeaturesLODHandler",
+    "distanthorizons.MixinDistantHorizonsActualLevel",
+    "distanthorizons.MixinDistantHorizonsLightmapLevel",
+    "distanthorizons.MixinDistantHorizonsBeforeRenderEvent",
+    "distanthorizons.MixinDistantHorizonsVanillaFog"
   ],
   "injectors": {
     "defaultRequire": 1

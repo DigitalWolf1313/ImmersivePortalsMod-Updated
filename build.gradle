@@ -111,6 +111,8 @@ dependencies {
     }
     include("com.github.iPortalTeam:DimLib:${dimlib_version}")
 
+    modCompileOnly "maven.modrinth:distanthorizons:${distant_horizons_version}"
+
     // put these into inner mod to reduce duplicate MC jar
 
     if (project.enable_sodium.equals('true')) {

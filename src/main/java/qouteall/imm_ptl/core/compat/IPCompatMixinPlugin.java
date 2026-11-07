@@ -54,6 +54,10 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return fabricLoader.isModLoaded("entity_model_features");
         }
         
+        if (mixinClassName.contains("DistantHorizons")) {
+            return fabricLoader.isModLoaded("distanthorizons");
+        }
+        
         return false;
     }
     
