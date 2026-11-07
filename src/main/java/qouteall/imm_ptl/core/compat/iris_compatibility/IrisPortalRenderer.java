@@ -15,7 +15,6 @@ import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
-import qouteall.imm_ptl.core.render.MyGameRenderer;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.SecondaryFrameBuffer;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
@@ -325,12 +324,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         WorldRenderInfo worldRenderInfo
     ) {
         
-        IrisInterface.invoker.updatePerFrameUniforms();
-        
-        MyGameRenderer.renderWorldNew(
-            worldRenderInfo,
-            Runnable::run
-        );
+        IrisTemporalContext.renderWorld(worldRenderInfo);
     }
     
     @Override
