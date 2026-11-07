@@ -67,6 +67,10 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return fabricLoader.isModLoaded("punchy");
         }
         
+        if (mixinClassName.contains("DistantHorizons")) {
+            return fabricLoader.isModLoaded("distanthorizons");
+        }
+    
         return false;
     }
     

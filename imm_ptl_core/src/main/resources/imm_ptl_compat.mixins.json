@@ -41,6 +41,10 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "client": [
+    "distanthorizons.MixinDistantHorizonsActualLevel",
+    "distanthorizons.MixinDistantHorizonsLightmapLevel",
+    "distanthorizons.MixinDistantHorizonsBeforeRenderEvent",
+    "distanthorizons.MixinDistantHorizonsVanillaFog",
     "punchy.MixinPunchyMovement",
     "punchy.MixinPunchyPendulum",
     "emf.MixinEntityModelFeaturesLODHandler"

@@ -18,6 +18,7 @@ import qouteall.imm_ptl.core.commands.AxisArgumentType;
 import qouteall.imm_ptl.core.commands.PortalCommand;
 import qouteall.imm_ptl.core.commands.SubCommandArgumentType;
 import qouteall.imm_ptl.core.commands.TimingFunctionArgumentType;
+import qouteall.imm_ptl.core.compat.IPDistantHorizonsCompat;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.compat.IPVoxyCompat;
 import qouteall.imm_ptl.core.debug.DebugUtil;
@@ -88,6 +89,7 @@ public class IPModMain {
         
         ImmPtlChunkTickets.init();
         
+        IPDistantHorizonsCompat.init();
         IPVoxyCompat.init();
         IPPortingLibCompat.init();
         
