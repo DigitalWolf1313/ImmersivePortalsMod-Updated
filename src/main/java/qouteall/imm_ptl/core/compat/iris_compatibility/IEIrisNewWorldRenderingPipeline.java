@@ -10,5 +10,7 @@ public interface IEIrisNewWorldRenderingPipeline {
     
     void ip_refreshFrameState();
 
+    void ip_refreshTemporalUniforms();
+
     GlFramebuffer ip_getPortalFogFramebuffer();
 }
