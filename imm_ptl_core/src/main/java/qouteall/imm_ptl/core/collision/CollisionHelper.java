@@ -101,24 +101,23 @@ public class CollisionHelper {
     }
     
     public static boolean canCollideWithPortal(Entity entity, Portal portal, float partialTick) {
+        return mayEntityCollideWithPortal(
+            entity, portal, entity.getEyePosition(partialTick), entity.getBoundingBox()
+        );
+    }
+    
+    public static boolean mayEntityCollideWithPortal(
+        Entity entity, Portal portal, Vec3 entityEyePos, AABB entityBoundingBox
+    ) {
         if (!portal.canCollideWithEntity(entity)) {
             return false;
         }
         
-        Vec3 cameraPosVec = entity.getEyePosition(partialTick);
-        boolean inFrontOfPortal = portal.isInFrontOfPortal(cameraPosVec);
-        
-        if (!inFrontOfPortal) {
+        if (!portal.isInFrontOfPortal(entityEyePos)) {
             return false;
         }
         
-        boolean inProjection = portal.isBoundingBoxInPortalProjection(entity.getBoundingBox());
-        
-        if (!inProjection) {
-            return false;
-        }
-        
-        return true;
+        return portal.isBoundingBoxInPortalProjection(entityBoundingBox);
     }
     
     public static double absMin(double a, double b) {

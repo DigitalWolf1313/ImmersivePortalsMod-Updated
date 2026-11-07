@@ -17,6 +17,7 @@ import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalLike;
 import qouteall.q_misc_util.Helper;
+import qouteall.q_misc_util.my_util.Plane;
 
 import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
@@ -296,6 +297,65 @@ public class PortalCollisionHandler {
         }
         
         return shape;
+    }
+
+    public boolean collidesWithBlocks(Entity entity, AABB boxThisSide) {
+        VoxelShape boxShape = Shapes.create(boxThisSide);
+        List<Portal> portals = getCollidingPortals();
+        
+        for (VoxelShape shape : entity.level().getBlockCollisions(entity, boxThisSide)) {
+            VoxelShape processed = processThisSideCollisionShape(shape, portals);
+            
+            if (processed != null && Shapes.joinIsNotEmpty(processed, boxShape, BooleanOp.AND)) {
+                return true;
+            }
+        }
+        
+        return collidesWithOtherSide(entity, boxThisSide);
+    }
+    
+    public boolean collidesWithOtherSide(Entity entity, AABB boxThisSide) {
+        for (PortalCollisionEntry portalCollision : portalCollisions) {
+            Portal portal = portalCollision.portal;
+            
+            if (!portal.getHasCrossPortalCollision()) {
+                continue;
+            }
+            
+            if (!CollisionHelper.mayEntityCollideWithPortal(
+                entity, portal, entity.getEyePosition(0), boxThisSide
+            )) {
+                continue;
+            }
+            
+            AABB boxOtherSide = CollisionHelper.transformBox(portal, boxThisSide);
+            if (boxOtherSide == null || isBoxTooBig(boxOtherSide)) {
+                continue;
+            }
+            
+            Level destinationWorld = portal.getDestWorld();
+            if (!destinationWorld.hasChunkAt(BlockPos.containing(boxOtherSide.getCenter()))) {
+                continue;
+            }
+            
+            Plane innerClipping = portal.getInnerClipping();
+            VoxelShape boxShape = Shapes.create(boxOtherSide);
+            
+            for (VoxelShape shape : destinationWorld.getBlockCollisions(entity, boxOtherSide)) {
+                VoxelShape clipped = innerClipping == null ? shape :
+                    CollisionHelper.clipVoxelShape(shape, innerClipping.pos(), innerClipping.normal());
+                
+                if (clipped != null && Shapes.joinIsNotEmpty(clipped, boxShape, BooleanOp.AND)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    private static boolean isBoxTooBig(AABB aabb) {
+        return aabb.getXsize() > 100 || aabb.getYsize() > 100 || aabb.getZsize() > 100;
     }
     
     @Nullable
