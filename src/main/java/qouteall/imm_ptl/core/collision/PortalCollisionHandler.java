@@ -335,6 +335,73 @@ public class PortalCollisionHandler {
         return shape;
     }
     
+    /**
+     * Returns whether the box overlaps blocks, with the portals' collision rules applied.
+     * Blocks on this side that a portal excludes are ignored.
+     * Blocks on the other side of any colliding portal are included.
+     * The entity is only used as the collision context.
+     */
+    public boolean collidesWithBlocks(Entity entity, AABB boxThisSide) {
+        VoxelShape boxShape = Shapes.create(boxThisSide);
+        List<Portal> portals = getCollidingPortals();
+        
+        for (VoxelShape shape : entity.level().getBlockCollisions(entity, boxThisSide)) {
+            VoxelShape processed = processThisSideCollisionShape(shape, portals);
+            
+            if (processed != null && Shapes.joinIsNotEmpty(processed, boxShape, BooleanOp.AND)) {
+                return true;
+            }
+        }
+        
+        return collidesWithOtherSide(entity, boxThisSide);
+    }
+    
+    /**
+     * Returns whether the box overlaps blocks on the other side of any colliding portal.
+     * Returns false when the other side chunk is not loaded.
+     * The entity is only used as the collision context.
+     */
+    public boolean collidesWithOtherSide(Entity entity, AABB boxThisSide) {
+        for (PortalCollisionEntry portalCollision : portalCollisions) {
+            Portal portal = portalCollision.portal;
+            
+            if (!portal.getHasCrossPortalCollision()) {
+                continue;
+            }
+            
+            // The other side only supports the box while the box is still over the portal's area.
+            if (!CollisionHelper.mayEntityCollideWithPortal(
+                entity, portal, entity.getEyePosition(0), boxThisSide
+            )) {
+                continue;
+            }
+            
+            AABB boxOtherSide = CollisionHelper.transformBox(portal, boxThisSide);
+            if (boxOtherSide == null || isBoxTooBig(boxOtherSide)) {
+                continue;
+            }
+            
+            Level destinationWorld = portal.getDestWorld();
+            if (!destinationWorld.hasChunkAt(BlockPos.containing(boxOtherSide.getCenter()))) {
+                continue;
+            }
+            
+            Plane innerClipping = portal.getInnerClipping();
+            VoxelShape boxShape = Shapes.create(boxOtherSide);
+            
+            for (VoxelShape shape : destinationWorld.getBlockCollisions(entity, boxOtherSide)) {
+                VoxelShape clipped = innerClipping == null ? shape :
+                    CollisionHelper.clipVoxelShape(shape, innerClipping.pos(), innerClipping.normal());
+                
+                if (clipped != null && Shapes.joinIsNotEmpty(clipped, boxShape, BooleanOp.AND)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
     public @Nullable AABB getActiveCollisionBox(Entity entity, AABB rawBoundingBox) {
         AABB currentBox = rawBoundingBox;
         
