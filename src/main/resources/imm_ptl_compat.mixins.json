@@ -52,6 +52,10 @@
   ],
   "client": [
     "vanillabackport.MixinVanillaBackportPlatformEntityDataPayload",
+    "distanthorizons.MixinDistantHorizonsActualLevel",
+    "distanthorizons.MixinDistantHorizonsLightmapLevel",
+    "distanthorizons.MixinDistantHorizonsBeforeRenderEvent",
+    "distanthorizons.MixinDistantHorizonsVanillaFog",
     "vista.MixinVistaCameraController",
     "vista.MixinVistaLevelRenderer",
     "vista.MixinVistaFrustumState",

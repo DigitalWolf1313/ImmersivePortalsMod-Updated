@@ -29,6 +29,7 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.block_manipulation.BlockManipulationClient;
+import qouteall.imm_ptl.core.compat.IPDistantHorizonsCompat;
 import qouteall.imm_ptl.core.compat.IPSableCompat;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.compat.sable_compatibility.SableClientInterface;
@@ -100,6 +101,11 @@ public class MyGameRenderer {
         WorldRenderInfo worldRenderInfo,
         Consumer<Runnable> invokeWrapper
     ) {
+        boolean isOutermost = !WorldRenderInfo.isRendering();
+        if (isOutermost) {
+            IPDistantHorizonsCompat.beforeOuterPortalView();
+        }
+        
         WorldRenderInfo.pushRenderInfo(worldRenderInfo);
         
         switchAndRenderTheWorld(
@@ -112,6 +118,10 @@ public class MyGameRenderer {
         );
         
         WorldRenderInfo.popRenderInfo();
+        
+        if (isOutermost) {
+            IPDistantHorizonsCompat.afterOuterPortalView();
+        }
     }
     
     private static void switchAndRenderTheWorld(

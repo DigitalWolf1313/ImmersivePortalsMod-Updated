@@ -85,6 +85,11 @@ public class IPCompatMixinPlugin implements IMixinConfigPlugin {
             return fabricLoader.isModLoaded("vista");
         }
         
+        if (mixinClassName.contains("DistantHorizons")) {
+            boolean DHLoaded = fabricLoader.isModLoaded("distanthorizons");
+            return DHLoaded;
+        }
+        
         return false;
     }
     
