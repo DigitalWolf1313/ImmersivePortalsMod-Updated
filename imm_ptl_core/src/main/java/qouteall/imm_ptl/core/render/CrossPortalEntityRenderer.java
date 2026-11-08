@@ -9,6 +9,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -442,10 +443,14 @@ public class CrossPortalEntityRenderer {
     
     private static AABB getInterpolatedRenderBounds(Entity entity) {
         // Entity rendering uses xOld/yOld/zOld, which can differ from xo/yo/zo outside normal ticks.
-        Vec3 renderedPos = new Vec3(entity.xOld, entity.yOld, entity.zOld)
-            .lerp(entity.position(), RenderStates.getPartialTick());
+        double partialTick = RenderStates.getPartialTick();
+        Vec3 pos = entity.position();
         
-        return entity.getBoundingBoxForCulling().move(renderedPos.subtract(entity.position()));
+        return entity.getBoundingBoxForCulling().move(
+            Mth.lerp(partialTick, entity.xOld, pos.x) - pos.x,
+            Mth.lerp(partialTick, entity.yOld, pos.y) - pos.y,
+            Mth.lerp(partialTick, entity.zOld, pos.z) - pos.z
+        );
     }
     
     public static boolean shouldRenderPlayerNormally(Entity entity) {

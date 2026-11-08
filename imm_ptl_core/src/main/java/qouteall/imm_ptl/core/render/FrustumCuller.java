@@ -9,11 +9,16 @@ import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
+import qouteall.imm_ptl.core.portal.Mirror;
 import qouteall.imm_ptl.core.portal.Portal;
+import qouteall.imm_ptl.core.portal.PortalLike;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.q_misc_util.my_util.BoxPredicate;
+import qouteall.q_misc_util.my_util.Plane;
 
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class FrustumCuller {
@@ -63,62 +68,326 @@ public class FrustumCuller {
             return BoxPredicate.nonePredicate;
         }
         
-        if (PortalRendering.isRendering()) {
-            return PortalRendering.getRenderingPortal().getInnerFrustumCullingFunc(cameraX, cameraY, cameraZ);
+        Vec3 cameraPos = new Vec3(cameraX, cameraY, cameraZ);
+        
+        BoxPredicate outerCuller = null;
+        if (isOuterFrustumCullingAllowed()) {
+            outerCuller = getOuterCullingFuncForNearbyPortals(cameraPos);
         }
-        else {
-            if (!IPCGlobal.useSuperAdvancedFrustumCulling) {
-                return BoxPredicate.nonePredicate;
+        
+        if (PortalRendering.isRendering()) {
+            BoxPredicate innerCuller = getInnerCullingFuncWithOuterLayers(
+                PortalRendering.getRenderingPortal(), cameraPos
+            );
+            BoxPredicate combined = combineCullers(innerCuller, outerCuller);
+            return combined == null ? BoxPredicate.nonePredicate : combined;
+        }
+        
+        return outerCuller == null ? BoxPredicate.nonePredicate : outerCuller;
+    }
+    
+    private static boolean isOuterFrustumCullingAllowed() {
+        return IPCGlobal.useSuperAdvancedFrustumCulling &&
+            SodiumInterface.invoker.isSodiumPresent();
+    }
+    
+    @Nullable
+    private static BoxPredicate combineCullers(
+        @Nullable BoxPredicate a, @Nullable BoxPredicate b
+    ) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        
+        return (minX, minY, minZ, maxX, maxY, maxZ) ->
+            a.test(minX, minY, minZ, maxX, maxY, maxZ) ||
+                b.test(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+    
+    private static BoxPredicate getInnerCullingFuncWithOuterLayers(
+        PortalLike renderingPortal, Vec3 cameraPos
+    ) {
+        BoxPredicate innermostCuller = renderingPortal.getInnerFrustumCullingFunc(
+            cameraPos.x, cameraPos.y, cameraPos.z
+        );
+        
+        List<Portal> path = PortalRendering.getPortalPath();
+        if (path.size() != PortalRendering.getPortalLayer()) {
+            return innermostCuller;
+        }
+        
+        List<Frustum4Planes> outerFrustums = new ArrayList<>();
+        for (int i = 0; i < path.size() - 1; i++) {
+            Portal outerPortal = path.get(i);
+            if (!outerPortal.canDoOuterFrustumCulling()) {
+                continue;
             }
             
-            Portal portal = getCurrentNearestVisibleCullablePortal(new Vec3(cameraX, cameraY, cameraZ));
-            if (portal != null) {
-                
-                Vec3 portalOrigin = portal.getOriginPos();
-                Vec3 portalOriginInLocalCoordinate = portalOrigin.add(
-                    -cameraX, -cameraY, -cameraZ
-                );
-                final Vec3[] outerFrustumCullingVertices = portal.getOuterFrustumCullingVertices();
-                if (outerFrustumCullingVertices == null) {
-                    return BoxPredicate.nonePredicate;
+            Frustum4Planes frustum = getOuterLayerFrustum(path, i, cameraPos);
+            if (frustum != null) {
+                outerFrustums.add(frustum);
+            }
+        }
+        
+        if (outerFrustums.isEmpty()) {
+            return innermostCuller;
+        }
+        
+        Frustum4Planes[] frustumArray = outerFrustums.toArray(new Frustum4Planes[0]);
+        return (minX, minY, minZ, maxX, maxY, maxZ) -> {
+            if (innermostCuller.test(minX, minY, minZ, maxX, maxY, maxZ)) {
+                return true;
+            }
+            
+            for (Frustum4Planes frustum : frustumArray) {
+                if (frustum.isFullyOutside(minX, minY, minZ, maxX, maxY, maxZ)) {
+                    return true;
                 }
-                Vec3[] downLeftUpRightPlaneNormals = getDownLeftUpRightPlaneNormals(
-                    portalOriginInLocalCoordinate,
-                    outerFrustumCullingVertices
-                );
-                
-                Vec3 downPlane = downLeftUpRightPlaneNormals[0];
-                Vec3 leftPlane = downLeftUpRightPlaneNormals[1];
-                Vec3 upPlane = downLeftUpRightPlaneNormals[2];
-                Vec3 rightPlane = downLeftUpRightPlaneNormals[3];
-                
-                Vec3 nearPlanePosInLocalCoordinate = portalOriginInLocalCoordinate;
-                Vec3 nearPlaneNormal = portal.getNormal().scale(-1);
-                
-                return
-                    (double minX, double minY, double minZ, double maxX, double maxY, double maxZ) -> {
-                        boolean isBehindNearPlane = testBoxTwoVertices(
-                            minX, minY, minZ, maxX, maxY, maxZ,
-                            nearPlaneNormal.x, nearPlaneNormal.y, nearPlaneNormal.z,
-                            nearPlanePosInLocalCoordinate.x,
-                            nearPlanePosInLocalCoordinate.y,
-                            nearPlanePosInLocalCoordinate.z
-                        ) == BatchTestResult.all_true;
-                        
-                        if (!isBehindNearPlane) {
-                            return false;
-                        }
-                        
-                        boolean fullyInFrustum = isFullyInFrustum(
-                            minX, minY, minZ, maxX, maxY, maxZ,
-                            leftPlane, rightPlane, upPlane, downPlane
-                        );
-                        return fullyInFrustum;
-                    };
             }
-            else {
-                return BoxPredicate.nonePredicate;
+            
+            return false;
+        };
+    }
+    
+    @Nullable
+    private static Frustum4Planes getOuterLayerFrustum(
+        List<Portal> path, int index, Vec3 cameraPos
+    ) {
+        Vec3[] vertices = getRectPortalFourVerticesCounterClockwise(path.get(index));
+        if (vertices == null) {
+            return null;
+        }
+        
+        int mirrorNum = 0;
+        for (int i = index; i < path.size(); i++) {
+            Portal portal = path.get(i);
+            for (int k = 0; k < vertices.length; k++) {
+                vertices[k] = portal.transformPoint(vertices[k]);
             }
+            if (portal instanceof Mirror) {
+                mirrorNum++;
+            }
+        }
+        
+        Vec3[] relativeVertices = new Vec3[]{
+            vertices[0].subtract(cameraPos),
+            vertices[1].subtract(cameraPos),
+            vertices[2].subtract(cameraPos),
+            vertices[3].subtract(cameraPos)
+        };
+        
+        if (mirrorNum % 2 == 1) {
+            relativeVertices = new Vec3[]{
+                relativeVertices[3], relativeVertices[2], relativeVertices[1], relativeVertices[0]
+            };
+        }
+        
+        return getFrustumPlanesFromFourVerticesCounterClockwise(relativeVertices);
+    }
+    
+    private static boolean canOuterCullBehind(Portal portal, Vec3 cameraPos) {
+        if (!portal.isInFrontOfPortal(cameraPos) || !portal.canDoOuterFrustumCulling()) {
+            return false;
+        }
+        
+        if (PortalRendering.getPortalLayer() >= PortalRendering.getMaxPortalLayer()) {
+            return false;
+        }
+        
+        if (!PortalRendering.isRendering()) {
+            return true;
+        }
+        
+        List<Portal> path = PortalRendering.getPortalPath();
+        if (path.size() != PortalRendering.getPortalLayer() ||
+            isInvalidRecursionRendering(portal, path)
+        ) {
+            return false;
+        }
+        
+        PortalLike renderingPortal = PortalRendering.getRenderingPortal();
+        if (renderingPortal.cannotRenderInMe(portal) ||
+            RendererUsingStencil.shouldSkipRenderingInsideFuseViewPortal(portal)
+        ) {
+            return false;
+        }
+        
+        Plane clipping = PortalRendering.getActiveClippingPlane();
+        if (clipping != null) {
+            Vec3[] vertices = getRectPortalFourVerticesCounterClockwise(portal);
+            if (vertices == null) {
+                return false;
+            }
+            for (Vec3 vertex : vertices) {
+                if (!clipping.isPointOnPositiveSide(vertex)) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    private static boolean isInvalidRecursionRendering(Portal toRender, List<Portal> path) {
+        if (path.size() < 2) {
+            return false;
+        }
+        
+        Portal last = path.get(path.size() - 1);
+        Portal secondLast = path.get(path.size() - 2);
+        return toRender == secondLast && Portal.isReversePortal(toRender, last);
+    }
+    
+    private static final int MAX_OUTER_CULLING_PORTAL_NUM = 32;
+    
+    private record ScoredPortal(Portal portal, double apparentSize) {}
+    
+    @Nullable
+    private static BoxPredicate getOuterCullingFuncForNearbyPortals(Vec3 cameraPos) {
+        if (TransformationManager.isIsometricView) {
+            return null;
+        }
+        
+        var world = Minecraft.getInstance().level;
+        if (world == null) {
+            return null;
+        }
+        
+        List<Portal> portals = IPMcHelper.getNearbyPortalList(
+            world, cameraPos, 28,
+            portal -> canOuterCullBehind(portal, cameraPos)
+        );
+        if (portals.isEmpty()) {
+            return null;
+        }
+        
+        List<ScoredPortal> scoredPortals = new ArrayList<>(portals.size());
+        for (Portal portal : portals) {
+            scoredPortals.add(new ScoredPortal(portal, getApparentSize(portal, cameraPos)));
+        }
+        
+        scoredPortals.sort((a, b) -> Double.compare(b.apparentSize(), a.apparentSize()));
+        
+        int num = Math.min(scoredPortals.size(), MAX_OUTER_CULLING_PORTAL_NUM);
+        List<BoxPredicate> cullers = new ArrayList<>(num);
+        for (int i = 0; i < num; i++) {
+            BoxPredicate culler = getFlatPortalOuterFrustumCullingFunc(
+                scoredPortals.get(i).portal(), cameraPos
+            );
+            if (culler != null) {
+                cullers.add(culler);
+            }
+        }
+        
+        if (cullers.isEmpty()) {
+            return null;
+        }
+        if (cullers.size() == 1) {
+            return cullers.get(0);
+        }
+        
+        BoxPredicate[] cullerArray = cullers.toArray(new BoxPredicate[0]);
+        return (minX, minY, minZ, maxX, maxY, maxZ) -> {
+            for (BoxPredicate culler : cullerArray) {
+                if (culler.test(minX, minY, minZ, maxX, maxY, maxZ)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+    }
+    
+    @Nullable
+    private static BoxPredicate getFlatPortalOuterFrustumCullingFunc(
+        Portal portal, Vec3 cameraPos
+    ) {
+        Vec3[] vertices = portal.getOuterFrustumCullingVertices();
+        if (vertices == null) {
+            return null;
+        }
+        
+        Vec3 portalOriginInLocalCoordinate = portal.getOriginPos().subtract(cameraPos);
+        Vec3[] planes = getDownLeftUpRightPlaneNormals(
+            portalOriginInLocalCoordinate, vertices
+        );
+        
+        Vec3 downPlane = planes[0];
+        Vec3 leftPlane = planes[1];
+        Vec3 upPlane = planes[2];
+        Vec3 rightPlane = planes[3];
+        Vec3 nearPlaneNormal = portal.getNormal().scale(-1);
+        
+        return (minX, minY, minZ, maxX, maxY, maxZ) -> {
+            boolean behindPortal = testBoxTwoVertices(
+                minX, minY, minZ, maxX, maxY, maxZ,
+                nearPlaneNormal.x, nearPlaneNormal.y, nearPlaneNormal.z,
+                portalOriginInLocalCoordinate.x,
+                portalOriginInLocalCoordinate.y,
+                portalOriginInLocalCoordinate.z
+            ) == BatchTestResult.all_true;
+            
+            return behindPortal && isFullyInFrustum(
+                minX, minY, minZ, maxX, maxY, maxZ,
+                leftPlane, rightPlane, upPlane, downPlane
+            );
+        };
+    }
+    
+    private static double getApparentSize(Portal portal, Vec3 cameraPos) {
+        double area = portal.width * portal.height;
+        Vec3 toPortal = portal.getOriginPos().subtract(cameraPos);
+        double distance = Math.max(toPortal.length(), 0.01);
+        double cos = Math.abs(toPortal.dot(portal.getNormal())) / distance;
+        return area * cos / (distance * distance);
+    }
+    
+    @Nullable
+    private static Vec3[] getRectPortalFourVerticesCounterClockwise(Portal portal) {
+        Vec3[] vertices = portal.getOuterFrustumCullingVertices();
+        if (vertices == null) {
+            return null;
+        }
+        
+        Vec3 origin = portal.getOriginPos();
+        return new Vec3[]{
+            origin.add(vertices[0]),
+            origin.add(vertices[2]),
+            origin.add(vertices[3]),
+            origin.add(vertices[1])
+        };
+    }
+    
+    private static Frustum4Planes getFrustumPlanesFromFourVerticesCounterClockwise(
+        Vec3[] vertices
+    ) {
+        Vec3 normal0 = vertices[1].cross(vertices[0]).normalize();
+        Vec3 normal1 = vertices[2].cross(vertices[1]).normalize();
+        Vec3 normal2 = vertices[3].cross(vertices[2]).normalize();
+        Vec3 normal3 = vertices[0].cross(vertices[3]).normalize();
+        
+        return new Frustum4Planes(normal0, normal1, normal2, normal3);
+    }
+    
+    private record Frustum4Planes(Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3) {
+        boolean isFullyOutside(
+            double minX, double minY, double minZ, double maxX, double maxY, double maxZ
+        ) {
+            return isOutsidePlane(minX, minY, minZ, maxX, maxY, maxZ, p0) ||
+                isOutsidePlane(minX, minY, minZ, maxX, maxY, maxZ, p1) ||
+                isOutsidePlane(minX, minY, minZ, maxX, maxY, maxZ, p2) ||
+                isOutsidePlane(minX, minY, minZ, maxX, maxY, maxZ, p3);
+        }
+        
+        private static boolean isOutsidePlane(
+            double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
+            Vec3 normal
+        ) {
+            return testBoxTwoVertices(
+                minX, minY, minZ, maxX, maxY, maxZ, normal
+            ) == BatchTestResult.all_false;
         }
     }
     
@@ -284,25 +553,6 @@ public class FrustumCuller {
             == BatchTestResult.all_true
             && testBoxTwoVertices(minX, minY, minZ, maxX, maxY, maxZ, downPlane)
             == BatchTestResult.all_true;
-    }
-    
-    @Nullable
-    private static Portal getCurrentNearestVisibleCullablePortal(Vec3 cameraPos) {
-        if (TransformationManager.isIsometricView) {
-            return null;
-        }
-        
-        var world = Minecraft.getInstance().level;
-        if (world == null) {
-            return null;
-        }
-        return IPMcHelper.getNearbyPortals(world, cameraPos, 16).filter(
-            portal -> portal.isInFrontOfPortal(cameraPos)
-        ).filter(
-            Portal::canDoOuterFrustumCulling
-        ).min(
-            Comparator.comparingDouble(portal -> portal.getDistanceToNearestPointInPortal(cameraPos))
-        ).orElse(null);
     }
     
     public static boolean isTouchingInsideContentArea(Portal renderingPortal, AABB boundingBox) {

@@ -6,10 +6,12 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.IPGlobal;
@@ -19,6 +21,7 @@ import qouteall.imm_ptl.core.portal.PortalLike;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 
+import java.lang.ref.WeakReference;
 import java.util.function.Consumer;
 
 public class ViewAreaRenderer {
@@ -119,9 +122,75 @@ public class ViewAreaRenderer {
         CHelper.checkGlError();
     }
     
+    private static final int MAX_CACHED_LAYERS = 16;
+    
+    private static final ViewAreaMeshCache[] meshCaches = new ViewAreaMeshCache[MAX_CACHED_LAYERS];
+    
+    private static class ViewAreaMeshCache {
+        final VertexBuffer buffer = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+        
+        @Nullable
+        private WeakReference<PortalLike> portalLike;
+        private int frameIndex = -1;
+        private double cameraX, cameraY, cameraZ;
+        private double colorX, colorY, colorZ;
+        
+        boolean matches(PortalLike portalLike, Vec3 cameraPos, Vec3 color, int frameIndex) {
+            return this.frameIndex == frameIndex &&
+                this.portalLike != null && this.portalLike.get() == portalLike &&
+                cameraX == cameraPos.x && cameraY == cameraPos.y && cameraZ == cameraPos.z &&
+                colorX == color.x && colorY == color.y && colorZ == color.z;
+        }
+        
+        void remember(PortalLike portalLike, Vec3 cameraPos, Vec3 color, int frameIndex) {
+            if (this.portalLike == null || this.portalLike.get() != portalLike) {
+                this.portalLike = new WeakReference<>(portalLike);
+            }
+            this.frameIndex = frameIndex;
+            cameraX = cameraPos.x;
+            cameraY = cameraPos.y;
+            cameraZ = cameraPos.z;
+            colorX = color.x;
+            colorY = color.y;
+            colorZ = color.z;
+        }
+        
+        void invalidate() {
+            frameIndex = -1;
+        }
+    }
+    
     public static void buildPortalViewAreaTrianglesBuffer(
         Vec3 fogColor, PortalRenderable portalRenderable,
         Vec3 cameraPos, float tickDelta
+    ) {
+        int layer = PortalRendering.getPortalLayer();
+        
+        if (layer >= MAX_CACHED_LAYERS) {
+            BufferUploader.draw(buildViewAreaMesh(fogColor, portalRenderable, cameraPos));
+            return;
+        }
+        
+        ViewAreaMeshCache cache = meshCaches[layer];
+        if (cache == null) {
+            cache = new ViewAreaMeshCache();
+            meshCaches[layer] = cache;
+        }
+        
+        PortalLike portalLike = portalRenderable.getPortalLike();
+        cache.buffer.bind();
+        
+        if (!cache.matches(portalLike, cameraPos, fogColor, RenderStates.frameIndex)) {
+            cache.invalidate();
+            cache.buffer.upload(buildViewAreaMesh(fogColor, portalRenderable, cameraPos));
+            cache.remember(portalLike, cameraPos, fogColor, RenderStates.frameIndex);
+        }
+        
+        cache.buffer.draw();
+    }
+    
+    private static BufferBuilder.RenderedBuffer buildViewAreaMesh(
+        Vec3 fogColor, PortalRenderable portalRenderable, Vec3 cameraPos
     ) {
         Tesselator tessellator = RenderSystem.renderThreadTesselator();
         BufferBuilder bufferBuilder = tessellator.getBuilder();
@@ -148,7 +217,7 @@ public class ViewAreaRenderer {
             }
         }
         
-        BufferUploader.draw(bufferBuilder.end());
+        return bufferBuilder.end();
     }
     
     public static void generateViewAreaTriangles(Portal portal, Vec3 posInPlayerCoordinate, Consumer<Vec3> vertexOutput) {

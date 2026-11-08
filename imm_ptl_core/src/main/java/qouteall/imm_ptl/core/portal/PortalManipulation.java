@@ -21,6 +21,7 @@ import qouteall.imm_ptl.core.commands.PortalCommand;
 import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.MiscHelper;
 import qouteall.q_misc_util.my_util.DQuaternion;
+import qouteall.q_misc_util.my_util.Plane;
 
 import java.util.Arrays;
 import java.util.List;
@@ -448,9 +449,22 @@ public class PortalManipulation {
     }
     
     public static boolean isOtherSideBoxInside(AABB transformedBoundingBox, PortalLike renderingPortal) {
-        boolean intersects = Arrays.stream(Helper.eightVerticesOf(transformedBoundingBox))
-            .anyMatch(p -> renderingPortal.isOnDestinationSide(p, -0.2));
-        return intersects;
+        Plane innerClipping = renderingPortal.getInnerClipping();
+        
+        if (innerClipping == null) {
+            return Arrays.stream(Helper.eightVerticesOf(transformedBoundingBox))
+                .anyMatch(p -> renderingPortal.isOnDestinationSide(p, -0.2));
+        }
+        
+        Vec3 pos = innerClipping.pos();
+        Vec3 normal = innerClipping.normal();
+        
+        double x = normal.x >= 0 ? transformedBoundingBox.maxX : transformedBoundingBox.minX;
+        double y = normal.y >= 0 ? transformedBoundingBox.maxY : transformedBoundingBox.minY;
+        double z = normal.z >= 0 ? transformedBoundingBox.maxZ : transformedBoundingBox.minZ;
+        
+        double distance = (x - pos.x) * normal.x + (y - pos.y) * normal.y + (z - pos.z) * normal.z;
+        return distance > -0.2;
     }
     
     @Nullable
