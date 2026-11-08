@@ -36,4 +36,34 @@ public class MixinSodiumViewport {
         
         return inFrustum;
     }
+    
+    // Sodium uses this test for the sections around the camera section, which are not found by the graph traversal.
+    @Redirect(
+        method = "isBoxVisibleLooser",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/caffeinemc/mods/sodium/client/render/viewport/frustum/Frustum;testSectionExpanded(FFFF)Z"
+        )
+    )
+    private boolean redirectTestSectionExpanded(
+        Frustum instance,
+        float centerX, float centerY, float centerZ, float extra
+    ) {
+        boolean inFrustum = instance.testSectionExpanded(centerX, centerY, centerZ, extra);
+        
+        if (inFrustum) {
+            if (SodiumInterface.frustumCuller != null) {
+                // The expanded radius is the padded radius plus the extra margin.
+                float radius = Viewport.CHUNK_SECTION_PADDED_RADIUS + extra;
+                boolean canDetermineInvisible =
+                    SodiumInterface.frustumCuller.canDetermineInvisibleWithCameraCoord(
+                        centerX - radius, centerY - radius, centerZ - radius,
+                        centerX + radius, centerY + radius, centerZ + radius
+                    );
+                return !canDetermineInvisible;
+            }
+        }
+        
+        return inFrustum;
+    }
 }

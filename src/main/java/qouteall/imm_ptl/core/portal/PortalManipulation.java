@@ -23,8 +23,8 @@ import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.MiscHelper;
 import qouteall.q_misc_util.my_util.DQuaternion;
 import qouteall.q_misc_util.my_util.Mesh2D;
+import qouteall.q_misc_util.my_util.Plane;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -431,9 +431,22 @@ public class PortalManipulation {
     }
     
     public static boolean isOtherSideBoxInside(AABB transformedBoundingBox, Portal renderingPortal) {
-        boolean intersects = Arrays.stream(Helper.eightVerticesOf(transformedBoundingBox))
-            .anyMatch(p -> renderingPortal.isOnDestinationSide(p, -0.2));
-        return intersects;
+        Plane innerClipping = renderingPortal.getInnerClipping();
+        
+        if (innerClipping == null) {
+            return true;
+        }
+        
+        Vec3 pos = innerClipping.pos();
+        Vec3 normal = innerClipping.normal();
+        
+        // Only the corner furthest along the normal can be on the destination side.
+        double x = normal.x >= 0 ? transformedBoundingBox.maxX : transformedBoundingBox.minX;
+        double y = normal.y >= 0 ? transformedBoundingBox.maxY : transformedBoundingBox.minY;
+        double z = normal.z >= 0 ? transformedBoundingBox.maxZ : transformedBoundingBox.minZ;
+        
+        double distance = (x - pos.x) * normal.x + (y - pos.y) * normal.y + (z - pos.z) * normal.z;
+        return distance > -0.2;
     }
     
     @Nullable
