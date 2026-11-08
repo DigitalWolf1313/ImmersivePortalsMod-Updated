@@ -55,6 +55,10 @@ public class PortalRendering {
     //0 for rendering outer world
     //1 for rendering world inside portal
     //2 for rendering world inside the portal inside portal
+    public static List<Portal> getPortalPath() {
+        return List.copyOf(portalLayers);
+    }
+    
     public static int getPortalLayer() {
         return portalLayers.size();
     }
