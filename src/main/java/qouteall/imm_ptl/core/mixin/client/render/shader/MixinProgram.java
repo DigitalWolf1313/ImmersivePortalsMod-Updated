@@ -31,8 +31,9 @@ public class MixinProgram {
         Program.Type type, String name, InputStream shaderData,
         String sourceName, GlslPreprocessor preprocessor, CallbackInfoReturnable<Integer> cir
     ) {
-        Validate.isTrue(ip_programType.get() == null);
-        Validate.isTrue(ip_programName.get() == null);
+        // A failed compile skips the RETURN injection, so clear any state left by the previous attempt.
+        ip_programType.remove();
+        ip_programName.remove();
         ip_programType.set(type);
         ip_programName.set(name);
     }

@@ -57,6 +57,10 @@ configs:
       - entities_solid_diffuse
       - entities_translucent
     transformations:
+      # Iris fallback entity shaders use Position, while shaderpack entity shaders use iris_Position.
+      - pattern: '(?s)\A(#version[^\n]*\n)(?![\s\S]*\biris_Position\b)'
+        replacement: |
+          $1#define iris_Position Position
       - pattern: |-
           void ( )*main( )*\(( )*( )*\)( )*(
           )*\{
