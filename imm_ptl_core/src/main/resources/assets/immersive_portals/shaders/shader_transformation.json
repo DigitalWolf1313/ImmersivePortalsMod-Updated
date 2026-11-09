@@ -67,6 +67,12 @@
     ],
     "transformations": [
       {
+        "pattern": "(?s)\\A(#version[^\\n]*\\n)(?![\\s\\S]*\\biris_Position\\b)",
+        "replacement": [
+          "$1#define iris_Position Position\n"
+        ]
+      },
+      {
         "pattern": "void ( )*main( )*\\(( )*( )*\\)( )*(\\n)*\\{",
         "replacement": [
           "uniform vec4 iportal_ClippingEquation;",
