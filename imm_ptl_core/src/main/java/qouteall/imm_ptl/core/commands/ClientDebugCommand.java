@@ -612,6 +612,11 @@ public class ClientDebugCommand {
         );
         registerSwitchCommand(
             builder,
+            "iris_temporal_history",
+            cond -> IPCGlobal.irisTemporalHistory = cond
+        );
+        registerSwitchCommand(
+            builder,
             "iris_portal_shadow",
             cond -> IPGlobal.irisPortalShadow = cond
         );
