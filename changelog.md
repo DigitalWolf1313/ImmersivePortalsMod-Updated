@@ -1,9 +1,19 @@
-- Fixed entities not being able to be attacked/interacted via a portal
-- Added support for Portal Recursion in Compatibility mode
-- Made Teleportation more smooth/correct for entities and players
-- Fixed Vanilla backport's sulfur cubes not being able to place trough portals
-- Fully fixed the hand not rendering between portals
-- Fixed Cross Portal Entity Rendering Not working with shaders
-- Fixed underwater fog/effects not working with portals
-- Heavily fixed infinitely falling For both entities and players
-- Fixed axiom (Thanks ro1net & Moulberry)
+- Fixed Shader pack's TAA and motion blur breaking
+- Made portals cast shadows with shader packs
+- Attempted to optimize Portal rendering (you may not notice a difference)
+- Added some Rudimentary Distant Horizons compatibility
+- Fixed portals not being affected by your view's fog
+- Made entity teleportation much more smooth
+- Made particles go through portals
+- Made sounds keep playing while going through portals
+- Fixed not being able to crouch/sneak on cross-portal collisions
+- Fixed particles facing the wrong way in portals
+- Fixed Voxy not being compatible with non-compatibility mode
+- Fixed Vista's viewfinder not moving and not rendering portals
+- Fixed Veil Breaking Clipping and causing GL errors
+- Fixed EMF's Animation LOD Distance not accounting for portals
+- Fixed Punchy moves and Sable's custom cameras breaking portal rendering
+- Fixed Punchy's physics not accounting for portals
+- Fixed Vanilla Backport's cold/warm mob variants not carrying over through cross-dimensional portals
+- Fixed some shader packs failing to load
+- Fixed Cross Portal Entity Rendering not triggering when it should have
