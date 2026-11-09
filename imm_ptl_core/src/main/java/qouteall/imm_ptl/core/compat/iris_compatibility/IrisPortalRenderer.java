@@ -15,7 +15,6 @@ import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
-import qouteall.imm_ptl.core.render.MyGameRenderer;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.PortalRenderable;
 import qouteall.imm_ptl.core.render.PortalRenderer;
@@ -174,8 +173,8 @@ public class IrisPortalRenderer extends PortalRenderer {
         
         mcFrameBuffer.bindWrite(true);
     }
-
-
+    
+    
     @Override
     public void onHandRenderingEnded(PoseStack matrixStack) {
     
@@ -322,12 +321,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         WorldRenderInfo worldRenderInfo
     ) {
         
-        IrisInterface.invoker.updatePerFrameUniforms();
-        
-        MyGameRenderer.renderWorldNew(
-            worldRenderInfo,
-            Runnable::run
-        );
+        IrisTemporalContext.renderWorld(worldRenderInfo);
     }
     
     @Override

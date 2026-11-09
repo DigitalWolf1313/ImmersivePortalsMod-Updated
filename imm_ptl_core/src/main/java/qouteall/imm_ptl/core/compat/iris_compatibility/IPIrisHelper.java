@@ -50,7 +50,7 @@ public class IPIrisHelper {
         from.unbindWrite();
     }
     
-    private static boolean isCopyImageSubDataSupported() {
+    public static boolean isCopyImageSubDataSupported() {
         return GL.getCapabilities().glCopyImageSubData != 0;
     }
     
@@ -95,6 +95,15 @@ public class IPIrisHelper {
             from.width,
             from.height,
             1
+        );
+    }
+    
+    /** Copies level 0 of one 2D texture into another texture with a compatible format. */
+    public static void copyTexture2D(int from, int to, int width, int height) {
+        GL43C.glCopyImageSubData(
+            from, GL43C.GL_TEXTURE_2D, 0, 0, 0, 0,
+            to, GL43C.GL_TEXTURE_2D, 0, 0, 0, 0,
+            width, height, 1
         );
     }
     

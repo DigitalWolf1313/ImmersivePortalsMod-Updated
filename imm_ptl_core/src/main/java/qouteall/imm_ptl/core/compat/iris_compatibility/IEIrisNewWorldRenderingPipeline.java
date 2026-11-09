@@ -9,6 +9,8 @@ public interface IEIrisNewWorldRenderingPipeline {
     ShadowRenderTargets ip_getShadowRenderTargets();
     
     void ip_refreshFrameState();
-
+    
+    void ip_refreshTemporalUniforms();
+    
     GlFramebuffer ip_getPortalFogFramebuffer();
 }

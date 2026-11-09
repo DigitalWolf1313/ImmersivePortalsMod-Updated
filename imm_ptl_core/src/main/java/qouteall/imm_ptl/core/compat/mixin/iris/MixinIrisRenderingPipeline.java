@@ -23,6 +23,8 @@ import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.compat.iris_compatibility.ExperimentalIrisPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IEIrisNewWorldRenderingPipeline;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisRenderTargetSharing;
+import qouteall.imm_ptl.core.compat.iris_compatibility.IrisTemporalContext;
+import qouteall.imm_ptl.core.compat.iris_compatibility.IrisTemporalHistory;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 
 import java.util.Map;
@@ -36,9 +38,48 @@ public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeli
     @Shadow @Final private FrameUpdateNotifier updateNotifier;
     @Shadow @Final private CustomUniforms customUniforms;
     @Shadow @Final private RenderTargets renderTargets;
+    @Shadow @Final private PackDirectives packDirectives;
     
     @Unique private int ip_seenResizeGeneration;
+    @Unique private IrisTemporalHistory ip_temporalHistory;
     @Unique private GlFramebuffer ip_portalFogFramebuffer;
+    
+    @Inject(method = "beginLevelRendering", at = @At("HEAD"))
+    private void ip_beginTemporalView(CallbackInfo ci) {
+        if (IrisTemporalContext.isEnabled()) {
+            if (ip_temporalHistory == null) ip_temporalHistory = new IrisTemporalHistory();
+            ip_temporalHistory.begin();
+        }
+        else if (ip_temporalHistory != null) {
+            ip_temporalHistory.destroy();
+            ip_temporalHistory = null;
+        }
+    }
+    
+    @WrapOperation(method = "beginLevelRendering", at = @At(value = "INVOKE",
+        target = "Lnet/irisshaders/iris/targets/RenderTargets;isFullClearRequired()Z"))
+    private boolean ip_restoreTemporalTextures(RenderTargets targets, Operation<Boolean> original) {
+        boolean fullClear = original.call(targets);
+        if (ip_temporalHistory != null) {
+            return !ip_temporalHistory.restore(targets, fullClear);
+        }
+        return fullClear;
+    }
+    
+    @Inject(method = "finalizeLevelRendering", at = @At("RETURN"))
+    private void ip_saveTemporalTextures(CallbackInfo ci) {
+        if (IrisTemporalContext.isEnabled() && ip_temporalHistory != null) {
+            ip_temporalHistory.save(renderTargets, packDirectives);
+        }
+    }
+    
+    @Inject(method = "destroy", at = @At("HEAD"))
+    private void ip_destroyTemporalHistory(CallbackInfo ci) {
+        if (ip_temporalHistory != null) {
+            ip_temporalHistory.destroy();
+            ip_temporalHistory = null;
+        }
+    }
     
     // let cross-dimension portals share the G-buffers of the outer world (see IrisRenderTargetSharing)
     @WrapOperation(
@@ -161,7 +202,13 @@ public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeli
         updateNotifier.onNewFrame();
         customUniforms.update();
     }
-
+    
+    @Override
+    public void ip_refreshTemporalUniforms() {
+        // The parent camera/history has been restored. Do not advance any frame listeners.
+        customUniforms.update();
+    }
+    
     @Override
     public GlFramebuffer ip_getPortalFogFramebuffer() {
         if (ip_portalFogFramebuffer == null) {
