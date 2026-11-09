@@ -76,10 +76,11 @@ public class PortalRendering {
     }
     
     /**
-     * @return The innermost portal that's currently being rendered.
+     * Returns the innermost portal that's currently being rendered.
+     * Returns null when the outer world is being rendered.
      */
     public static PortalLike getRenderingPortal() {
-        return portalLayers.peek();
+        return portalLayers.isEmpty() ? null : portalLayers.peek();
     }
     
     /**
