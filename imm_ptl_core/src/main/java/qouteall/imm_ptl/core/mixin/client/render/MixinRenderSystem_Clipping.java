@@ -22,7 +22,10 @@ public class MixinRenderSystem_Clipping {
     )
     private static void onSetShader(Supplier<ShaderInstance> supplier, CallbackInfo ci) {
         if (IPGlobal.enableClippingMechanism) {
-            if (CrossPortalEntityRenderer.isRenderingEntityNormally ||
+            if (RenderStates.isRenderingParticles) {
+                FrontClipping.updateClippingEquationUniformForCurrentShader(false);
+            }
+            else if (CrossPortalEntityRenderer.isRenderingEntityNormally ||
                 CrossPortalEntityRenderer.isRenderingEntityProjection
             ) {
                 FrontClipping.updateClippingEquationUniformForCurrentShader(true);

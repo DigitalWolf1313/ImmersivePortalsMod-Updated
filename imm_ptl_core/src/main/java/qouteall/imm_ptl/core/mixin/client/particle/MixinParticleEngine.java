@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.ducks.IEParticleManager;
+import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.TransformationManager;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
@@ -41,8 +42,27 @@ public class MixinParticleEngine implements IEParticleManager {
         PoseStack matrixStack, MultiBufferSource.BufferSource bufferSource,
         LightTexture lightTexture, Camera camera, float partialTicks, Operation<Void> original
     ) {
+        // Clipping is usually disabled when particles render, so enable it here.
+        // It is left as it is when it is already enabled.
+        boolean shouldEnableClipping = PortalRendering.isRendering() && !FrontClipping.isClippingEnabled;
+        boolean oldIsRenderingParticles = RenderStates.isRenderingParticles;
+        
         if (!WorldRenderInfo.isRendering() && !TransformationManager.isAnimationRunning()) {
-            original.call(matrixStack, bufferSource, lightTexture, camera, partialTicks);
+            RenderStates.isRenderingParticles = true;
+            if (shouldEnableClipping) {
+                FrontClipping.setupInnerClipping(
+                    PortalRendering.getActiveClippingPlane(), matrixStack.last().pose(), 0
+                );
+            }
+            try {
+                original.call(matrixStack, bufferSource, lightTexture, camera, partialTicks);
+            }
+            finally {
+                RenderStates.isRenderingParticles = oldIsRenderingParticles;
+                if (shouldEnableClipping) {
+                    FrontClipping.disableClipping();
+                }
+            }
             return;
         }
         
@@ -57,6 +77,12 @@ public class MixinParticleEngine implements IEParticleManager {
         Matrix4f transformedView = new Matrix4f(transformedViewStack.last().pose());
         
         try {
+            RenderStates.isRenderingParticles = true;
+            if (shouldEnableClipping) {
+                FrontClipping.setupInnerClipping(
+                    PortalRendering.getActiveClippingPlane(), matrixStack.last().pose(), 0
+                );
+            }
             camera.rotation().setFromUnnormalized(transformedView.invert()).normalize();
             camera.getLookVector().set(0, 0, -1).rotate(camera.rotation());
             camera.getUpVector().set(0, 1, 0).rotate(camera.rotation());
@@ -64,6 +90,10 @@ public class MixinParticleEngine implements IEParticleManager {
             original.call(matrixStack, bufferSource, lightTexture, camera, partialTicks);
         }
         finally {
+            RenderStates.isRenderingParticles = oldIsRenderingParticles;
+            if (shouldEnableClipping) {
+                FrontClipping.disableClipping();
+            }
             camera.rotation().set(oldRotation);
             camera.getLookVector().set(oldLook);
             camera.getUpVector().set(oldUp);

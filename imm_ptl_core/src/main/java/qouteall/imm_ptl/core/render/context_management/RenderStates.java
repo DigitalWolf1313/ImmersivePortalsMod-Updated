@@ -75,6 +75,10 @@ public class RenderStates {
     
     public static boolean isRenderingPortalWeather = false;
     
+    // Particle vertices are in camera-relative world space, so they use the clip equation from before the model view.
+    // This takes priority over the entity flags, because Iris can render particles while the entity flags are set.
+    public static boolean isRenderingParticles = false;
+    
     public static void updatePreRenderInfo(
         float tickDelta_
     ) {
@@ -235,6 +239,8 @@ public class RenderStates {
                 (ieParticle.portal_getZo() - ieParticle.portal_getZ()) * backFraction
             );
             
+            // The particle shader clips the part of a particle behind the destination plane when clipping is enabled.
+            // When clipping is disabled, particles near the plane are skipped on the CPU instead.
             double valve = FrontClipping.isClippingEnabled ? -0.5 : 0.5;
             return renderingPortal.isOnDestinationSide(renderedCenter, valve);
         }
