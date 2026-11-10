@@ -3,6 +3,8 @@ package qouteall.imm_ptl.core.portal;
 import com.mojang.logging.LogUtils;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.profiling.ProfilerFiller;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -12,11 +14,10 @@ import qouteall.imm_ptl.core.render.GlQueryObject;
 import qouteall.imm_ptl.core.render.QueryManager;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
+import qouteall.q_misc_util.Helper;
 
 import java.lang.ref.Cleaner;
-import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -30,78 +31,52 @@ public class PortalRenderInfo implements AutoCloseable {
     private static final Logger LOGGER = LogUtils.getLogger();
     
     public static class Visibility {
-        // How many query results we are willing to keep waiting for.
-        // Keeping a few lets us retrieve a result even if the GPU is a couple
-        // of frames behind, without ever stalling the render thread.
-        private static final int MAX_PENDING_QUERIES = 3;
-        
-        private final ArrayDeque<GlQueryObject> pendingQueries = new ArrayDeque<>();
-        private Boolean lastKnownVisible;
+        public GlQueryObject lastFrameQuery;
+        public GlQueryObject thisFrameQuery;
+        public Boolean lastFrameRendered;
+        public Boolean thisFrameRendered;
         
         public Visibility() {
-            lastKnownVisible = null;
+            lastFrameQuery = null;
+            thisFrameQuery = null;
+            lastFrameRendered = null;
         }
         
-        // Fetch every query result the GPU has finished, then recycle those
-        // query objects. Called once per frame, before a new query is issued.
         void update() {
-            Boolean newestResult = null;
-            
-            Iterator<GlQueryObject> iterator = pendingQueries.iterator();
-            while (iterator.hasNext()) {
-                GlQueryObject query = iterator.next();
-                
-                Boolean result = query.fetchQueryResultIfAvailable();
-                if (result == null) {
-                    // The GPU is still working on it. Leave it pending and use
-                    // the previous result as the prediction.
-                    continue;
-                }
-                
-                newestResult = result;
-                iterator.remove();
-                GlQueryObject.returnQueryObject(query);
+            if (lastFrameQuery != null) {
+                GlQueryObject.returnQueryObject(lastFrameQuery);
             }
-            
-            if (newestResult != null) {
-                lastKnownVisible = newestResult;
-            }
-            
-            // Do not let the queue grow without bound if the GPU falls behind.
-            while (pendingQueries.size() > MAX_PENDING_QUERIES) {
-                GlQueryObject oldest = pendingQueries.pollFirst();
-                if (oldest != null) {
-                    GlQueryObject.returnQueryObject(oldest);
-                }
-            }
-        }
-        
-        void submitQuery(GlQueryObject query) {
-            pendingQueries.addLast(query);
+            lastFrameQuery = thisFrameQuery;
+            thisFrameQuery = null;
+            lastFrameRendered = thisFrameRendered;
+            thisFrameRendered = null;
         }
         
         void dispose() {
-            for (GlQueryObject query : pendingQueries) {
-                GlQueryObject.returnQueryObject(query);
+            if (lastFrameQuery != null) {
+                GlQueryObject.returnQueryObject(lastFrameQuery);
             }
-            pendingQueries.clear();
-            lastKnownVisible = null;
+            if (thisFrameQuery != null) {
+                GlQueryObject.returnQueryObject(thisFrameQuery);
+            }
         }
         
-        boolean hasPendingQueries() {
-            return !pendingQueries.isEmpty();
-        }
-        
-        boolean getLastKnownVisible() {
-            // If nothing has been measured yet, render conservatively so that a
-            // portal never pops in a frame late on the first frame it appears.
-            return lastKnownVisible == null || lastKnownVisible;
+        GlQueryObject acquireThisFrameQuery() {
+            if (thisFrameQuery == null) {
+                thisFrameQuery = GlQueryObject.acquireQueryObject();
+            }
+            return thisFrameQuery;
         }
     }
     
     private final Map<List<UUID>, Visibility> infoMap = new HashMap<>();
     
     public int thisFrameQueryFrameIndex = -1;
+    
+    private long mispredictTime1 = 0;
+    private long mispredictTime2 = 0;
+    
+    private int totalMispredictCount = 0;
     
     public static void init() {
         Portal.CLIENT_PORTAL_TICK_SIGNAL.register(portal -> {
@@ -180,9 +155,12 @@ public class PortalRenderInfo implements AutoCloseable {
         if (RenderStates.frameIndex != thisFrameQueryFrameIndex) {
             
             if (RenderStates.frameIndex == thisFrameQueryFrameIndex + 1) {
-                infoMap.entrySet().removeIf(
-                    entry -> !entry.getValue().hasPendingQueries()
-                );
+                infoMap.entrySet().removeIf(entry -> {
+                    Visibility visibility = entry.getValue();
+                    
+                    return visibility.lastFrameQuery == null &&
+                        visibility.thisFrameQuery == null;
+                });
                 
                 infoMap.values().forEach(Visibility::update);
             }
@@ -201,7 +179,39 @@ public class PortalRenderInfo implements AutoCloseable {
         return infoMap.computeIfAbsent(desc, k -> new Visibility());
     }
     
+    private void onMispredict() {
+        mispredictTime1 = mispredictTime2;
+        mispredictTime2 = System.nanoTime();
+        totalMispredictCount++;
+    }
+    
+    private boolean isFrequentlyMispredicted() {
+        if (totalMispredictCount > 5) {
+            return true;
+        }
+        
+        long currTime = System.nanoTime();
+        
+        return (currTime - mispredictTime1) < Helper.secondToNano(30);
+    }
+    
+    private void updatePredictionStatus(Visibility visibility, boolean thisFrameDecision) {
+        visibility.thisFrameRendered = thisFrameDecision;
+        
+        if (thisFrameDecision) {
+            if (visibility.lastFrameRendered != null) {
+                if (!visibility.lastFrameRendered) {
+                    if (!isFrequentlyMispredicted()) {
+                        onMispredict();
+                    }
+                }
+            }
+        }
+    }
+    
     public static boolean renderAndDecideVisibility(Portal portal, Runnable queryRendering) {
+        ProfilerFiller profiler = Minecraft.getInstance().getProfiler();
+        
         boolean decision;
         if (IPGlobal.offsetOcclusionQuery) {
             PortalRenderInfo renderInfo = get(portal);
@@ -210,15 +220,35 @@ public class PortalRenderInfo implements AutoCloseable {
             
             Visibility visibility = renderInfo.getVisibility(renderingDescription);
             
-            // Predict from the latest query result that the GPU has finished.
-            // This never blocks the render thread waiting on the GPU.
-            decision = visibility.getLastKnownVisible();
-            
-            GlQueryObject thisFrameQuery = GlQueryObject.acquireQueryObject();
+            GlQueryObject lastFrameQuery = visibility.lastFrameQuery;
+            GlQueryObject thisFrameQuery = visibility.acquireThisFrameQuery();
             
             thisFrameQuery.performQueryAnySamplePassed(queryRendering);
             
-            visibility.submitQuery(thisFrameQuery);
+            boolean noPredict =
+                renderInfo.isFrequentlyMispredicted() ||
+                    QueryManager.queryStallCounter <= 3;
+            
+            if (lastFrameQuery != null) {
+                boolean lastFrameVisible = lastFrameQuery.fetchQueryResult();
+                
+                if (!lastFrameVisible && noPredict) {
+                    profiler.push("fetch_this_frame");
+                    decision = thisFrameQuery.fetchQueryResult();
+                    profiler.pop();
+                    QueryManager.queryStallCounter++;
+                }
+                else {
+                    decision = lastFrameVisible;
+                    renderInfo.updatePredictionStatus(visibility, decision);
+                }
+            }
+            else {
+                profiler.push("fetch_this_frame");
+                decision = thisFrameQuery.fetchQueryResult();
+                profiler.pop();
+                QueryManager.queryStallCounter++;
+            }
         }
         else {
             decision = QueryManager.renderAndGetDoesAnySamplePass(queryRendering);
