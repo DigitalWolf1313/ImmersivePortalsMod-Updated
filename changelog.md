@@ -1,3 +1,9 @@
+
+5.4.1
+
+Reverted Query optimizations (Saved FPS But just caused portals disapearing when teleporting)
+
+5.4.0
 - Fixed Shader pack's TAA and motion blur breaking
 - Made portals cast shadows with shader packs
 - Attempted to optimize Portal rendering (you may not notice a difference)
