@@ -248,6 +248,11 @@ public class Portal extends Entity implements
     
     public final PortalAnimation animation = new PortalAnimation();
     
+    /**
+     * Keeps invisible light blocks around the portal while its light level is above zero.
+     */
+    public final PortalLightEmitter lightEmitter = new PortalLightEmitter();
+    
     @Nullable
     private PortalState lastTickPortalState;
     @Nullable
@@ -381,6 +386,7 @@ public class Portal extends Entity implements
             renderIrisShadow = true;
         }
         
+        lightEmitter.readFromTag(compoundTag);
         animation.readFromTag(compoundTag);
         
         readPortalDataSignal.emit(this, compoundTag);
@@ -452,6 +458,7 @@ public class Portal extends Entity implements
             );
         }
         
+        lightEmitter.writeToTag(compoundTag);
         animation.writeToTag(compoundTag);
         
         writePortalDataSignal.emit(this, compoundTag);
@@ -465,6 +472,7 @@ public class Portal extends Entity implements
     
     @Override
     public void ip_onRemoved(RemovalReason reason) {
+        lightEmitter.onRemoved(this, reason);
         portalDisposeSignal.emit(this);
     }
     
@@ -961,6 +969,7 @@ public class Portal extends Entity implements
                 return;
             }
             serverPortalTickSignal.emit(this);
+            lightEmitter.tick(this);
         }
         
         animation.tick(this);
