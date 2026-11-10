@@ -296,6 +296,14 @@ public class CommandStickItem extends Item {
             "disable_default_animation", "nbt {defaultAnimation:{durationTicks:0}}"
         );
         
+        for (int level = 1; level <= 15; level++) {
+            registerPortalSubCommandStick(
+                "portal_light_" + level, "nbt {lightLevel:" + level + "}"
+            );
+        }
+        registerPortalSubCommandStick("portal_light_off", "nbt {lightLevel:0}");
+        registerPortalSubCommandStick("copy_light_to_destination");
+        
         registerPortalSubCommandStick(
             "pause_animation", "animation pause"
         );

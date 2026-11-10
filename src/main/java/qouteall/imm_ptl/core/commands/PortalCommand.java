@@ -59,6 +59,7 @@ import qouteall.imm_ptl.core.portal.Mirror;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
 import qouteall.imm_ptl.core.portal.PortalManipulation;
+import qouteall.imm_ptl.core.portal.PortalLightEmitter;
 import qouteall.imm_ptl.core.portal.PortalState;
 import qouteall.imm_ptl.core.portal.PortalUtils;
 import qouteall.imm_ptl.core.portal.animation.UnilateralPortalState;
@@ -471,6 +472,27 @@ public class PortalCommand {
                     }
                 ))
             )
+        );
+        
+        builder.then(Commands.literal("copy_light_to_destination")
+            .executes(context -> processPortalTargetedCommand(
+                context,
+                portal -> {
+                    Portal reversePortal = PortalManipulation.findReversePortal(portal);
+                    if (reversePortal == null) {
+                        context.getSource().sendFailure(Component.literal(
+                            "No loaded portal found on the destination side"
+                        ));
+                        return;
+                    }
+                    
+                    int litCells = PortalLightEmitter.copyLightThroughPortal(portal, reversePortal);
+                    sendMessage(
+                        context,
+                        "Copied the light of " + litCells + " cells onto the destination side " + reversePortal
+                    );
+                }
+            ))
         );
         
         builder.then(Commands.literal("set_portal_destination")
