@@ -112,7 +112,7 @@ public class MixinParticleEngine implements IEParticleManager {
         LightTexture lightmapTextureManager, Camera camera, float f, CallbackInfo ci
     ) {
         if (PortalRendering.isRendering()) {
-            if (RenderStates.getRenderedPortalNum() > 4) {
+            if (PortalRendering.getPortalLayer() > 4) {
                 ci.cancel();
             }
         }
