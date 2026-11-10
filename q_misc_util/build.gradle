@@ -1,4 +1,6 @@
-archivesBaseName = "q_misc_util"
+base {
+    archivesName = "q_misc_util"
+}
 group = "qouteall"
 
 loom {

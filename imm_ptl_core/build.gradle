@@ -1,4 +1,6 @@
-archivesBaseName = "imm_ptl_core"
+base {
+    archivesName = "imm_ptl_core"
+}
 group = "qouteall"
 
 dependencies {
