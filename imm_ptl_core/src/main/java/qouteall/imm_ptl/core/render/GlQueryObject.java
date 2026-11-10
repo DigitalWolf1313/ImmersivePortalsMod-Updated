@@ -2,7 +2,6 @@ package qouteall.imm_ptl.core.render;
 
 import net.minecraft.client.Minecraft;
 import org.apache.commons.lang3.Validate;
-import org.jetbrains.annotations.Nullable;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL33;
 
@@ -52,24 +51,6 @@ public class GlQueryObject {
     public boolean fetchQueryResult() {
         Validate.isTrue(isValid());
         Validate.isTrue(hasResult);
-        
-        int result = GL15.glGetQueryObjecti(idQueryObject, GL15.GL_QUERY_RESULT);
-        
-        return result != 0;
-    }
-    
-    @Nullable
-    public Boolean fetchQueryResultIfAvailable() {
-        Validate.isTrue(isValid());
-        Validate.isTrue(hasResult);
-        
-        int available = GL15.glGetQueryObjecti(
-            idQueryObject, GL15.GL_QUERY_RESULT_AVAILABLE
-        );
-        
-        if (available == 0) {
-            return null;
-        }
         
         int result = GL15.glGetQueryObjecti(idQueryObject, GL15.GL_QUERY_RESULT);
         
