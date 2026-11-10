@@ -5,7 +5,7 @@ plugins {
 
     id 'maven-publish'
 
-    id "me.modmuss50.mod-publish-plugin" version "0.3.5"
+    id "me.modmuss50.mod-publish-plugin" version "2.2.1"
     // https://modmuss50.github.io/mod-publish-plugin/
 }
 
@@ -309,32 +309,29 @@ test {
 publishMods {
     file = remapJar.archiveFile
     changelog = file("changelog.md").text
-    type = ALPHA
+    type = STABLE
     modLoaders.add("fabric")
 
     displayName = "v${project.mod_version}-mc${project.minecraft_version}"
     version = "v${project.mod_version}-mc${project.minecraft_version}"
 
     curseforge {
-        projectId = "332273"
+        projectId = "1629226"
         accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
         minecraftVersions.add(minecraft_version)
-
-        requires {
-            slug = "fabric-api"
-        }
+        client = true
+        server = true
+        requires("fabric-api")
     }
     modrinth {
-        projectId = "zJpHMkdD"
+        projectId = "l1aT5XRx"
         accessToken = providers.environmentVariable("MODRINTH_TOKEN")
         minecraftVersions.add(minecraft_version)
-
-        requires {
-            slug = "fabric-api"
-        }
+        environment = CLIENT_AND_SERVER
+        requires("fabric-api")
     }
     github {
-        repository = "iPortalTeam/ImmersivePortalsMod"
+        repository = "DigitalWolf1313/ImmersivePortalsMod-Updated"
         accessToken = providers.environmentVariable("GITHUB_TOKEN")
         commitish = "${project.git_branch}"
     }
