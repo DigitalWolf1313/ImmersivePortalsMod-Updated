@@ -14,15 +14,12 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.chunk_loading.EntitySync;
 import qouteall.imm_ptl.core.ducks.IEChunkMap;
 import qouteall.imm_ptl.core.ducks.IETrackedEntity;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.teleportation.ServerTeleportationManager;
-
-import java.util.List;
 
 @Mixin(ChunkMap.class)
 public abstract class MixinChunkMap_E implements IEChunkMap {
@@ -41,17 +38,18 @@ public abstract class MixinChunkMap_E implements IEChunkMap {
     @Shadow
     protected abstract @Nullable ChunkHolder getUpdatingChunkIfPresent(long l);
     
-    @Redirect(
-        method = "addEntity",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/server/level/ChunkMap$TrackedEntity;updatePlayers(Ljava/util/List;)V"
-        )
-    )
-    private void redirectUpdatePlayers(
-        TrackedEntity trackedEntity, List<ServerPlayer> playersList
-    ) {
-        ((IETrackedEntity) trackedEntity).ip_updateEntityTrackingStatus();
+    /**
+     * Pairs the new tracker with the players that see it, including through portals.
+     * The vanilla player update is cancelled in {@link MixinTrackedEntity}.
+     * This must not redirect the vanilla {@code updatePlayers} call in {@code addEntity}.
+     * Mods such as VMP already replace that call, so a redirect would find no target and crash.
+     */
+    @Inject(method = "addEntity", at = @At("RETURN"))
+    private void onAddEntityReturn(Entity entity, CallbackInfo ci) {
+        TrackedEntity trackedEntity = entityMap.get(entity.getId());
+        if (trackedEntity != null) {
+            ((IETrackedEntity) trackedEntity).ip_updateEntityTrackingStatus();
+        }
     }
     
     @IPVanillaCopy

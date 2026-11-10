@@ -108,7 +108,7 @@ public abstract class MixinTrackedEntity implements IETrackedEntity {
      *   When adding a new entity, it's updated to all players in curr dim.
      *   When adding a new player, all entities (except the player) in curr dim updates to that player.
      *   In ImmPtl, adding entity is handled in
-     *   {@link MixinChunkMap_E#redirectUpdatePlayers(ChunkMap.TrackedEntity, List)}
+     *   {@link MixinChunkMap_E#onAddEntityReturn(Entity, CallbackInfo)}
      *   player login is handled in
      *   {@link MixinPlayerList#onOnPlayerConnect(Connection, ServerPlayer, CommonListenerCookie, CallbackInfo)}
      *
