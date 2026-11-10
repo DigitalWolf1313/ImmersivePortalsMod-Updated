@@ -1,3 +1,12 @@
+## 6.3.1
+
+- Fixed VMP Crashing
+- Reverted Query optimizations
+ 
+(Saved FPS But just caused portals disapearing when teleporting.
+The other optimizations are still in place)
+
+## 6.3.0
 - Fixed Shader pack's TAA and motion blur breaking
 - Made portals cast shadows with shader packs
 - Attempted to optimize Portal rendering (you may not notice a difference)
