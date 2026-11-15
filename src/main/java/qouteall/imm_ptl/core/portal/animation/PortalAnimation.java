@@ -39,6 +39,18 @@ public class PortalAnimation {
     public long pauseTime = 0;
     public long timeOffset = 0;
     
+    public static final int SIZE_LINK_NONE = 0;
+    public static final int SIZE_LINK_THIS_DRIVES_OTHER = 1;
+    public static final int SIZE_LINK_OTHER_DRIVES_THIS = 2;
+    
+    /**
+     * A portal has a single scaling between its two sides.
+     * When only one side animates its size, the other side would keep its width and stretch its height.
+     * This mode makes the side without size animation follow the size of the other side
+     * at the scaling that the portal has.
+     */
+    public int sizeLinkMode = SIZE_LINK_NONE;
+    
     @Nullable
     public UnilateralPortalState thisSideReferenceState;
     @Nullable
@@ -104,6 +116,8 @@ public class PortalAnimation {
             timeOffset = 0;
         }
         
+        sizeLinkMode = tag.getInt("sizeLinkMode");
+        
         if (tag.contains("thisSideReferenceState")) {
             thisSideReferenceState = UnilateralPortalState.fromTag(tag.getCompound("thisSideReferenceState"));
         }
@@ -155,6 +169,9 @@ public class PortalAnimation {
         }
         if (timeOffset != 0) {
             tag.putLong("timeOffset", timeOffset);
+        }
+        if (sizeLinkMode != SIZE_LINK_NONE) {
+            tag.putInt("sizeLinkMode", sizeLinkMode);
         }
         
         if (thisSideReferenceState != null) {
@@ -266,6 +283,7 @@ public class PortalAnimation {
             if (!hasAnimationDriver()) {
                 // when having no animation, don't pause
                 setPaused(portal, false);
+                sizeLinkMode = SIZE_LINK_NONE;
             }
         }
         else {
@@ -387,6 +405,8 @@ public class PortalAnimation {
             return animationRemoved;
         });
         
+        applySizeLink(sizeLinkMode, portalState.scaling, thisSideState, otherSideState);
+        
         if (thisSideState.dimension != portalState.fromWorld || otherSideState.dimension != portalState.toWorld) {
             Helper.err("Portal animation driver cannot change dimension");
             if (!portal.level().isClientSide()) {
@@ -421,6 +441,37 @@ public class PortalAnimation {
                 PortalExtension.forClusterPortals(portal, p -> p.reloadAndSyncToClientWithTickDelay(1));
             }
         }
+    }
+    
+    /**
+     * Restarts the normal animations from their first frame.
+     * Returns false if there is no animation that can restart.
+     */
+    public boolean restartNormalAnimations(Portal portal) {
+        long startingGameTime = getEffectiveTime(portal.level().getGameTime());
+        
+        boolean restarted = restartNormalAnimations(thisSideAnimations, startingGameTime);
+        restarted |= restartNormalAnimations(otherSideAnimations, startingGameTime);
+        return restarted;
+    }
+    
+    private static boolean restartNormalAnimations(
+        List<PortalAnimationDriver> drivers, long startingGameTime
+    ) {
+        boolean restarted = false;
+        
+        for (int i = 0; i < drivers.size(); i++) {
+            if (drivers.get(i) instanceof NormalAnimation animation && !animation.isBuilding) {
+                drivers.set(i, new NormalAnimation.Builder()
+                    .from(animation)
+                    .startingGameTime(startingGameTime)
+                    .build()
+                );
+                restarted = true;
+            }
+        }
+        
+        return restarted;
     }
     
     public void initializeReferenceStates(PortalState portalState) {
@@ -463,6 +514,11 @@ public class PortalAnimation {
         
         applyEndingState(portal, clearThisSide, clearOtherSide, context, from, to);
         
+        if (clearThisSide && clearOtherSide) {
+            applySizeLink(sizeLinkMode, portalState.scaling, from, to);
+        }
+        sizeLinkMode = SIZE_LINK_NONE;
+        
         if (clearThisSide) {
             thisSideReferenceState = null;
             thisSideAnimations.clear();
@@ -504,6 +560,26 @@ public class PortalAnimation {
         }
     }
     
+    /**
+     * Sets the size of the side that has no size animation from the size of the other side.
+     * The scaling is the one that the portal has before the animation changes the sizes.
+     */
+    public static void applySizeLink(
+        int mode, double scaling,
+        UnilateralPortalState.Builder thisSide, UnilateralPortalState.Builder otherSide
+    ) {
+        if (mode == SIZE_LINK_THIS_DRIVES_OTHER) {
+            otherSide.width(thisSide.width * scaling)
+                .height(thisSide.height * scaling)
+                .thickness(thisSide.thickness * scaling);
+        }
+        else if (mode == SIZE_LINK_OTHER_DRIVES_THIS) {
+            thisSide.width(otherSide.width / scaling)
+                .height(otherSide.height / scaling)
+                .thickness(otherSide.thickness / scaling);
+        }
+    }
+    
     public PortalState getAnimationEndingState(Portal portal) {
         PortalState portalState = portal.getPortalState();
         assert portalState != null;
@@ -522,6 +598,8 @@ public class PortalAnimation {
             new AnimationContext(portal.level().isClientSide(), true),
             from, to
         );
+        
+        applySizeLink(sizeLinkMode, portalState.scaling, from, to);
         
         return UnilateralPortalState.combine(from.build(), to.build());
     }

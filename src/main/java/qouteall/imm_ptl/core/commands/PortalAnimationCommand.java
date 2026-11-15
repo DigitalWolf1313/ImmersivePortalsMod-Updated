@@ -55,6 +55,63 @@ public class PortalAnimationCommand {
             }))
         );
         
+        builder.then(Commands.literal("remove_and_reset")
+            .executes(context -> PortalCommand.processPortalTargetedCommand(context, portal -> {
+                Portal holder = portal.getAnimationHolder();
+                if (holder == null) {
+                    context.getSource().sendFailure(Component.literal("The portal has no animation"));
+                    return;
+                }
+                
+                PortalState currentState = holder.getPortalState();
+                if (currentState == null) {
+                    return;
+                }
+                
+                int sizeLinkMode = holder.animation.sizeLinkMode;
+                
+                // A side without an animation has no reference state, so it is taken from the current state.
+                UnilateralPortalState thisReference = holder.animation.thisSideReferenceState != null ?
+                    holder.animation.thisSideReferenceState : currentState.getThisSideState();
+                UnilateralPortalState otherReference = holder.animation.otherSideReferenceState != null ?
+                    holder.animation.otherSideReferenceState : currentState.getOtherSideState();
+                
+                holder.clearAnimationDrivers(true, true);
+                
+                // The reference states are the first frame of the animation.
+                // A side that followed the size of the other side gets its original size from the link.
+                UnilateralPortalState.Builder thisBuilder = new UnilateralPortalState.Builder().from(thisReference);
+                UnilateralPortalState.Builder otherBuilder = new UnilateralPortalState.Builder().from(otherReference);
+                PortalAnimation.applySizeLink(sizeLinkMode, currentState.scaling, thisBuilder, otherBuilder);
+                
+                holder.setPortalState(UnilateralPortalState.combine(thisBuilder.build(), otherBuilder.build()));
+                holder.rectifyClusterPortals(true);
+                holder.reloadAndSyncClusterToClientNextTick();
+                
+                context.getSource().sendSuccess(
+                    () -> Component.literal("Removed the animation and reset the portal"), false
+                );
+            }))
+        );
+        
+        builder.then(Commands.literal("replay")
+            .executes(context -> PortalCommand.processPortalTargetedCommand(context, portal -> {
+                Portal holder = portal.getAnimationHolder();
+                if (holder == null || !holder.animation.restartNormalAnimations(holder)) {
+                    context.getSource().sendFailure(
+                        Component.literal("The portal has no animation that can be replayed")
+                    );
+                    return;
+                }
+                
+                holder.reloadAndSyncClusterToClientNextTick();
+                
+                context.getSource().sendSuccess(
+                    () -> Component.literal("Replaying the animation from the first frame"), false
+                );
+            }))
+        );
+        
         builder.then(Commands.literal("pause")
             .executes(context -> PortalCommand.processPortalTargetedCommand(context, portal -> {
                 PortalExtension.forClusterPortals(

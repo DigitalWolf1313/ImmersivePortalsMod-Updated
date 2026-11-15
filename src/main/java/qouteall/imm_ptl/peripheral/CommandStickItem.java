@@ -330,6 +330,12 @@ public class CommandStickItem extends Item {
         registerPortalSubCommandStick(
             "clear_animation", "animation clear"
         );
+        registerPortalSubCommandStick(
+            "reset_animation", "animation remove_and_reset"
+        );
+        registerPortalSubCommandStick(
+            "replay_animation", "animation replay"
+        );
         
         registerPortalSubCommandStick(
             "sculpt", "shape sculpt"

@@ -57,6 +57,10 @@ public class PortalWandItem extends Item {
     }
     
     public static void initClient() {
+        PortalWandKeys.init();
+        
+        ClientTickEvents.START_CLIENT_TICK.register(client -> ClientPortalWandPortalAnimate.tick());
+        
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null) {
                 ItemStack itemStack = client.player.getMainHandItem();
@@ -74,6 +78,7 @@ public class PortalWandItem extends Item {
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalCreation::reset);
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalDrag::reset);
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalCopy::reset);
+        IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalAnimate::reset);
     }
     
     public static void addIntoCreativeTag(CreativeModeTab.Output entries) {
@@ -88,12 +93,17 @@ public class PortalWandItem extends Item {
         ItemStack w3 = new ItemStack(instance);
         w3.set(COMPONENT_TYPE, Mode.COPY_PORTAL);
         entries.accept(w3);
+        
+        ItemStack w4 = new ItemStack(instance);
+        w4.set(COMPONENT_TYPE, Mode.ANIMATE_PORTAL);
+        entries.accept(w4);
     }
     
     public static enum Mode {
         CREATE_PORTAL,
         DRAG_PORTAL,
-        COPY_PORTAL;
+        COPY_PORTAL,
+        ANIMATE_PORTAL;
         
         public static final Mode FALLBACK = CREATE_PORTAL;
         
@@ -108,6 +118,7 @@ public class PortalWandItem extends Item {
                 case "create_portal" -> CREATE_PORTAL;
                 case "drag_portal" -> DRAG_PORTAL;
                 case "copy_portal" -> COPY_PORTAL;
+                case "animate_portal" -> ANIMATE_PORTAL;
                 default -> FALLBACK;
             };
         }
@@ -116,7 +127,8 @@ public class PortalWandItem extends Item {
             return switch (this) {
                 case CREATE_PORTAL -> DRAG_PORTAL;
                 case DRAG_PORTAL -> COPY_PORTAL;
-                case COPY_PORTAL -> CREATE_PORTAL;
+                case COPY_PORTAL -> ANIMATE_PORTAL;
+                case ANIMATE_PORTAL -> CREATE_PORTAL;
             };
         }
         
@@ -132,6 +144,7 @@ public class PortalWandItem extends Item {
                 case CREATE_PORTAL -> "create_portal";
                 case DRAG_PORTAL -> "drag_portal";
                 case COPY_PORTAL -> "copy_portal";
+                case ANIMATE_PORTAL -> "animate_portal";
             };
         }
         
@@ -140,6 +153,7 @@ public class PortalWandItem extends Item {
                 case CREATE_PORTAL -> Component.translatable("imm_ptl.wand.mode.create_portal");
                 case DRAG_PORTAL -> Component.translatable("imm_ptl.wand.mode.drag_portal");
                 case COPY_PORTAL -> Component.translatable("imm_ptl.wand.mode.copy_portal");
+                case ANIMATE_PORTAL -> Component.translatable("imm_ptl.wand.mode.animate_portal");
             };
         }
         
@@ -159,7 +173,13 @@ public class PortalWandItem extends Item {
     @Environment(EnvType.CLIENT)
     public static void onClientLeftClick(LocalPlayer player, ItemStack itemStack) {
         if (player.isShiftKeyDown()) {
-            showSettings(player);
+            Mode shiftMode = itemStack.getOrDefault(COMPONENT_TYPE, Mode.FALLBACK);
+            if (shiftMode == Mode.ANIMATE_PORTAL && ClientPortalWandPortalAnimate.isActive()) {
+                ClientPortalWandPortalAnimate.removeSelectedKeyframe();
+            }
+            else {
+                showSettings(player);
+            }
         }
         else {
             Mode mode = itemStack.getOrDefault(COMPONENT_TYPE, Mode.FALLBACK);
@@ -174,6 +194,9 @@ public class PortalWandItem extends Item {
                 case COPY_PORTAL -> {
                     ClientPortalWandPortalCopy.onLeftClick();
                 }
+                case ANIMATE_PORTAL -> {
+                    ClientPortalWandPortalDrag.onLeftClick();
+                }
             }
         }
     }
@@ -185,12 +208,18 @@ public class PortalWandItem extends Item {
         
         if (player.isShiftKeyDown()) {
             if (!world.isClientSide()) {
-                if (!PortalWandInteraction.isDragging(((ServerPlayer) player))) {
+                if (!PortalWandInteraction.isDragging(((ServerPlayer) player)) &&
+                    !PortalWandInteraction.isAnimating(((ServerPlayer) player))
+                ) {
                     Mode nextMode = mode.next();
                     itemStack.set(COMPONENT_TYPE, nextMode);
                     return new InteractionResultHolder<>(InteractionResult.SUCCESS, itemStack);
                 }
             }
+        }
+        
+        if (player.isShiftKeyDown() && world.isClientSide()) {
+            onShiftUseClient(mode);
         }
         
         if (!player.isShiftKeyDown()) {
@@ -213,6 +242,9 @@ public class PortalWandItem extends Item {
             }
             case COPY_PORTAL -> {
                 ClientPortalWandPortalCopy.onRightClick();
+            }
+            case ANIMATE_PORTAL -> {
+                ClientPortalWandPortalAnimate.onRightClick();
             }
         }
     }
@@ -246,6 +278,13 @@ public class PortalWandItem extends Item {
         return baseText
             .append(Component.literal(" : "))
             .append(mode.getText().withStyle(ChatFormatting.GOLD));
+    }
+    
+    @Environment(EnvType.CLIENT)
+    private static void onShiftUseClient(Mode mode) {
+        if (mode == Mode.ANIMATE_PORTAL && ClientPortalWandPortalAnimate.isActive()) {
+            ClientPortalWandPortalAnimate.onShiftRightClick();
+        }
     }
     
     public static void showSettings(Player player) {
@@ -287,6 +326,7 @@ public class PortalWandItem extends Item {
             case CREATE_PORTAL -> ClientPortalWandPortalCreation.updateDisplay();
             case DRAG_PORTAL -> ClientPortalWandPortalDrag.updateDisplay();
             case COPY_PORTAL -> ClientPortalWandPortalCopy.updateDisplay();
+            case ANIMATE_PORTAL -> ClientPortalWandPortalAnimate.updateDisplay();
         }
     }
     
@@ -309,6 +349,9 @@ public class PortalWandItem extends Item {
                 poseStack, bufferSource, camX, camY, camZ
             );
             case COPY_PORTAL -> ClientPortalWandPortalCopy.render(
+                poseStack, bufferSource, camX, camY, camZ
+            );
+            case ANIMATE_PORTAL -> ClientPortalWandPortalAnimate.render(
                 poseStack, bufferSource, camX, camY, camZ
             );
         }

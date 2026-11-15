@@ -3,7 +3,11 @@ package qouteall.imm_ptl.peripheral.wand;
 import com.mojang.logging.LogUtils;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -25,6 +29,12 @@ import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
 import qouteall.imm_ptl.core.portal.PortalManipulation;
 import qouteall.imm_ptl.core.portal.PortalState;
+import qouteall.imm_ptl.core.portal.animation.DeltaUnilateralPortalState;
+import qouteall.imm_ptl.core.portal.animation.NormalAnimation;
+import qouteall.imm_ptl.core.portal.animation.PortalAnimation;
+import qouteall.imm_ptl.core.portal.animation.PortalAnimationDriver;
+import qouteall.q_misc_util.api.McRemoteProcedureCall;
+import qouteall.imm_ptl.core.portal.animation.TimingFunction;
 import qouteall.imm_ptl.core.portal.animation.UnilateralPortalState;
 import qouteall.imm_ptl.core.portal.util.PortalLocalXYNormalized;
 import qouteall.imm_ptl.peripheral.CommandStickItem;
@@ -32,6 +42,7 @@ import qouteall.q_misc_util.my_util.DQuaternion;
 import qouteall.q_misc_util.my_util.Plane;
 import qouteall.q_misc_util.my_util.Range;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.WeakHashMap;
@@ -108,6 +119,36 @@ public class PortalWandInteraction {
             if (!checkPermission(player)) return;
             
             handleConfirmCopyCut(player, origin, orientation);
+        }
+        
+        public static void startAnimationSession(ServerPlayer player, UUID portalId) {
+            if (!checkPermission(player)) return;
+            
+            handleStartAnimationSession(player, portalId);
+        }
+        
+        public static void finishAnimationSession(ServerPlayer player, CompoundTag data) {
+            if (!checkPermission(player)) return;
+            
+            handleFinishAnimationSession(player, data);
+        }
+        
+        public static void previewAnimationSession(ServerPlayer player, CompoundTag data) {
+            if (!checkPermission(player)) return;
+            
+            handlePreviewAnimationSession(player, data);
+        }
+        
+        public static void stopAnimationPreview(ServerPlayer player, CompoundTag state) {
+            if (!checkPermission(player)) return;
+            
+            handleSetAnimationSessionPortalState(player, state, true);
+        }
+        
+        public static void setAnimationSessionPortalState(ServerPlayer player, CompoundTag state) {
+            if (!checkPermission(player)) return;
+            
+            handleSetAnimationSessionPortalState(player, state, false);
         }
         
         public static void clearPortalClipboard(ServerPlayer player) {
@@ -290,6 +331,13 @@ public class PortalWandInteraction {
         private final PortalState originalState;
         private final DraggingInfo lastDraggingInfo;
         
+        // The holder of the animation that this drag paused.
+        // Both fields are null when the drag did not pause an animation.
+        @Nullable
+        private ResourceKey<Level> pausedHolderDimension;
+        @Nullable
+        private UUID pausedHolderId;
+        
         public DraggingSession(
             ResourceKey<Level> dimension, UUID portalId,
             PortalState originalState, DraggingInfo lastDraggingInfo
@@ -319,16 +367,27 @@ public class PortalWandInteraction {
                 e -> {
                     ServerPlayer player = e.getKey();
                     if (player.isRemoved()) {
+                        resumeAnimationPausedByDrag(e.getValue(), false);
                         return true;
                     }
                     
                     if (player.getMainHandItem().getItem() != PortalWandItem.instance) {
+                        resumeAnimationPausedByDrag(e.getValue(), false);
                         return true;
                     }
                     
                     return false;
                 }
             );
+            
+            animationSessionMap.entrySet().removeIf(e -> {
+                if (!e.getKey().isRemoved()) {
+                    return false;
+                }
+                
+                abandonAnimationSession(e.getValue());
+                return true;
+            });
             
             copyingSessionMap.entrySet().removeIf(
                 e -> {
@@ -340,6 +399,7 @@ public class PortalWandInteraction {
         
         IPGlobal.SERVER_CLEANUP_EVENT.register(s -> of(s).draggingSessionMap.clear());
         IPGlobal.SERVER_CLEANUP_EVENT.register(s -> copyingSessionMap.clear());
+        IPGlobal.SERVER_CLEANUP_EVENT.register(s -> animationSessionMap.clear());
     }
     
     public static final class DraggingInfo {
@@ -410,6 +470,53 @@ public class PortalWandInteraction {
         return r.newState();
     }
     
+    /**
+     * Pauses the animation so that the drag can move the portal.
+     * The animation only holds one driver set for the whole cluster, so the holder is the portal that is paused.
+     */
+    private static void pauseAnimationForDrag(ServerPlayer player, Portal portal, DraggingSession session) {
+        // The animation session of the animate wand drives the portal by itself.
+        if (isAnimating(player)) {
+            return;
+        }
+        
+        Portal holder = portal.getAnimationHolder();
+        if (holder == null || holder.animation.isPaused()) {
+            return;
+        }
+        
+        holder.pauseAnimation();
+        session.pausedHolderDimension = holder.level().dimension();
+        session.pausedHolderId = holder.getUUID();
+    }
+    
+    /**
+     * Resuming applies the movement made during the pause to the reference states of the animation.
+     * That moves the whole animation together with the portal.
+     */
+    private static void resumeAnimationPausedByDrag(DraggingSession session, boolean undone) {
+        ResourceKey<Level> dimension = session.pausedHolderDimension;
+        UUID holderId = session.pausedHolderId;
+        if (dimension == null || holderId == null) {
+            return;
+        }
+        
+        session.pausedHolderDimension = null;
+        session.pausedHolderId = null;
+        
+        if (!(McHelper.getServerWorld(dimension).getEntity(holderId) instanceof Portal holder)) {
+            return;
+        }
+        
+        if (undone) {
+            // Otherwise the rounding difference from the paused state would shift the animation.
+            holder.animation.setBackToPausingState(holder);
+            holder.rectifyClusterPortals(true);
+        }
+        
+        holder.resumeAnimation();
+    }
+    
     private static void handleFinishDrag(ServerPlayer player) {
         DraggingSession session = of(player.server).draggingSessionMap.remove(player);
         
@@ -422,6 +529,8 @@ public class PortalWandInteraction {
         if (portal != null) {
             portal.reloadAndSyncToClientNextTick();
         }
+        
+        resumeAnimationPausedByDrag(session, false);
     }
     
     private static void handleUndoDrag(ServerPlayer player) {
@@ -437,6 +546,7 @@ public class PortalWandInteraction {
         
         if (portal == null) {
             LOGGER.error("Cannot find portal {}", session.portalId);
+            resumeAnimationPausedByDrag(session, false);
             return;
         }
         
@@ -444,6 +554,7 @@ public class PortalWandInteraction {
         portal.reloadAndSyncToClientNextTick();
         portal.rectifyClusterPortals(true);
         
+        resumeAnimationPausedByDrag(session, true);
         portalWandInteraction.draggingSessionMap.remove(player);
     }
     
@@ -458,12 +569,17 @@ public class PortalWandInteraction {
             // reuse session
         }
         else {
+            if (session != null) {
+                resumeAnimationPausedByDrag(session, false);
+            }
+            
             session = new DraggingSession(
                 player.level().dimension(),
                 portalId,
                 portal.getPortalState(),
                 draggingInfo
             );
+            pauseAnimationForDrag(player, portal, session);
             portalWandInteraction.draggingSessionMap.put(player, session);
         }
         
@@ -868,6 +984,587 @@ public class PortalWandInteraction {
                 giveCommandStick(player, "/portal complete_bi_way_bi_faced_portal");
             }
         }
+    }
+    
+    private record AnimationSession(
+        ResourceKey<Level> dimension, UUID portalId, PortalState initialState, boolean editsExisting
+    ) {
+    }
+    
+    private static final int MAX_ANIMATION_KEYFRAMES = 64;
+    private static final int MAX_KEYFRAME_TICKS = 1200;
+    
+    private static final WeakHashMap<ServerPlayer, AnimationSession> animationSessionMap = new WeakHashMap<>();
+    
+    public static boolean isAnimating(ServerPlayer player) {
+        return animationSessionMap.containsKey(player);
+    }
+    
+    @Nullable
+    private static Portal getAnimationSessionPortal(AnimationSession session) {
+        Entity entity = McHelper.getServerWorld(session.dimension()).getEntity(session.portalId());
+        return entity instanceof Portal portal ? portal : null;
+    }
+    
+    private static void clearAnimationDriversOf(Portal portal) {
+        Portal holder = portal.getAnimationHolder();
+        if (holder != null) {
+            holder.clearAnimationDrivers(true, true);
+            holder.reloadAndSyncClusterToClientNextTick();
+        }
+    }
+    
+    private static CompoundTag stateToTag(PortalState state) {
+        CompoundTag tag = new CompoundTag();
+        tag.put("thisSide", state.getThisSideState().toTag());
+        tag.put("otherSide", state.getOtherSideState().toTag());
+        return tag;
+    }
+    
+    private static PortalState tagToState(CompoundTag tag) {
+        return UnilateralPortalState.combine(
+            UnilateralPortalState.fromTag(tag.getCompound("thisSide")),
+            UnilateralPortalState.fromTag(tag.getCompound("otherSide"))
+        );
+    }
+    
+    /**
+     * Puts the portal back to where the session started.
+     */
+    private static void abandonAnimationSession(AnimationSession session) {
+        Portal portal = getAnimationSessionPortal(session);
+        if (portal == null) {
+            return;
+        }
+        
+        clearAnimationDriversOf(portal);
+        portal.setPortalState(session.initialState());
+        portal.rectifyClusterPortals(true);
+        portal.reloadAndSyncClusterToClientNextTick();
+    }
+    
+    private static void handleStartAnimationSession(ServerPlayer player, UUID portalId) {
+        Portal portal = WandUtil.getPortalByUUID(player.level(), portalId);
+        
+        if (portal == null) {
+            player.sendSystemMessage(Component.literal("Cannot find portal " + portalId));
+            return;
+        }
+        
+        Portal holder = portal.getAnimationHolder();
+        if (holder != null) {
+            if (startEditingExistingAnimation(player, holder)) {
+                return;
+            }
+            
+            // The animation was not made by the wand, so it is replaced by the new one.
+            holder.clearAnimationDrivers(true, true);
+            holder.reloadAndSyncClusterToClientNextTick();
+        }
+        
+        PortalState state = portal.getPortalState();
+        if (state == null) {
+            return;
+        }
+        
+        animationSessionMap.put(
+            player, new AnimationSession(portal.level().dimension(), portalId, state, false)
+        );
+        
+        CompoundTag data = new CompoundTag();
+        putClusterIds(data, portal);
+        
+        if (holder != null) {
+            // The client is waiting for keyframes that the replaced animation cannot give.
+            data.put("start", stateToTag(state));
+            McRemoteProcedureCall.tellClientToInvoke(
+                player,
+                "qouteall.imm_ptl.peripheral.wand.ClientPortalWandPortalAnimate.RemoteCallables.clientAnimationNotEditable",
+                data
+            );
+        }
+        else {
+            McRemoteProcedureCall.tellClientToInvoke(
+                player,
+                "qouteall.imm_ptl.peripheral.wand.ClientPortalWandPortalAnimate.RemoteCallables.clientSessionCluster",
+                data
+            );
+        }
+    }
+    
+    @Nullable
+    private static NormalAnimation getSingleNormalAnimation(List<PortalAnimationDriver> drivers) {
+        if (drivers.size() == 1 && drivers.get(0) instanceof NormalAnimation animation && !animation.isBuilding) {
+            return animation;
+        }
+        return null;
+    }
+    
+    /**
+     * Returns true if the last phase is the one that the wand adds to make a looping animation return to the start.
+     */
+    private static boolean isGeneratedLoopBackPhase(List<NormalAnimation.Phase> phases) {
+        int last = phases.size() - 1;
+        
+        return last >= 1
+            && isLoopBackPhase(phases.get(last), phases.get(last - 1))
+            && !phases.get(last - 1).delta().isIdentity();
+    }
+    
+    private static boolean isLoopBackPhase(NormalAnimation.Phase last, NormalAnimation.Phase previous) {
+        return last.delta().isIdentity()
+            && last.durationTicks() == previous.durationTicks()
+            && last.timingFunction() == previous.timingFunction();
+    }
+    
+    /**
+     * Stops the animation, moves the portal to its last keyframe and sends the keyframes to the client.
+     * Returns false if the animation cannot be edited by the wand.
+     */
+    /**
+     * Puts the ids of the portals that share the animation with the portal.
+     * The portals on the other side can be in another dimension, so the client cannot always find them.
+     */
+    private static void putClusterIds(CompoundTag data, Portal portal) {
+        PortalExtension extension = PortalExtension.get(portal);
+        
+        ListTag sameSide = new ListTag();
+        ListTag otherSide = new ListTag();
+        
+        sameSide.add(NbtUtils.createUUID(portal.getUUID()));
+        if (extension.flippedPortal != null) {
+            sameSide.add(NbtUtils.createUUID(extension.flippedPortal.getUUID()));
+        }
+        if (extension.reversePortal != null) {
+            otherSide.add(NbtUtils.createUUID(extension.reversePortal.getUUID()));
+        }
+        if (extension.parallelPortal != null) {
+            otherSide.add(NbtUtils.createUUID(extension.parallelPortal.getUUID()));
+        }
+        
+        data.put("sameSideIds", sameSide);
+        data.put("otherSideIds", otherSide);
+    }
+    
+    private static boolean startEditingExistingAnimation(ServerPlayer player, Portal holder) {
+        PortalAnimation animation = holder.animation;
+        PortalState currentState = holder.getPortalState();
+        
+        // A side without drivers has no reference state, and its current state is not animated.
+        UnilateralPortalState thisReference = animation.thisSideReferenceState;
+        UnilateralPortalState otherReference = animation.otherSideReferenceState;
+        if (currentState != null) {
+            if (thisReference == null && animation.thisSideAnimations.isEmpty()) {
+                thisReference = currentState.getThisSideState();
+            }
+            if (otherReference == null && animation.otherSideAnimations.isEmpty()) {
+                otherReference = currentState.getOtherSideState();
+            }
+        }
+        
+        if (thisReference == null || otherReference == null) {
+            return false;
+        }
+        
+        if (currentState != null) {
+            // The current state has the linked size on the side that follows the other side's size.
+            UnilateralPortalState.Builder thisBuilder = new UnilateralPortalState.Builder().from(thisReference);
+            UnilateralPortalState.Builder otherBuilder = new UnilateralPortalState.Builder().from(otherReference);
+            PortalAnimation.applySizeLink(animation.sizeLinkMode, currentState.scaling, thisBuilder, otherBuilder);
+            thisReference = thisBuilder.build();
+            otherReference = otherBuilder.build();
+        }
+        
+        NormalAnimation thisAnimation = getSingleNormalAnimation(animation.thisSideAnimations);
+        NormalAnimation otherAnimation = getSingleNormalAnimation(animation.otherSideAnimations);
+        
+        // A side without any driver is an empty track. A side with other kinds of drivers cannot be edited.
+        if (thisAnimation == null && !animation.thisSideAnimations.isEmpty()) {
+            return false;
+        }
+        if (otherAnimation == null && !animation.otherSideAnimations.isEmpty()) {
+            return false;
+        }
+        if (thisAnimation == null && otherAnimation == null) {
+            return false;
+        }
+        
+        List<NormalAnimation.Phase> thisPhases =
+            thisAnimation == null ? new ArrayList<>() : new ArrayList<>(thisAnimation.phases);
+        List<NormalAnimation.Phase> otherPhases =
+            otherAnimation == null ? new ArrayList<>() : new ArrayList<>(otherAnimation.phases);
+        
+        if (thisPhases.size() > MAX_ANIMATION_KEYFRAMES + 1 || otherPhases.size() > MAX_ANIMATION_KEYFRAMES + 1) {
+            return false;
+        }
+        
+        // Both sides share one loop setting.
+        NormalAnimation loopSource = thisAnimation != null ? thisAnimation : otherAnimation;
+        boolean loop = loopSource.loopCount >= NormalAnimation.INFINITE_THRESHOLD;
+        
+        if (loop && isGeneratedLoopBackPhase(thisPhases)) {
+            thisPhases.remove(thisPhases.size() - 1);
+        }
+        if (loop && isGeneratedLoopBackPhase(otherPhases)) {
+            otherPhases.remove(otherPhases.size() - 1);
+        }
+        
+        ListTag thisKeyframes = new ListTag();
+        ListTag otherKeyframes = new ListTag();
+        UnilateralPortalState lastThis = phasesToKeyframes(thisReference, thisPhases, thisKeyframes);
+        UnilateralPortalState lastOther = phasesToKeyframes(otherReference, otherPhases, otherKeyframes);
+        
+        holder.clearAnimationDrivers(true, true);
+        // The end of the animation has linked sizes, so the portal is put there with the same linking.
+        UnilateralPortalState.Builder lastThisBuilder = new UnilateralPortalState.Builder().from(lastThis);
+        UnilateralPortalState.Builder lastOtherBuilder = new UnilateralPortalState.Builder().from(lastOther);
+        PortalAnimation.applySizeLink(
+            getSizeLinkMode(thisPhases, otherPhases),
+            otherReference.width() / thisReference.width(),
+            lastThisBuilder, lastOtherBuilder
+        );
+        holder.setPortalState(UnilateralPortalState.combine(lastThisBuilder.build(), lastOtherBuilder.build()));
+        holder.rectifyClusterPortals(true);
+        holder.reloadAndSyncClusterToClientNextTick();
+        
+        PortalState initialState = UnilateralPortalState.combine(thisReference, otherReference);
+        
+        animationSessionMap.put(
+            player, new AnimationSession(holder.level().dimension(), holder.getUUID(), initialState, true)
+        );
+        
+        CompoundTag data = new CompoundTag();
+        data.putUUID("portalId", holder.getUUID());
+        data.put("start", stateToTag(initialState));
+        data.put("thisKeyframes", thisKeyframes);
+        data.put("otherKeyframes", otherKeyframes);
+        data.putBoolean("loop", loop);
+        putClusterIds(data, holder);
+        
+        McRemoteProcedureCall.tellClientToInvoke(
+            player,
+            "qouteall.imm_ptl.peripheral.wand.ClientPortalWandPortalAnimate.RemoteCallables.clientBeginEdit",
+            data
+        );
+        return true;
+    }
+    
+    /**
+     * Writes the phases as keyframe tags and returns the state after the last phase.
+     * Returns the reference state if there are no phases.
+     */
+    private static UnilateralPortalState phasesToKeyframes(
+        UnilateralPortalState reference, List<NormalAnimation.Phase> phases, ListTag out
+    ) {
+        UnilateralPortalState last = reference;
+        
+        for (NormalAnimation.Phase phase : phases) {
+            last = new UnilateralPortalState.Builder().from(reference).apply(phase.delta()).build();
+            
+            CompoundTag tag = new CompoundTag();
+            tag.put("state", last.toTag());
+            tag.putInt("durationTicks", (int) phase.durationTicks());
+            tag.putString("easing", phase.timingFunction().name());
+            out.add(tag);
+        }
+        
+        return last;
+    }
+    
+    /**
+     * Returns the phases of one side, or null if a keyframe is invalid.
+     */
+    @Nullable
+    private static List<NormalAnimation.Phase> parseSidePhases(
+        ServerPlayer player, UnilateralPortalState reference, ListTag keyframeList, boolean loop,
+        boolean isThisSide, ResourceKey<Level> expectedDimension
+    ) {
+        if (keyframeList.size() > MAX_ANIMATION_KEYFRAMES) {
+            player.sendSystemMessage(Component.translatable("imm_ptl.wand.animate.too_many"));
+            return null;
+        }
+        
+        List<NormalAnimation.Phase> phases = new ArrayList<>();
+        
+        for (int i = 0; i < keyframeList.size(); i++) {
+            CompoundTag keyframe = keyframeList.getCompound(i);
+            UnilateralPortalState state = UnilateralPortalState.fromTag(keyframe.getCompound("state"));
+            
+            if (!validateSideState(expectedDimension, state, isThisSide)) {
+                player.sendSystemMessage(Component.literal("Invalid keyframe " + (i + 1)));
+                LOGGER.error("Invalid animation keyframe {}", keyframe);
+                return null;
+            }
+            
+            long durationTicks = Mth.clamp(keyframe.getInt("durationTicks"), 1, MAX_KEYFRAME_TICKS);
+            TimingFunction easing = parseTimingFunction(keyframe.getString("easing"));
+            
+            phases.add(new NormalAnimation.Phase(
+                durationTicks, state.subtract(reference).purgeFPError(), easing
+            ));
+        }
+        
+        if (loop && !phases.isEmpty()) {
+            NormalAnimation.Phase last = phases.get(phases.size() - 1);
+            
+            // Without this the looping animation would jump back to the start.
+            if (!last.delta().isIdentity()) {
+                phases.add(new NormalAnimation.Phase(
+                    last.durationTicks(), DeltaUnilateralPortalState.identity, last.timingFunction()
+                ));
+            }
+        }
+        
+        return phases;
+    }
+    
+    /**
+     * Returns the phases of the this side and the other side, or null if a keyframe is invalid.
+     * A side without keyframes gets an empty list.
+     */
+    @Nullable
+    private static List<List<NormalAnimation.Phase>> parseAnimationPhases(
+        ServerPlayer player, PortalState initialState, CompoundTag data
+    ) {
+        boolean loop = data.getBoolean("loop");
+        
+        List<NormalAnimation.Phase> thisPhases = parseSidePhases(
+            player, initialState.getThisSideState(), data.getList("thisKeyframes", Tag.TAG_COMPOUND),
+            loop, true, initialState.fromWorld
+        );
+        if (thisPhases == null) {
+            return null;
+        }
+        
+        List<NormalAnimation.Phase> otherPhases = parseSidePhases(
+            player, initialState.getOtherSideState(), data.getList("otherKeyframes", Tag.TAG_COMPOUND),
+            loop, false, initialState.toWorld
+        );
+        if (otherPhases == null) {
+            return null;
+        }
+        
+        return List.of(thisPhases, otherPhases);
+    }
+    
+    private static boolean changesSize(List<NormalAnimation.Phase> phases) {
+        for (NormalAnimation.Phase phase : phases) {
+            Vec3 scaling = phase.delta().sizeScaling();
+            if (scaling != null && (Math.abs(scaling.x() - 1) > 1e-4 || Math.abs(scaling.y() - 1) > 1e-4)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Returns which side drives the size of the other side.
+     * If both sides change their size, each keeps its own size.
+     */
+    private static int getSizeLinkMode(
+        List<NormalAnimation.Phase> thisPhases, List<NormalAnimation.Phase> otherPhases
+    ) {
+        boolean thisResizes = changesSize(thisPhases);
+        boolean otherResizes = changesSize(otherPhases);
+        
+        if (thisResizes && !otherResizes) {
+            return PortalAnimation.SIZE_LINK_THIS_DRIVES_OTHER;
+        }
+        if (otherResizes && !thisResizes) {
+            return PortalAnimation.SIZE_LINK_OTHER_DRIVES_THIS;
+        }
+        return PortalAnimation.SIZE_LINK_NONE;
+    }
+    
+    private static void startAnimationDrivers(
+        Portal portal, PortalState initialState,
+        List<NormalAnimation.Phase> thisPhases, List<NormalAnimation.Phase> otherPhases,
+        boolean loopsInfinitely
+    ) {
+        clearAnimationDriversOf(portal);
+        
+        // Dragging moved the portal, so put it back to the start before the animation begins.
+        portal.setPortalState(initialState);
+        portal.rectifyClusterPortals(true);
+        portal.animation.thisSideReferenceState = initialState.getThisSideState();
+        portal.animation.otherSideReferenceState = initialState.getOtherSideState();
+        portal.animation.sizeLinkMode = getSizeLinkMode(thisPhases, otherPhases);
+        
+        // Both sides start from the same clock so that pausing and resuming keeps them linked.
+        long startingGameTime = portal.getAnimationEffectiveTime();
+        int loopCount = loopsInfinitely ? NormalAnimation.INFINITE_THRESHOLD : 1;
+        
+        if (!thisPhases.isEmpty()) {
+            portal.addThisSideAnimationDriver(new NormalAnimation.Builder()
+                .phases(thisPhases)
+                .startingGameTime(startingGameTime)
+                .loopCount(loopCount)
+                .holdsAtEnd(!loopsInfinitely)
+                .build()
+            );
+        }
+        if (!otherPhases.isEmpty()) {
+            portal.addOtherSideAnimationDriver(new NormalAnimation.Builder()
+                .phases(otherPhases)
+                .startingGameTime(startingGameTime)
+                .loopCount(loopCount)
+                .holdsAtEnd(!loopsInfinitely)
+                .build()
+            );
+        }
+    }
+    
+    private static void handleFinishAnimationSession(ServerPlayer player, CompoundTag data) {
+        AnimationSession session = animationSessionMap.remove(player);
+        
+        if (session == null) {
+            return;
+        }
+        
+        Portal portal = getAnimationSessionPortal(session);
+        if (portal == null) {
+            player.sendSystemMessage(Component.literal("Cannot find portal " + session.portalId()));
+            return;
+        }
+        
+        ListTag thisKeyframes = data.getList("thisKeyframes", Tag.TAG_COMPOUND);
+        ListTag otherKeyframes = data.getList("otherKeyframes", Tag.TAG_COMPOUND);
+        boolean loop = data.getBoolean("loop");
+        
+        if (thisKeyframes.isEmpty() && otherKeyframes.isEmpty()) {
+            if (session.editsExisting()) {
+                clearAnimationDriversOf(portal);
+                portal.setPortalState(session.initialState());
+                portal.rectifyClusterPortals(true);
+                portal.reloadAndSyncClusterToClientNextTick();
+                player.sendSystemMessage(Component.translatable("imm_ptl.wand.animate.removed"));
+            }
+            else {
+                player.sendSystemMessage(Component.translatable("imm_ptl.wand.animate.empty"));
+            }
+            return;
+        }
+        
+        List<List<NormalAnimation.Phase>> phases = parseAnimationPhases(player, session.initialState(), data);
+        if (phases == null) {
+            return;
+        }
+        
+        startAnimationDrivers(portal, session.initialState(), phases.get(0), phases.get(1), loop);
+        
+        player.sendSystemMessage(Component.translatable(
+            "imm_ptl.wand.animate.created", thisKeyframes.size() + otherKeyframes.size()
+        ));
+        giveCommandStick(player, "/portal animation remove_and_reset");
+        if (!loop) {
+            giveCommandStick(player, "/portal animation replay");
+        }
+    }
+    
+    private static void handlePreviewAnimationSession(ServerPlayer player, CompoundTag data) {
+        AnimationSession session = animationSessionMap.get(player);
+        if (session == null) {
+            return;
+        }
+        
+        Portal portal = getAnimationSessionPortal(session);
+        if (portal == null
+            || (data.getList("thisKeyframes", Tag.TAG_COMPOUND).isEmpty()
+            && data.getList("otherKeyframes", Tag.TAG_COMPOUND).isEmpty())
+        ) {
+            return;
+        }
+        
+        List<List<NormalAnimation.Phase>> phases = parseAnimationPhases(player, session.initialState(), data);
+        if (phases == null) {
+            return;
+        }
+        
+        // The preview plays once even if the animation loops.
+        startAnimationDrivers(portal, session.initialState(), phases.get(0), phases.get(1), false);
+    }
+    
+    private static void handleSetAnimationSessionPortalState(
+        ServerPlayer player, CompoundTag data, boolean stopsPreview
+    ) {
+        AnimationSession session = animationSessionMap.get(player);
+        if (session == null) {
+            return;
+        }
+        
+        Portal portal = getAnimationSessionPortal(session);
+        if (portal == null) {
+            return;
+        }
+        
+        if (stopsPreview) {
+            clearAnimationDriversOf(portal);
+        }
+        
+        if (!data.contains("thisSide") || !data.contains("otherSide")) {
+            return;
+        }
+        
+        PortalState state = tagToState(data);
+        if (!validateAnimationKeyframe(session.initialState(), state.getThisSideState(), state.getOtherSideState())) {
+            LOGGER.error("Invalid animation session portal state {}", data);
+            return;
+        }
+        
+        portal.setPortalState(state);
+        portal.rectifyClusterPortals(true);
+        portal.reloadAndSyncClusterToClientNextTick();
+    }
+    
+    private static TimingFunction parseTimingFunction(String name) {
+        try {
+            return TimingFunction.valueOf(name);
+        }
+        catch (IllegalArgumentException e) {
+            return TimingFunction.sine;
+        }
+    }
+    
+    private static boolean validateAnimationKeyframe(
+        PortalState initialState,
+        UnilateralPortalState thisState, UnilateralPortalState otherState
+    ) {
+        return validateSideState(initialState.fromWorld, thisState, true)
+            && validateSideState(initialState.toWorld, otherState, false);
+    }
+    
+    private static boolean validateSideState(
+        ResourceKey<Level> expectedDimension, UnilateralPortalState state, boolean isThisSide
+    ) {
+        if (state.dimension() != expectedDimension) {
+            return false;
+        }
+        
+        if (!Double.isFinite(state.width()) || !Double.isFinite(state.height())) {
+            return false;
+        }
+        
+        if (isThisSide) {
+            if (state.width() < 0.05 || state.width() > 64.1) {
+                return false;
+            }
+            if (state.height() < 0.05 || state.height() > 64.1) {
+                return false;
+            }
+        }
+        else if (state.width() <= 0 || state.height() <= 0) {
+            return false;
+        }
+        
+        DQuaternion orientation = state.orientation();
+        if (!Double.isFinite(orientation.x) || !Double.isFinite(orientation.y)
+            || !Double.isFinite(orientation.z) || !Double.isFinite(orientation.w)
+        ) {
+            return false;
+        }
+        
+        Vec3 pos = state.position();
+        return Double.isFinite(pos.x) && Double.isFinite(pos.y) && Double.isFinite(pos.z);
     }
     
     private static void handleClearPortalClipboard(ServerPlayer player) {
