@@ -120,24 +120,39 @@ public class CrossPortalViewRendering {
     private static Vec3 getThirdPersonCameraPos(Vec3 endPos, Portal portal, Vec3 startPos) {
         Vec3 rtStart = portal.transformPoint(startPos);
         Vec3 rtEnd = portal.transformPoint(endPos);
-        assert client.cameraEntity != null;
-        BlockHitResult blockHitResult = portal.getDestinationWorld().clip(
-            new ClipContext(
-                rtStart,
-                rtEnd,
-                ClipContext.Block.VISUAL,
-                ClipContext.Fluid.NONE,
-                client.cameraEntity
-            )
-        );
-        
-        if (blockHitResult.getType() == HitResult.Type.BLOCK) {
-            return rtStart.add(rtEnd.subtract(rtStart).normalize().scale(
-                getThirdPersonMaxDistance()
-            ));
+        Vec3 delta = rtEnd.subtract(rtStart);
+        double length = delta.length();
+        if (length < 1.0E-6) {
+            return rtStart;
         }
         
-        return blockHitResult.getLocation();
+        assert client.cameraEntity != null;
+        double allowedDistance = length;
+        
+        // Mirrors vanilla's camera clipping by testing eight offset rays and keeping the shortest hit.
+        for (int i = 0; i < 8; i++) {
+            Vec3 offset = new Vec3(
+                ((i & 1) * 2 - 1) * 0.1,
+                (((i >> 1) & 1) * 2 - 1) * 0.1,
+                (((i >> 2) & 1) * 2 - 1) * 0.1
+            );
+            Vec3 from = rtStart.add(offset);
+            Vec3 to = rtEnd.add(offset);
+            BlockHitResult hit = portal.getDestinationWorld().clip(
+                new ClipContext(from, to, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, client.cameraEntity)
+            );
+            if (hit.getType() == HitResult.Type.MISS) {
+                continue;
+            }
+            
+            double hitDistance = hit.getLocation().distanceTo(from);
+            // A ray that starts inside the portal frame hits at distance zero and is ignored.
+            if (hitDistance > 1.0E-3 && hitDistance < allowedDistance) {
+                allowedDistance = hitDistance;
+            }
+        }
+        
+        return rtStart.add(delta.scale(allowedDistance / length));
     }
     
     private static double getThirdPersonMaxDistance() {
