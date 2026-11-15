@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -16,6 +17,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.mc_utils.WireRenderingHelper;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -41,6 +43,28 @@ public class WandUtil {
         Level world = player.level();
     
         return getPortalByUUID(world, portalId);
+    }
+    
+    /**
+     * Searches the player's dimension first and then the other loaded client dimensions.
+     * A portal can be in another dimension than the player, for example the far side of a cross-dimension portal.
+     */
+    @Nullable
+    @Environment(EnvType.CLIENT)
+    public static Portal getClientPortalByUUIDInAnyWorld(UUID portalId) {
+        Portal portal = getClientPortalByUUID(portalId);
+        if (portal != null) {
+            return portal;
+        }
+        
+        for (ClientLevel level : ClientWorldLoader.getClientWorlds()) {
+            portal = getPortalByUUID(level, portalId);
+            if (portal != null) {
+                return portal;
+            }
+        }
+        
+        return null;
     }
     
     @Nullable

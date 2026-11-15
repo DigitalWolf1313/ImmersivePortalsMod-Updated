@@ -228,6 +228,13 @@ public class StableClientTimer {
                 timeFlowScale = 1;
             }
         }
+        else if (deltaTickTime > 100) {
+            // projectedStableTime -- targetTime
+            // The target time is too far ahead and the slow catch-up would take too long.
+            // This happens after the client level is replaced, because its game time starts from zero.
+            reset(worldGameTime, partialTicks);
+            limitedLogger.err("Reset the client stable timer because the target time is too far ahead");
+        }
         else {
             // projectedStableTime -- targetTime
             // stable time is behind the target time

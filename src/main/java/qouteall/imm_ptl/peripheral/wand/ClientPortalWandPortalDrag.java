@@ -692,7 +692,7 @@ public class ClientPortalWandPortalDrag {
         );
     }
     
-    private static void stopDragging() {
+    public static void stopDragging() {
         draggingContext = null;
         renderedPlane.clearTarget();
         renderedRect.clearTarget();
@@ -757,6 +757,27 @@ public class ClientPortalWandPortalDrag {
                 "1_invalid_dragging"
             );
         }
+    }
+    
+    @Nullable
+    public static Portal getHoveredPortal() {
+        return selectionStatus == null ? null : getSelectedPortal();
+    }
+    
+    /**
+     * Returns the state that the portal is moving toward, ignoring the smoothing of the cursor.
+     */
+    @Nullable
+    public static PortalState getTargetPortalState(UUID portalId) {
+        if (draggingContext != null && draggingContext.portalId().equals(portalId)) {
+            PortalState endingState = getAnimationEndingState();
+            if (endingState != null) {
+                return endingState;
+            }
+        }
+        
+        Portal portal = WandUtil.getClientPortalByUUIDInAnyWorld(portalId);
+        return portal == null ? null : portal.getPortalState();
     }
     
     @Nullable

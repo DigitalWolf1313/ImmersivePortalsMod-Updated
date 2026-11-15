@@ -92,7 +92,36 @@ public record DeltaUnilateralPortalState(
         DeltaUnilateralPortalState a, DeltaUnilateralPortalState b,
         double progress
     ) {
-        return a.getPartial(1 - progress).combine(b.getPartial(progress));
+        DeltaUnilateralPortalState combined = a.getPartial(1 - progress).combine(b.getPartial(progress));
+        
+        // Combining two partial scalings multiplies them, which bulges when both are not 1.
+        // Blending the two scalings linearly is exact.
+        Vec3 sizeScaling = combined.sizeScaling();
+        if (a.sizeScaling() != null || b.sizeScaling() != null) {
+            Vec3 scalingA = a.sizeScaling() == null ? new Vec3(1, 1, 1) : a.sizeScaling();
+            Vec3 scalingB = b.sizeScaling() == null ? new Vec3(1, 1, 1) : b.sizeScaling();
+            sizeScaling = new Vec3(
+                Mth.lerp(progress, scalingA.x(), scalingB.x()),
+                Mth.lerp(progress, scalingA.y(), scalingB.y()),
+                Mth.lerp(progress, scalingA.z(), scalingB.z())
+            );
+        }
+        
+        if (a.rotation() == null && b.rotation() == null) {
+            return new DeltaUnilateralPortalState(combined.offset(), null, sizeScaling);
+        }
+        
+        // Slerping between the two rotations always takes the shorter way around.
+        // Combining two partial rotations from the identity
+        // takes the long way when the angle passes 180 degrees.
+        DQuaternion rotationA = a.rotation() == null ? DQuaternion.identity : a.rotation();
+        DQuaternion rotationB = b.rotation() == null ? DQuaternion.identity : b.rotation();
+        
+        return new DeltaUnilateralPortalState(
+            combined.offset(),
+            DQuaternion.interpolate(rotationA, rotationB, progress),
+            sizeScaling
+        );
     }
     
     public DeltaUnilateralPortalState getFlipped() {

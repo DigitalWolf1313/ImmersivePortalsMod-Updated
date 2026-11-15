@@ -92,18 +92,32 @@ public class NormalAnimation implements PortalAnimationDriver {
      */
     public final boolean isBuilding;
     
+    /**
+     * If true, the animation stays on its last frame after it ends instead of being removed.
+     * It can then be restarted by replacing the starting game time.
+     */
+    public final boolean holdsAtEnd;
+    
     private final long ticksPerRound;
+    
+    public NormalAnimation(
+        List<Phase> phases, long startingGameTime, int loopCount, boolean isBuilding
+    ) {
+        this(phases, startingGameTime, loopCount, isBuilding, false);
+    }
     
     public NormalAnimation(
         List<Phase> phases,
         long startingGameTime,
         int loopCount,
-        boolean isBuilding
+        boolean isBuilding,
+        boolean holdsAtEnd
     ) {
         this.phases = phases;
         this.startingGameTime = startingGameTime;
         this.loopCount = loopCount;
         this.isBuilding = isBuilding;
+        this.holdsAtEnd = holdsAtEnd;
         
         long totalTicks = 0;
         for (Phase phase : phases) {
@@ -126,6 +140,8 @@ public class NormalAnimation implements PortalAnimationDriver {
         
         boolean isBuilding = compoundTag.getBoolean("isBuilding");
         
+        boolean holdsAtEnd = compoundTag.getBoolean("holdsAtEnd");
+        
         if (!isBuilding) {
             if (phases.isEmpty() || loopCount < 0) {
                 throw new RuntimeException("invalid NormalAnimation");
@@ -136,7 +152,8 @@ public class NormalAnimation implements PortalAnimationDriver {
             phases,
             startingGameTime,
             loopCount,
-            isBuilding
+            isBuilding,
+            holdsAtEnd
         );
     }
     
@@ -149,6 +166,9 @@ public class NormalAnimation implements PortalAnimationDriver {
         tag.putLong("startingGameTime", startingGameTime);
         tag.putInt("loopCount", loopCount);
         tag.putBoolean("isBuilding", isBuilding);
+        if (holdsAtEnd) {
+            tag.putBoolean("holdsAtEnd", true);
+        }
         
         return tag;
     }
@@ -212,7 +232,7 @@ public class NormalAnimation implements PortalAnimationDriver {
             }
         }
         
-        return new AnimationResult(lastDelta, ends);
+        return new AnimationResult(lastDelta, ends && !holdsAtEnd);
     }
     
     @Nullable
@@ -230,7 +250,8 @@ public class NormalAnimation implements PortalAnimationDriver {
             phases.stream().map(phase -> phase.getFlippedVersion()).collect(Collectors.toList()),
             startingGameTime,
             loopCount,
-            isBuilding
+            isBuilding,
+            holdsAtEnd
         );
     }
     
@@ -240,6 +261,7 @@ public class NormalAnimation implements PortalAnimationDriver {
         private long startingGameTime;
         private int loopCount;
         private boolean isBuilding = false;
+        private boolean holdsAtEnd = false;
         
         public Builder() {
         }
@@ -248,6 +270,7 @@ public class NormalAnimation implements PortalAnimationDriver {
             this.phases = animation.phases;
             this.startingGameTime = animation.startingGameTime;
             this.loopCount = animation.loopCount;
+            this.holdsAtEnd = animation.holdsAtEnd;
             return this;
         }
         
@@ -280,8 +303,13 @@ public class NormalAnimation implements PortalAnimationDriver {
             return this;
         }
         
+        public Builder holdsAtEnd(boolean holdsAtEnd) {
+            this.holdsAtEnd = holdsAtEnd;
+            return this;
+        }
+        
         public NormalAnimation build() {
-            return new NormalAnimation(phases, startingGameTime, loopCount, isBuilding);
+            return new NormalAnimation(phases, startingGameTime, loopCount, isBuilding, holdsAtEnd);
         }
     }
     

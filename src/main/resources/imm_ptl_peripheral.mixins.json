@@ -23,7 +23,8 @@
     "client.dim_stack.MixinCreateWorldScreen_CVB",
     "client.dim_stack.MixinCreateWorldScreenMoreTab_CVB",
     "client.portal_wand.MixinDebugRenderer",
-    "client.portal_wand.MixinMinecraft_PortalWand"
+    "client.portal_wand.MixinMinecraft_PortalWand",
+    "client.portal_wand.MixinMouseHandler_PortalWand"
   ],
   "injectors": {
     "defaultRequire": 1
