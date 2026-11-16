@@ -36,7 +36,11 @@ public class SodiumInterface {
         public void switchContextWithCurrentWorldRenderer(Object context) {
         
         }
-
+        
+        public int getVisibleSectionCount() {
+            return 0;
+        }
+        
         /**
          * Forces a synchronous translucent sort catch-up for the current view.
          */
@@ -91,23 +95,30 @@ public class SodiumInterface {
         }
         
         @Override
+        public int getVisibleSectionCount() {
+            SodiumWorldRenderer swr =
+                ((LevelRendererExtension) Minecraft.getInstance().levelRenderer).sodium$getWorldRenderer();
+            return swr.getVisibleChunkCount();
+        }
+        
+        @Override
         public void forceBlockingSortCatchUp() {
             if (!IPGlobal.forceBlockingSortCatchUpEnabled) {
                 return;
             }
-
+            
             RenderDevice.enterManagedCode();
-
+            
             SodiumWorldRenderer swr =
                 ((LevelRendererExtension) Minecraft.getInstance().levelRenderer)
                     .sodium$getWorldRenderer();
-
+            
             RenderSectionManager renderSectionManager =
                 ((IESodiumWorldRenderer) swr).ip_getRenderSectionManager();
-
+            
             ((IESodiumRenderSectionManager) renderSectionManager)
                 .ip_forceBlockingSortCatchUp();
-
+            
             RenderDevice.exitManagedCode();
         }
         

@@ -61,6 +61,8 @@ public class RenderStates {
     public static List<List<WeakReference<Portal>>> lastPortalRenderInfos = new ArrayList<>();
     public static List<List<WeakReference<Portal>>> portalRenderInfos = new ArrayList<>();
     public static int portalsRenderedThisFrame = 0;// mixins to sodium use that
+    public static int lastPortalSectionsRendered = 0;
+    public static int portalSectionsRenderedThisFrame = 0;
     
     public static Vec3 lastCameraPos = Vec3.ZERO;
     public static Vec3 cameraPosDelta = Vec3.ZERO;
@@ -107,6 +109,8 @@ public class RenderStates {
         lastPortalRenderInfos = portalRenderInfos;
         portalRenderInfos = new ArrayList<>();
         portalsRenderedThisFrame = 0;
+        lastPortalSectionsRendered = portalSectionsRenderedThisFrame;
+        portalSectionsRenderedThisFrame = 0;
         
         FogRendererContext.update();
         

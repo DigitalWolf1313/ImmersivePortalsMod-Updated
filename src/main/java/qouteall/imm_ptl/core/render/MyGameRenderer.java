@@ -132,6 +132,9 @@ public class MyGameRenderer {
         int renderDistance,
         boolean doRenderHand
     ) {
+        // The smart cull flag is set back to this value after the portal view is rendered.
+        boolean oldSmartCull = client.smartCull;
+        
         if (!enablePortalCaveCulling) {
             client.smartCull = false;
         }
@@ -263,6 +266,8 @@ public class MyGameRenderer {
                 });
             }
             
+            RenderStates.portalSectionsRenderedThisFrame += SodiumInterface.invoker.getVisibleSectionCount();
+            
             SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
             if (PortalRendering.getPortalLayer() == 1 &&
                 Portal.isSameDimensionPortal(PortalRendering.getRenderingPortal())) {
@@ -321,7 +326,7 @@ public class MyGameRenderer {
         
         CHelper.checkGlError();
         
-        client.smartCull = true;
+        client.smartCull = oldSmartCull;
     }
     
     /**
