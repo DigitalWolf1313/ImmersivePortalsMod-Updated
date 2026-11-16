@@ -1,8 +1,11 @@
 package qouteall.imm_ptl.core.compat.mixin.sodium;
 
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
+import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.GraphDirectionSet;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.OcclusionCuller;
 import net.caffeinemc.mods.sodium.client.render.viewport.Viewport;
+import net.caffeinemc.mods.sodium.client.util.collections.WriteQueue;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -13,10 +16,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.portal.Portal;
+import qouteall.imm_ptl.core.render.PortalOpeningSections;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 
 @Mixin(OcclusionCuller.class)
@@ -32,6 +37,11 @@ public abstract class MixinSodiumOcclusionCuller {
     @Unique
     private @Nullable SectionPos ip_modifiedStartPoint;
     
+    // The packed sections that the flat portal opening passes through.
+    // It is the search start when not null.
+    @Unique
+    private long @Nullable [] ip_openingSections;
+    
     @Unique
     private static boolean ip_tolerantInitialFrustumTestFail;
     
@@ -44,9 +54,15 @@ public abstract class MixinSodiumOcclusionCuller {
         boolean originalValue,
         OcclusionCuller.Visitor visitor, Viewport viewport, float searchDistance, boolean useOcclusionCulling, int frame
     ) {
-        boolean doUseOcclusionCulling = PortalRendering.shouldEnableSodiumCaveCulling();
+        // Portal rendering turns the smart cull setting off when cave culling is not suitable for the portal.
+        // The original value is not used there, because Sodium disables culling for a spectator inside a solid block.
+        // The search starts from the opening sections, so the block at the camera position does not matter.
+        boolean doUseOcclusionCulling = PortalRendering.isRendering()
+            ? Minecraft.getInstance().smartCull && PortalRendering.shouldEnableSodiumCaveCulling()
+            : originalValue;
         
         ip_modifiedStartPoint = null;
+        ip_openingSections = null;
         ip_tolerantInitialFrustumTestFail = false;
         SodiumInterface.lastSectionSearchWasForPortal = PortalRendering.isRendering();
         
@@ -67,9 +83,49 @@ public abstract class MixinSodiumOcclusionCuller {
                     ip_tolerantInitialFrustumTestFail = true;
                 }
             }
+            else if (doUseOcclusionCulling) {
+                ip_openingSections = PortalOpeningSections.getOpeningSections(portal);
+                if (ip_openingSections == null) {
+                    doUseOcclusionCulling = false;
+                }
+            }
         }
         
         return doUseOcclusionCulling;
+    }
+    
+    // Starts the search from the opening sections.
+    // The opening sections have all incoming directions, so every path out of them is considered.
+    // The outward direction restriction still uses the camera section,
+    // which is valid for rays from the camera.
+    @Inject(method = "init", at = @At("HEAD"), cancellable = true, remap = false)
+    private void onInit(
+        OcclusionCuller.Visitor visitor, WriteQueue<RenderSection> queue,
+        Viewport viewport, float searchDistance, boolean useOcclusionCulling, int frame,
+        CallbackInfo ci
+    ) {
+        long[] openingSections = ip_openingSections;
+        if (openingSections == null) {
+            return;
+        }
+        
+        for (long packed : openingSections) {
+            RenderSection section = getRenderSection(
+                SectionPos.x(packed), SectionPos.y(packed), SectionPos.z(packed)
+            );
+            if (section == null) {
+                continue;
+            }
+            
+            if (section.getLastVisibleFrame() != frame) {
+                section.setLastVisibleFrame(frame);
+                section.setIncomingDirections(GraphDirectionSet.NONE);
+                queue.enqueue(section);
+            }
+            section.addIncomingDirections(GraphDirectionSet.ALL);
+        }
+        
+        ci.cancel();
     }
     
     // apply start point modification

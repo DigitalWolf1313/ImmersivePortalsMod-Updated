@@ -41,6 +41,10 @@ public class SodiumInterface {
         
         }
         
+        public int getVisibleSectionCount() {
+            return 0;
+        }
+        
         public void markSpriteActive(TextureAtlasSprite sprite) {
         
         }
@@ -80,6 +84,13 @@ public class SodiumInterface {
                 .ip_swapContext(((SodiumRenderingContext) context));
             
             swr.scheduleTerrainUpdate();
+        }
+        
+        @Override
+        public int getVisibleSectionCount() {
+            SodiumWorldRenderer swr =
+                ((LevelRendererExtension) Minecraft.getInstance().levelRenderer).sodium$getWorldRenderer();
+            return swr.getVisibleChunkCount();
         }
         
         @Override

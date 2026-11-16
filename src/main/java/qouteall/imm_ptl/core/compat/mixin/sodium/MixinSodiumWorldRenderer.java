@@ -8,8 +8,10 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.render.FrustumCuller;
+import qouteall.imm_ptl.core.render.context_management.RenderStates;
 
 @Mixin(value = SodiumWorldRenderer.class, remap = false)
 public class MixinSodiumWorldRenderer {
@@ -23,5 +25,12 @@ public class MixinSodiumWorldRenderer {
         SodiumInterface.frustumCuller = new FrustumCuller();
         Vec3 cameraPos = camera.getPosition();
         SodiumInterface.frustumCuller.update(cameraPos.x, cameraPos.y, cameraPos.z);
+    }
+    
+    @Inject(method = "getChunksDebugString", at = @At("RETURN"), cancellable = true)
+    private void addPortalSectionCount(CallbackInfoReturnable<String> cir) {
+        cir.setReturnValue(
+            cir.getReturnValue() + " Portal Sections: " + RenderStates.lastPortalSectionsRendered
+        );
     }
 }
