@@ -26,6 +26,7 @@ public class PortalWandKeys {
     public static final KeyMapping PREVIOUS = create("previous", GLFW.GLFW_KEY_DOWN);
     public static final KeyMapping NEXT = create("next", GLFW.GLFW_KEY_UP);
     public static final KeyMapping DELETE = create("delete", GLFW.GLFW_KEY_DELETE);
+    public static final KeyMapping LINK_PORTAL = create("link_portal", GLFW.GLFW_KEY_J);
     
     private static KeyMapping create(String name, int defaultKey) {
         return KeyBindingHelper.registerKeyBinding(new KeyMapping(

@@ -36,6 +36,7 @@ import qouteall.q_misc_util.my_util.DQuaternion;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -64,6 +65,8 @@ public class ClientPortalWandPortalAnimate {
     private static final int colorOfInactiveKeyframe = 0xffb36bff;
     private static final int colorOfSelected = 0xfffca903;
     private static final int colorOfPath = 0xffffffff;
+    private static final int colorOfLinked = 0xffff6ec7;
+    private static final int MAX_LINKED_PORTALS = 16;
     
     private static final TimingFunction[] EASINGS = TimingFunction.values();
     
@@ -108,6 +111,10 @@ public class ClientPortalWandPortalAnimate {
     // They can be in another dimension, so the client cannot always find them by geometry.
     private static final Set<UUID> otherSideIds = new HashSet<>();
     
+    // The ids of the portals that get the same animation when the session finishes.
+    // Each of them can belong to another cluster than the session portal.
+    private static final Set<UUID> linkedIds = new LinkedHashSet<>();
+    
     // The side whose track is edited. It follows the portal that the player right clicks.
     private static int activeSide = SIDE_THIS;
     
@@ -138,6 +145,7 @@ public class ClientPortalWandPortalAnimate {
         tracks[SIDE_OTHER].clear();
         sameSideIds.clear();
         otherSideIds.clear();
+        linkedIds.clear();
         activeSide = SIDE_THIS;
         loop = true;
         keyframeLatch = false;
@@ -297,6 +305,7 @@ public class ClientPortalWandPortalAnimate {
         boolean previous = pressedEdge(PortalWandKeys.PREVIOUS);
         boolean next = pressedEdge(PortalWandKeys.NEXT);
         boolean delete = pressedEdge(PortalWandKeys.DELETE);
+        boolean link = pressedEdge(PortalWandKeys.LINK_PORTAL);
         
         if (awaitingTicks > 0) {
             awaitingTicks--;
@@ -311,6 +320,9 @@ public class ClientPortalWandPortalAnimate {
             return;
         }
         
+        if (link && !ClientPortalWandPortalDrag.isDragging()) {
+            toggleLinkedPortal();
+        }
         if (plus) {
             adjustDuration(20);
         }
@@ -393,6 +405,12 @@ public class ClientPortalWandPortalAnimate {
             ));
         }
         
+        if (!linkedIds.isEmpty()) {
+            text.append("\n").append(Component.translatable(
+                "imm_ptl.wand.animate.linked", linkedIds.size()
+            ).withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
+        
         text.append("\n").append(Component.translatable(
             "imm_ptl.wand.animate.controls",
             mc.options.keyShift.getTranslatedKeyMessage(),
@@ -406,7 +424,8 @@ public class ClientPortalWandPortalAnimate {
             PortalWandKeys.PREVIOUS.getTranslatedKeyMessage(),
             PortalWandKeys.UPDATE_KEYFRAME.getTranslatedKeyMessage(),
             PortalWandKeys.TOGGLE_PREVIEW.getTranslatedKeyMessage(),
-            PortalWandKeys.DELETE.getTranslatedKeyMessage()
+            PortalWandKeys.DELETE.getTranslatedKeyMessage(),
+            PortalWandKeys.LINK_PORTAL.getTranslatedKeyMessage()
         ));
         
         CustomTextOverlay.putText(text, "2_anim");
@@ -426,6 +445,15 @@ public class ClientPortalWandPortalAnimate {
         ResourceKey<Level> currDim = player.level().dimension();
         Vec3 cameraPos = new Vec3(camX, camY, camZ);
         VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.lines());
+        
+        for (UUID linkedId : linkedIds) {
+            Portal linked = WandUtil.getClientPortalByUUIDInAnyWorld(linkedId);
+            if (linked != null && linked.level().dimension() == currDim) {
+                WireRenderingHelper.renderRectFrameFlow(
+                    poseStack, cameraPos, vertexConsumer, linked.getThisSideState(), colorOfLinked, colorOfLinked
+                );
+            }
+        }
         
         for (int side = 0; side < tracks.length; side++) {
             Track track = tracks[side];
@@ -513,6 +541,12 @@ public class ClientPortalWandPortalAnimate {
         CompoundTag data = new CompoundTag();
         data.put("thisKeyframes", trackToTag(tracks[SIDE_THIS]));
         data.put("otherKeyframes", trackToTag(tracks[SIDE_OTHER]));
+        
+        ListTag linked = new ListTag();
+        for (UUID id : linkedIds) {
+            linked.add(NbtUtils.createUUID(id));
+        }
+        data.put("linkedIds", linked);
         data.putBoolean("loop", loop);
         return data;
     }
@@ -545,7 +579,7 @@ public class ClientPortalWandPortalAnimate {
             
             track.keyframes.add(new Keyframe(
                 UnilateralPortalState.fromTag(tag.getCompound("state")),
-                Mth.clamp(tag.getInt("durationTicks"), 1, MAX_DURATION_TICKS),
+                Mth.clamp(tag.getInt("durationTicks"), 0, MAX_DURATION_TICKS),
                 easing
             ));
         }
@@ -702,6 +736,61 @@ public class ClientPortalWandPortalAnimate {
         }
     }
     
+    /**
+     * Links the aimed portal so that it gets the same animation, or unlinks it if it is already linked.
+     * A portal counts as linked when any portal of its cluster is in the set.
+     */
+    private static void toggleLinkedPortal() {
+        Portal hovered = ClientPortalWandPortalDrag.getHoveredPortal();
+        if (hovered == null) {
+            showAlert("imm_ptl.wand.animate.link_aim");
+            return;
+        }
+        
+        if (isSessionPortal(hovered)) {
+            showAlert("imm_ptl.wand.animate.link_session");
+            return;
+        }
+        
+        if (linkedIds.removeAll(getClusterIds(hovered))) {
+            showLinkAlert("imm_ptl.wand.animate.link_removed");
+            return;
+        }
+        
+        if (linkedIds.size() >= MAX_LINKED_PORTALS) {
+            showAlert("imm_ptl.wand.animate.link_too_many");
+            return;
+        }
+        
+        linkedIds.add(hovered.getUUID());
+        showLinkAlert("imm_ptl.wand.animate.link_added");
+    }
+    
+    private static Set<UUID> getClusterIds(Portal portal) {
+        Set<UUID> ids = new HashSet<>();
+        ids.add(portal.getUUID());
+        
+        PortalExtension extension = PortalExtension.get(portal);
+        if (extension.flippedPortal != null) {
+            ids.add(extension.flippedPortal.getUUID());
+        }
+        if (extension.reversePortal != null) {
+            ids.add(extension.reversePortal.getUUID());
+        }
+        if (extension.parallelPortal != null) {
+            ids.add(extension.parallelPortal.getUUID());
+        }
+        return ids;
+    }
+    
+    private static void showLinkAlert(String key) {
+        CustomTextOverlay.putText(
+            Component.translatable(key, linkedIds.size()).withStyle(ChatFormatting.GOLD),
+            3.0,
+            "0_alert"
+        );
+    }
+    
     private static boolean isHoldingAnimateWand(LocalPlayer player) {
         ItemStack stack = player.getMainHandItem();
         return stack.getItem() == PortalWandItem.instance &&
@@ -847,7 +936,7 @@ public class ClientPortalWandPortalAnimate {
         }
         
         Keyframe keyframe = track.keyframes.get(track.selectedIndex);
-        int newDuration = Mth.clamp(keyframe.durationTicks() + deltaTicks, 1, MAX_DURATION_TICKS);
+        int newDuration = Mth.clamp(keyframe.durationTicks() + deltaTicks, 0, MAX_DURATION_TICKS);
         track.keyframes.set(track.selectedIndex, new Keyframe(keyframe.state(), newDuration, keyframe.easing()));
     }
     

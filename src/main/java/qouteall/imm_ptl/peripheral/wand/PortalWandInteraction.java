@@ -43,6 +43,8 @@ import qouteall.q_misc_util.my_util.Plane;
 import qouteall.q_misc_util.my_util.Range;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.UUID;
 import java.util.WeakHashMap;
@@ -386,6 +388,7 @@ public class PortalWandInteraction {
                 }
                 
                 abandonAnimationSession(e.getValue());
+                restoreLinkedPreview(e.getKey());
                 return true;
             });
             
@@ -400,6 +403,7 @@ public class PortalWandInteraction {
         IPGlobal.SERVER_CLEANUP_EVENT.register(s -> of(s).draggingSessionMap.clear());
         IPGlobal.SERVER_CLEANUP_EVENT.register(s -> copyingSessionMap.clear());
         IPGlobal.SERVER_CLEANUP_EVENT.register(s -> animationSessionMap.clear());
+        IPGlobal.SERVER_CLEANUP_EVENT.register(s -> previewLinkedMap.clear());
     }
     
     public static final class DraggingInfo {
@@ -1296,12 +1300,23 @@ public class PortalWandInteraction {
                 return null;
             }
             
-            long durationTicks = Mth.clamp(keyframe.getInt("durationTicks"), 1, MAX_KEYFRAME_TICKS);
+            long durationTicks = Mth.clamp(keyframe.getInt("durationTicks"), 0, MAX_KEYFRAME_TICKS);
             TimingFunction easing = parseTimingFunction(keyframe.getString("easing"));
             
             phases.add(new NormalAnimation.Phase(
                 durationTicks, state.subtract(reference).purgeFPError(), easing
             ));
+        }
+        
+        // A zero duration keyframe makes the portal jump.
+        // An animation with only zero duration phases would be removed immediately,
+        // so its last phase gets one tick.
+        if (!phases.isEmpty() && phases.stream().allMatch(p -> p.durationTicks() == 0)) {
+            NormalAnimation.Phase lastPhase = phases.get(phases.size() - 1);
+            phases.set(
+                phases.size() - 1,
+                new NormalAnimation.Phase(1, lastPhase.delta(), lastPhase.timingFunction())
+            );
         }
         
         if (loop && !phases.isEmpty()) {
@@ -1414,8 +1429,164 @@ public class PortalWandInteraction {
         }
     }
     
+    private static final int MAX_LINKED_PORTALS = 16;
+    
+    // The ids of the linked portals that the animation preview of the player is playing on.
+    private static final WeakHashMap<ServerPlayer, List<UUID>> previewLinkedMap = new WeakHashMap<>();
+    
+    @Nullable
+    private static Portal findPortalInAnyDimension(MinecraftServer server, UUID id) {
+        for (ServerLevel level : server.getAllLevels()) {
+            if (level.getEntity(id) instanceof Portal portal) {
+                return portal;
+            }
+        }
+        return null;
+    }
+    
+    private static Set<UUID> getClusterIds(Portal portal) {
+        Set<UUID> ids = new HashSet<>();
+        ids.add(portal.getUUID());
+        
+        PortalExtension extension = PortalExtension.get(portal);
+        if (extension.flippedPortal != null) {
+            ids.add(extension.flippedPortal.getUUID());
+        }
+        if (extension.reversePortal != null) {
+            ids.add(extension.reversePortal.getUUID());
+        }
+        if (extension.parallelPortal != null) {
+            ids.add(extension.parallelPortal.getUUID());
+        }
+        return ids;
+    }
+    
+    /**
+     * Returns the state that the portal has when no animation moves it.
+     * The animation drivers must not be cleared before calling this.
+     */
+    @Nullable
+    private static PortalState getRestingState(Portal portal) {
+        PortalState current = portal.getPortalState();
+        if (current == null || !portal.animation.hasAnimationDriver()) {
+            return current;
+        }
+        
+        UnilateralPortalState thisSide = portal.animation.thisSideReferenceState;
+        UnilateralPortalState otherSide = portal.animation.otherSideReferenceState;
+        return UnilateralPortalState.combine(
+            thisSide == null ? current.getThisSideState() : thisSide,
+            otherSide == null ? current.getOtherSideState() : otherSide
+        );
+    }
+    
+    private static boolean phasesFit(PortalState rest, List<NormalAnimation.Phase> phases, boolean isThisSide) {
+        UnilateralPortalState reference = isThisSide ? rest.getThisSideState() : rest.getOtherSideState();
+        ResourceKey<Level> dimension = isThisSide ? rest.fromWorld : rest.toWorld;
+        
+        for (NormalAnimation.Phase phase : phases) {
+            UnilateralPortalState state = new UnilateralPortalState.Builder()
+                .from(reference).apply(phase.delta()).build();
+            if (!validateSideState(dimension, state, isThisSide)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * Plays the same phases on the linked portals, starting from the resting state of each of them.
+     * The phases are deltas, so the linked portals move by the same amounts as the session portal.
+     * A linked portal that already has an animation gets it replaced.
+     * The preview remembers the portals so that stopping it can put them back.
+     */
+    private static void applyAnimationToLinkedPortals(
+        ServerPlayer player, Portal sessionPortal, CompoundTag data,
+        List<NormalAnimation.Phase> thisPhases, List<NormalAnimation.Phase> otherPhases,
+        boolean loopsInfinitely, boolean isPreview
+    ) {
+        ListTag idList = data.getList("linkedIds", Tag.TAG_INT_ARRAY);
+        if (idList.isEmpty()) {
+            return;
+        }
+        
+        Set<UUID> coveredIds = getClusterIds(sessionPortal);
+        List<UUID> appliedIds = new ArrayList<>();
+        int skipped = 0;
+        
+        for (int i = 0; i < Math.min(idList.size(), MAX_LINKED_PORTALS); i++) {
+            UUID id = NbtUtils.loadUUID(idList.get(i));
+            if (coveredIds.contains(id)) {
+                continue;
+            }
+            
+            Portal linked = findPortalInAnyDimension(player.server, id);
+            if (linked == null) {
+                skipped++;
+                continue;
+            }
+            
+            // The animation is driven by one portal of the cluster, so the animated one is the target.
+            Portal target = linked.getAnimationHolder();
+            if (target == null) {
+                target = linked;
+            }
+            
+            coveredIds.addAll(getClusterIds(linked));
+            coveredIds.addAll(getClusterIds(target));
+            
+            PortalState rest = getRestingState(target);
+            if (rest == null || !phasesFit(rest, thisPhases, true) || !phasesFit(rest, otherPhases, false)) {
+                skipped++;
+                continue;
+            }
+            
+            startAnimationDrivers(
+                target, rest, new ArrayList<>(thisPhases), new ArrayList<>(otherPhases), loopsInfinitely
+            );
+            appliedIds.add(target.getUUID());
+        }
+        
+        if (isPreview) {
+            previewLinkedMap.put(player, appliedIds);
+        }
+        else if (!appliedIds.isEmpty()) {
+            player.sendSystemMessage(Component.translatable("imm_ptl.wand.animate.linked_applied", appliedIds.size()));
+        }
+        
+        if (skipped > 0) {
+            player.sendSystemMessage(Component.translatable("imm_ptl.wand.animate.linked_skipped", skipped));
+        }
+    }
+    
+    /**
+     * Stops the preview on the linked portals and puts them back to their resting states.
+     */
+    private static void restoreLinkedPreview(ServerPlayer player) {
+        List<UUID> ids = previewLinkedMap.remove(player);
+        if (ids == null) {
+            return;
+        }
+        
+        for (UUID id : ids) {
+            Portal portal = findPortalInAnyDimension(player.server, id);
+            if (portal == null) {
+                continue;
+            }
+            
+            PortalState rest = getRestingState(portal);
+            clearAnimationDriversOf(portal);
+            if (rest != null) {
+                portal.setPortalState(rest);
+                portal.rectifyClusterPortals(true);
+                portal.reloadAndSyncClusterToClientNextTick();
+            }
+        }
+    }
+    
     private static void handleFinishAnimationSession(ServerPlayer player, CompoundTag data) {
         AnimationSession session = animationSessionMap.remove(player);
+        restoreLinkedPreview(player);
         
         if (session == null) {
             return;
@@ -1451,6 +1622,7 @@ public class PortalWandInteraction {
         }
         
         startAnimationDrivers(portal, session.initialState(), phases.get(0), phases.get(1), loop);
+        applyAnimationToLinkedPortals(player, portal, data, phases.get(0), phases.get(1), loop, false);
         
         player.sendSystemMessage(Component.translatable(
             "imm_ptl.wand.animate.created", thisKeyframes.size() + otherKeyframes.size()
@@ -1481,7 +1653,9 @@ public class PortalWandInteraction {
         }
         
         // The preview plays once even if the animation loops.
+        restoreLinkedPreview(player);
         startAnimationDrivers(portal, session.initialState(), phases.get(0), phases.get(1), false);
+        applyAnimationToLinkedPortals(player, portal, data, phases.get(0), phases.get(1), false, true);
     }
     
     private static void handleSetAnimationSessionPortalState(
@@ -1498,6 +1672,7 @@ public class PortalWandInteraction {
         }
         
         if (stopsPreview) {
+            restoreLinkedPreview(player);
             clearAnimationDriversOf(portal);
         }
         
