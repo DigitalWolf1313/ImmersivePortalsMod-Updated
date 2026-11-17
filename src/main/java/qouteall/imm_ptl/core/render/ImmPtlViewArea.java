@@ -63,6 +63,11 @@ public class ImmPtlViewArea extends ViewArea {
     private final Long2ObjectOpenHashMap<Preset> presets = new Long2ObjectOpenHashMap<>();
     private Preset currentPreset = null;
     
+    // Recycled sections. A RenderSection owns 4 VertexBuffers (4 VAO + 4 VBO) created eagerly in its
+    // constructor, so creating one is expensive. Vanilla never creates sections after load (it just
+    // setOrigin()s them). Reusing them here keeps portal view areas from hitting glGenVertexArrays.
+    private final ArrayDeque<RenderSection> sectionPool = new ArrayDeque<>();
+    
     public final int minSectionY;
     public final int endSectionY;
     
@@ -130,6 +135,9 @@ public class ImmPtlViewArea extends ViewArea {
         columnMap.clear();
         presets.clear();
         
+        sectionPool.forEach(RenderSection::releaseBuffers);
+        sectionPool.clear();
+        
         isAlive = false;
     }
     
@@ -172,8 +180,13 @@ public class ImmPtlViewArea extends ViewArea {
     
     @Override
     public void setDirty(int cx, int cy, int cz, boolean isImportant) {
-        RenderSection builtChunk = provideBuiltChunkByChunkPos(cx, cy, cz);
-        builtChunk.setDirty(isImportant);
+        // RenderSections are created dirty, so a column that does not exist yet needs no marking.
+        // Creating the column here would allocate its GL objects for every light or chunk update.
+        int clampedCy = Mth.clamp(cy, minSectionY, endSectionY - 1);
+        RenderSection builtChunk = rawGet(cx, clampedCy, cz);
+        if (builtChunk != null) {
+            builtChunk.setDirty(isImportant);
+        }
     }
     
     public RenderSection provideBuiltChunkByChunkPos(int cx, int cy, int cz) {
@@ -267,10 +280,18 @@ public class ImmPtlViewArea extends ViewArea {
         
         for (int offsetCY = 0; offsetCY < sectionGridSizeY; offsetCY++) {
             int sectionY = SectionPos.blockToSectionCoord((offsetCY << 4) + minY);
-            RenderSection builtChunk = factory.new RenderSection(
-                getChunkIndex(gridX, offsetCY, gridZ),
-                SectionPos.asLong(sectionX, sectionY, sectionZ)
-            );
+            int chunkIndex = getChunkIndex(gridX, offsetCY, gridZ);
+            long sectionNode = SectionPos.asLong(sectionX, sectionY, sectionZ);
+            
+            RenderSection builtChunk = sectionPool.pollLast();
+            if (builtChunk != null) {
+                // This cancels tasks, marks the section uncompiled and dirty, and keeps its GL buffers.
+                builtChunk.setSectionNode(sectionNode);
+                ((IERenderSection) builtChunk).portal_setIndex(chunkIndex);
+            }
+            else {
+                builtChunk = factory.new RenderSection(chunkIndex, sectionNode);
+            }
             
             array[offsetCY] = builtChunk;
         }
@@ -330,12 +351,23 @@ public class ImmPtlViewArea extends ViewArea {
         
         ArrayDeque<RenderSection> toDelete = new ArrayDeque<>();
         
+        int maxPoolSize = GcMonitor.isMemoryNotEnough() ? 0 :
+            sectionGridSizeX * sectionGridSizeY * 3;
+        
         columnMap.long2ObjectEntrySet().removeIf(entry -> {
             Column column = entry.getValue();
             
             boolean shouldRemove = currentTime - column.mark > timeThreshold;
             if (shouldRemove) {
-                toDelete.addAll(Arrays.asList(column.sections));
+                for (RenderSection section : column.sections) {
+                    if (sectionPool.size() < maxPoolSize) {
+                        ((IERenderSection) section).portal_fullyReset();
+                        sectionPool.addLast(section);
+                    }
+                    else {
+                        toDelete.add(section);
+                    }
+                }
             }
             
             return shouldRemove;
