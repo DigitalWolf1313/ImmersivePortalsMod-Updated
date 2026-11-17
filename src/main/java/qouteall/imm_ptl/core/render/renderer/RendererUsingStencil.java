@@ -12,6 +12,7 @@ import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
 import qouteall.imm_ptl.core.render.FrontClipping;
+import qouteall.imm_ptl.core.render.GuiPortalRendering;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.PortalFogRenderer;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
@@ -35,7 +36,7 @@ public class RendererUsingStencil extends PortalRenderer {
     
     @Override
     public boolean replaceFrameBufferClearing() {
-        boolean skipClearing = WorldRenderInfo.isRendering();
+        boolean skipClearing = PortalRendering.isRendering() || GuiPortalRendering.isRendering();
         if (skipClearing) {
             if (WorldRenderInfo.getTopRenderInfo().doRenderSky) {
                 RenderSystem.depthMask(false);
