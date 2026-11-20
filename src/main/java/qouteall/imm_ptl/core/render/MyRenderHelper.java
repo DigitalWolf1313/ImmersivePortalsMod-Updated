@@ -68,7 +68,7 @@ public class MyRenderHelper {
                     getResourceFactory(resourceManager), "portal_fog", DefaultVertexFormat.POSITION_COLOR
                 );
                 resultConsumer.accept(shader);
-                PortalFogRenderer.shader = shader;
+                PortalFogOverlay.shader = shader;
             }
             catch (IOException e) {
                 throw new RuntimeException(e);

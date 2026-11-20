@@ -13,7 +13,7 @@ import qouteall.imm_ptl.core.portal.PortalRenderInfo;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.GuiPortalRendering;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
-import qouteall.imm_ptl.core.render.PortalFogRenderer;
+import qouteall.imm_ptl.core.render.PortalFogOverlay;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
 import qouteall.imm_ptl.core.render.context_management.FogRendererContext;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
@@ -73,7 +73,7 @@ public class RendererUsingStencil extends PortalRenderer {
     
     protected void renderPortals(Matrix4f modelView) {
         List<Portal> portalsToRender = getPortalsToRender(modelView);
-        PortalFogRenderer.FogState fog = PortalFogRenderer.capture();
+        PortalFogOverlay.FogState fog = PortalFogOverlay.capture();
         
         for (Portal portal : portalsToRender) {
             doRenderPortal(portal, modelView, fog);
@@ -126,7 +126,7 @@ public class RendererUsingStencil extends PortalRenderer {
     protected void doRenderPortal(
         Portal portal,
         Matrix4f modelView,
-        PortalFogRenderer.FogState fog
+        PortalFogOverlay.FogState fog
     ) {
         if (shouldSkipRenderingInsideFuseViewPortal(portal)) {
             return;
@@ -166,7 +166,7 @@ public class RendererUsingStencil extends PortalRenderer {
         
         if (!portal.isFuseView()) {
             restoreDepthOfPortalViewArea(portal, modelView, thisPortalStencilValue);
-            PortalFogRenderer.render(portal, modelView, fog);
+            PortalFogOverlay.render(portal, modelView, fog);
         }
         
         clampStencilValue(outerPortalStencilValue);
