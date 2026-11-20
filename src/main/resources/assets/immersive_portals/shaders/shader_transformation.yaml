@@ -33,6 +33,7 @@ configs:
       - rendertype_beacon_beam
       - rendertype_entity_translucent_emissive
       - rendertype_entity_translucent_cull
+      - rendertype_entity_shadow
       - portal_area
       - entity
       - portal_fog

@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
@@ -76,6 +77,41 @@ public class CrossPortalEntityRenderer {
             ? probe : Vec3.atCenterOf(pos);
         BlockPos destinationPos = BlockPos.containing(projectionLightPortal.transformPoint(samplePos));
         return new ProjectionLightSample(ClientWorldLoader.getWorld(projectionLightPortal.getDestDim()), destinationPos);
+    }
+    
+    // The model view matrix before the portal transformation is applied to the projection.
+    private static final Matrix4f projectionBaseModelView = new Matrix4f();
+    
+    /**
+     * Transforms a point of the projected entity being rendered into the destination world.
+     * Returns the point unchanged when no projection is being rendered.
+     */
+    public static Vec3 transformForProjection(Vec3 pos) {
+        return projectionLightPortal == null ? pos : projectionLightPortal.transformPoint(pos);
+    }
+    
+    /**
+     * Draws the ground shadow of the projected entity being rendered onto the destination world.
+     * The shadow is not rotated by the portal, so it always lies flat on the destination blocks.
+     */
+    public static void renderProjectionShadow(MultiBufferSource buffer, float weight, float partialTick, float size) {
+        Portal portal = projectionLightPortal;
+        Entity entity = projectionLightEntity;
+        if (portal == null || entity == null) {
+            return;
+        }
+        
+        Vec3 sourcePos = new Vec3(
+            Mth.lerp(partialTick, entity.xOld, entity.getX()),
+            Mth.lerp(partialTick, entity.yOld, entity.getY()),
+            Mth.lerp(partialTick, entity.zOld, entity.getZ())
+        );
+        
+        ProjectedEntityShadow.render(
+            projectionBaseModelView, client.gameRenderer.getMainCamera().getPosition(), buffer,
+            ClientWorldLoader.getWorld(portal.getDestDim()),
+            portal.transformPoint(sourcePos), weight, size, (float) portal.getScaling()
+        );
     }
     
     // EMF shares animation LOD timers between an entity and its projection.
@@ -201,6 +237,48 @@ public class CrossPortalEntityRenderer {
         }
     }
     
+    /**
+     * Renders the projections of portal-intersecting entities into the Iris shadow map.
+     * The shadow view matrix is camera relative, so the clipping planes work the same as in the main pass.
+     */
+    public static void renderProjectionsInIrisShadowPass(
+        Matrix4f shadowModelView, @Nullable Frustum frustum, MultiBufferSource.BufferSource consumers
+    ) {
+        if (!isCrossPortalRenderingEnabled() || client.level == null || collidedEntities.isEmpty()) {
+            return;
+        }
+        
+        PoseStack poseStack = new PoseStack();
+        poseStack.last().pose().set(shadowModelView);
+        ResourceKey<Level> clientDim = client.level.dimension();
+        
+        for (Entity entity : collidedEntities.keySet()) {
+            if (ClientEntityPortalHandoff.hideDestinationEntity(entity)) continue;
+            PortalCollisionHandler collisionHandler = ((IEEntity) entity).ip_getPortalCollisionHandler();
+            if (collisionHandler == null) continue;
+            
+            for (PortalCollisionEntry e : collisionHandler.portalCollisions) {
+                Portal portal = e.portal;
+                if (portal instanceof Mirror || portal.getDestDim() != clientDim) continue;
+                
+                if (frustum != null) {
+                    AABB box = Helper.transformBox(getInterpolatedRenderBounds(entity), portal::transformPoint);
+                    if (!frustum.isVisible(box)) continue;
+                }
+                
+                // Flush the geometry that must not be clipped.
+                consumers.endBatch();
+                FrontClipping.setupInnerClipping(portal.getInnerClipping(), shadowModelView, 0);
+                try {
+                    renderEntity(entity, portal, poseStack, consumers, true);
+                }
+                finally {
+                    FrontClipping.disableClipping();
+                }
+            }
+        }
+    }
+    
     public static boolean hasIntersection(
         Vec3 outerPlanePos, Vec3 outerPlaneNormal,
         Vec3 entityPos, Vec3 collidingPortalNormal
@@ -230,7 +308,7 @@ public class CrossPortalEntityRenderer {
                     boolean isHidden = innerClipping != null &&
                         !innerClipping.isPointOnPositiveSide(cameraPos);
                     if (renderingPortal == collidingPortal || !isHidden) {
-                        renderEntity(entity, collidingPortal, matrixStack);
+                        renderEntity(entity, collidingPortal, matrixStack, client.renderBuffers().bufferSource(), false);
                     }
                 }
             }
@@ -243,7 +321,7 @@ public class CrossPortalEntityRenderer {
             FrontClipping.setupInnerClipping(
                 collidingPortal.getInnerClipping(), matrixStack.last().pose(), 0
             );
-            renderEntity(entity, collidingPortal, matrixStack);
+            renderEntity(entity, collidingPortal, matrixStack, client.renderBuffers().bufferSource(), false);
             FrontClipping.disableClipping();
         }
     }
@@ -251,7 +329,9 @@ public class CrossPortalEntityRenderer {
     private static void renderEntity(
         Entity entity,
         Portal transformingPortal,
-        PoseStack matrixStack
+        PoseStack matrixStack,
+        MultiBufferSource.BufferSource consumers,
+        boolean isShadowMapPass
     ) {
         Vec3 cameraPos = client.gameRenderer.getMainCamera().getPosition();
         
@@ -265,7 +345,7 @@ public class CrossPortalEntityRenderer {
         
         Vec3 newEyePos = transformingPortal.transformPoint(entityEyePos);
         
-        if (PortalRendering.isRendering()) {
+        if (PortalRendering.isRendering() && !isShadowMapPass) {
             Portal renderingPortal = PortalRendering.getRenderingPortal();
             
             // Portal visibility must use the same interpolated pose as entity rendering.
@@ -289,7 +369,7 @@ public class CrossPortalEntityRenderer {
                 return;
             }
             
-            if (client.options.getCameraType().isFirstPerson()) {
+            if (!isShadowMapPass && client.options.getCameraType().isFirstPerson()) {
                 //avoid rendering player too near and block view
                 double dis = newEyePos.distanceTo(cameraPos);
                 double valve = 0.5 + entityLastTickPos.distanceTo(entityPos);
@@ -309,6 +389,7 @@ public class CrossPortalEntityRenderer {
         }
         
         isRenderingEntityProjection = true;
+        projectionBaseModelView.set(matrixStack.last().pose());
         projectionLightPortal = transformingPortal;
         projectionLightEntity = entity;
         projectionLightPartialTick = RenderStates.getPartialTick();
@@ -335,7 +416,6 @@ public class CrossPortalEntityRenderer {
                 newCameraPos
             );
             
-            MultiBufferSource.BufferSource consumers = client.renderBuffers().bufferSource();
             ((IEWorldRenderer) client.levelRenderer).ip_myRenderEntity(
                 entity,
                 newCameraPos.x, newCameraPos.y, newCameraPos.z,
