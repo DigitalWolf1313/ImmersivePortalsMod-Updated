@@ -27,6 +27,8 @@ public class FrustumCuller {
     private double camX;
     private double camY;
     private double camZ;
+    private @Nullable Portal viewPortal;
+    private int viewLayer;
     
     public FrustumCuller() {
     }
@@ -36,6 +38,21 @@ public class FrustumCuller {
         camX = cameraX;
         camY = cameraY;
         camZ = cameraZ;
+        viewPortal = PortalRendering.isRendering() ? PortalRendering.getRenderingPortal() : null;
+        viewLayer = PortalRendering.getPortalLayer();
+    }
+    
+    /**
+     * Returns whether this culler was built for the view that is being rendered now.
+     * Another portal view can replace the shared instance, so users must check this first.
+     */
+    public boolean isBuiltForCurrentView(Vec3 cameraPos) {
+        Portal currentPortal = PortalRendering.isRendering() ? PortalRendering.getRenderingPortal() : null;
+        return viewPortal == currentPortal &&
+            viewLayer == PortalRendering.getPortalLayer() &&
+            Math.abs(camX - cameraPos.x) < 1e-4 &&
+            Math.abs(camY - cameraPos.y) < 1e-4 &&
+            Math.abs(camZ - cameraPos.z) < 1e-4;
     }
     
     public boolean canDetermineInvisibleWithCameraCoord(
