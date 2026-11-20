@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisPortalShadowCaster;
+import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
 
 @Mixin(value = ShadowRenderer.class, remap = false)
 public class MixinIrisShadowRenderer {
@@ -23,5 +24,10 @@ public class MixinIrisShadowRenderer {
         LevelRendererAccessor levelRenderer, Camera playerCamera, CallbackInfo ci
     ) {
         IrisPortalShadowCaster.render();
+        // Iris has already switched the level renderer to its shadow buffers here.
+        CrossPortalEntityRenderer.renderProjectionsInIrisShadowPass(
+            ShadowRenderer.MODELVIEW, ShadowRenderer.FRUSTUM,
+            levelRenderer.getRenderBuffers().bufferSource()
+        );
     }
 }
