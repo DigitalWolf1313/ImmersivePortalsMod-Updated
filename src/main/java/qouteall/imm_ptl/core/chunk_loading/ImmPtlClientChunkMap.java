@@ -57,6 +57,11 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
     
     public final Thread mainThread;
     
+    // The most recent main thread lookup.
+    // Biome sampling asks for the same chunk many times in a row.
+    private long lastLookupKey;
+    private LevelChunk lastLookupChunk;
+    
     public static final SignalArged<LevelChunk> clientChunkLoadSignal = new SignalArged<>();
     public static final SignalArged<LevelChunk> clientChunkUnloadSignal = new SignalArged<>();
     
@@ -109,6 +114,7 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
     
     public void modifyChunkMap(Consumer<Long2ObjectOpenHashMap<LevelChunk>> func) {
         Validate.isTrue(Thread.currentThread() == mainThread);
+        lastLookupChunk = null;
         func.accept(chunkMapForMainThread);
         synchronized (chunkMapForOtherThreads) {
             func.accept(chunkMapForOtherThreads);
@@ -122,14 +128,32 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
             return super.getChunk(x, z, chunkStatus, create);
         }
 
-        return readChunkMap(chunkMap -> {
-            LevelChunk chunk = chunkMap.get(ChunkPos.asLong(x, z));
+        long key = ChunkPos.asLong(x, z);
+        
+        if (Thread.currentThread() == mainThread) {
+            LevelChunk lastChunk = lastLookupChunk;
+            if (lastChunk != null && lastLookupKey == key) {
+                return lastChunk;
+            }
+            
+            LevelChunk chunk = chunkMapForMainThread.get(key);
             if (chunk != null) {
+                lastLookupKey = key;
+                lastLookupChunk = chunk;
                 return chunk;
             }
             
             return create ? this.emptyChunk : null;
-        });
+        }
+        
+        synchronized (chunkMapForOtherThreads) {
+            LevelChunk chunk = chunkMapForOtherThreads.get(key);
+            if (chunk != null) {
+                return chunk;
+            }
+        }
+        
+        return create ? this.emptyChunk : null;
     }
     
     public boolean isChunkLoaded(int x, int z) {

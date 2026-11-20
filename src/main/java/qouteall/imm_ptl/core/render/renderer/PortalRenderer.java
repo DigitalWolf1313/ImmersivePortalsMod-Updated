@@ -17,6 +17,9 @@ import org.joml.Quaternionf;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
+import net.minecraft.world.phys.AABB;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
+import qouteall.imm_ptl.core.render.FrustumCuller;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPModInfoChecking;
 import qouteall.imm_ptl.core.compat.iris_compatibility.ExperimentalIrisPortalRenderer;
@@ -160,6 +163,20 @@ public abstract class PortalRenderer {
             if (distance > 0.1) {
                 Frustum frustum = frustumSupplier.get();
                 if (!frustum.isVisible(portal.getThinBoundingBox())) {
+                    return true;
+                }
+            }
+        }
+        
+        if (PortalRendering.isRendering() && distance > 0.1 && SodiumInterface.invoker.isSodiumPresent()) {
+            // The culler of this view knows which areas cannot be seen through the outer portal.
+            FrustumCuller culler = SodiumInterface.frustumCuller;
+            if (culler != null && culler.isBuiltForCurrentView(CHelper.getCurrentCameraPos())) {
+                AABB box = portal.getThinBoundingBox();
+                if (culler.canDetermineInvisibleWithWorldCoord(
+                    box.minX - 0.1, box.minY - 0.1, box.minZ - 0.1,
+                    box.maxX + 0.1, box.maxY + 0.1, box.maxZ + 0.1
+                )) {
                     return true;
                 }
             }

@@ -19,6 +19,8 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -188,5 +190,49 @@ public abstract class MixinClientLevel implements IEClientWorld {
     @Override
     public void ip_setTickRateManager(TickRateManager cond) {
         tickRateManager = cond;
+    }
+    
+    // The sky color samples biomes in a 6x6x6 grid, which is costly.
+    // Fog, shader uniforms and sky rendering ask for the same value in one view, so the last result is reused.
+    @Unique
+    private Vec3 ip_skyColorPos;
+    @Unique
+    private float ip_skyColorPartialTick;
+    @Unique
+    private long ip_skyColorGameTime;
+    @Unique
+    private long ip_skyColorDayTime;
+    @Unique
+    private int ip_skyColorFlashTime;
+    @Unique
+    private Vec3 ip_skyColorResult;
+    
+    @Inject(method = "getSkyColor", at = @At("HEAD"), cancellable = true)
+    private void ip_onGetSkyColorHead(Vec3 pos, float partialTick, CallbackInfoReturnable<Vec3> cir) {
+        Vec3 cached = ip_skyColorResult;
+        if (cached == null) {
+            return;
+        }
+        
+        ClientLevel self = (ClientLevel) (Object) this;
+        if (ip_skyColorPartialTick == partialTick &&
+            ip_skyColorGameTime == self.getGameTime() &&
+            ip_skyColorDayTime == self.getDayTime() &&
+            ip_skyColorFlashTime == self.getSkyFlashTime() &&
+            pos.equals(ip_skyColorPos)
+        ) {
+            cir.setReturnValue(cached);
+        }
+    }
+    
+    @Inject(method = "getSkyColor", at = @At("RETURN"))
+    private void ip_onGetSkyColorReturn(Vec3 pos, float partialTick, CallbackInfoReturnable<Vec3> cir) {
+        ClientLevel self = (ClientLevel) (Object) this;
+        ip_skyColorPos = pos;
+        ip_skyColorPartialTick = partialTick;
+        ip_skyColorGameTime = self.getGameTime();
+        ip_skyColorDayTime = self.getDayTime();
+        ip_skyColorFlashTime = self.getSkyFlashTime();
+        ip_skyColorResult = cir.getReturnValue();
     }
 }

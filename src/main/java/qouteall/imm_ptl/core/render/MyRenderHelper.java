@@ -6,6 +6,9 @@ import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.VertexBuffer;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -247,6 +250,11 @@ public class MyRenderHelper {
      * {@link RenderTarget#blitToScreen(int, int)}
      */
     @IPVanillaCopy
+    // One uploaded buffer per color. The fog color changes slowly, so the cache stays small.
+    private static final Int2ObjectOpenHashMap<VertexBuffer> screenTriangleBuffers =
+        new Int2ObjectOpenHashMap<>();
+    private static final int MAX_SCREEN_TRIANGLE_BUFFERS = 16;
+    
     public static void renderScreenTriangle(int r, int g, int b, int a) {
         ShaderInstance shader = GameRenderer.getPositionColorShader();
         Validate.notNull(shader);
@@ -259,9 +267,34 @@ public class MyRenderHelper {
         
         shader.apply();
         
+        int key = ((a & 255) << 24) | ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
+        VertexBuffer buffer = screenTriangleBuffers.get(key);
+        if (buffer == null) {
+            if (screenTriangleBuffers.size() >= MAX_SCREEN_TRIANGLE_BUFFERS) {
+                screenTriangleBuffers.values().forEach(VertexBuffer::close);
+                screenTriangleBuffers.clear();
+            }
+            
+            buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            // The vertex array must be bound before uploading so that the vertex format gets set up on it.
+            buffer.bind();
+            buffer.upload(buildScreenTriangleMesh(r, g, b, a));
+            screenTriangleBuffers.put(key, buffer);
+        }
+        else {
+            buffer.bind();
+        }
+        
+        buffer.draw();
+        VertexBuffer.unbind();
+        
+        shader.clear();
+    }
+    
+    private static MeshData buildScreenTriangleMesh(int r, int g, int b, int a) {
         Tesselator tessellator = RenderSystem.renderThreadTesselator();
-        BufferBuilder bufferBuilder = tessellator.
-            begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder bufferBuilder = tessellator
+            .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         
         bufferBuilder.addVertex(1, -1, 0).setColor(r, g, b, a);
         bufferBuilder.addVertex(1, 1, 0).setColor(r, g, b, a);
@@ -271,9 +304,7 @@ public class MyRenderHelper {
         bufferBuilder.addVertex(-1, -1, 0).setColor(r, g, b, a);
         bufferBuilder.addVertex(1, -1, 0).setColor(r, g, b, a);
         
-        BufferUploader.draw(bufferBuilder.build());
-        
-        shader.clear();
+        return bufferBuilder.buildOrThrow();
     }
     
     /**
