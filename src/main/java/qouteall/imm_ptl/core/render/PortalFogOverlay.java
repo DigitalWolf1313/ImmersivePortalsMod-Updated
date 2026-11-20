@@ -14,7 +14,7 @@ import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 
 /** Adds the current world's fog between the camera and a portal's surface. */
-public class PortalFogRenderer {
+public class PortalFogOverlay {
     public record FogState(
         boolean enabled, float start, float end, int shape,
         float red, float green, float blue, float alpha

@@ -20,7 +20,7 @@ import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
-import qouteall.imm_ptl.core.render.PortalFogRenderer;
+import qouteall.imm_ptl.core.render.PortalFogOverlay;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
@@ -238,7 +238,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         
         List<Portal> portalsToRender = getPortalsToRender(modelView);
         List<Portal> reallyRenderedPortals = new ArrayList<>();
-        PortalFogRenderer.FogState fog = PortalFogRenderer.capture();
+        PortalFogOverlay.FogState fog = PortalFogOverlay.capture();
         
         for (Portal portal : portalsToRender) {
             boolean reallyRendered = doRenderPortal(portal, modelView, fog);
@@ -265,7 +265,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     private boolean doRenderPortal(
         Portal portal,
         Matrix4f modelView,
-        PortalFogRenderer.FogState fog
+        PortalFogOverlay.FogState fog
     ) {
         if (RendererUsingStencil.shouldSkipRenderingInsideFuseViewPortal(portal)) {
             return false;
@@ -313,7 +313,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         return true;
     }
     
-    private void renderPortalFog(Portal portal, Matrix4f modelView, PortalFogRenderer.FogState fog) {
+    private void renderPortalFog(Portal portal, Matrix4f modelView, PortalFogOverlay.FogState fog) {
         if (!fog.enabled() || fog.alpha() <= 0) {
             return;
         }
@@ -330,7 +330,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
             // into the shared scene color, keeping the other G-buffer attachments intact.
             // The shared depth/stencil attachment retains this portal's visibility mask.
             ((IEIrisNewWorldRenderingPipeline) pipeline).ip_getPortalFogFramebuffer().bindAsDrawBuffer();
-            PortalFogRenderer.render(portal, modelView, fog);
+            PortalFogOverlay.render(portal, modelView, fog);
         }
         finally {
             // Framebuffer creation can change both bindings.
