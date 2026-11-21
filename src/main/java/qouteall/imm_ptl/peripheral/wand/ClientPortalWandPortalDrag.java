@@ -48,6 +48,8 @@ import qouteall.q_misc_util.my_util.animation.RenderedPoint;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -65,6 +67,18 @@ public class ClientPortalWandPortalDrag {
     
     private static boolean lockWidth = false;
     private static boolean lockHeight = false;
+    
+    private static record PortalLocks(
+        @Nullable PortalLocalXYNormalized anchor,
+        boolean width,
+        boolean height
+    ) {
+    
+    }
+    
+    // Holds the locks of the portals that are not currently selected.
+    // It is only filled when the keep-locks-per-portal option is enabled.
+    private static final Map<UUID, PortalLocks> savedLocks = new HashMap<>();
     
     private static record SelectionStatus(
         PortalLocalXYNormalized selectedAnchor,
@@ -177,7 +191,19 @@ public class ClientPortalWandPortalDrag {
         );
     }
     
+    // Also forgets the saved locks of all portals. It runs when the client world is cleaned up.
     public static void reset() {
+        resetSelection();
+        savedLocks.clear();
+    }
+    
+    // Saves the locks before resetting. It is for when the selected portal becomes unavailable.
+    private static void resetSelectionKeepingLocks() {
+        saveLocks(selectedPortalId);
+        resetSelection();
+    }
+    
+    private static void resetSelection() {
         selectedPortalId = null;
         clearLock();
         selectionStatus = null;
@@ -310,7 +336,7 @@ public class ClientPortalWandPortalDrag {
         
         Portal originalSelectedPortal = getSelectedPortal();
         if (originalSelectedPortal == null) {
-            reset();
+            resetSelectionKeepingLocks();
         }
         
         Vec3 eyePos = player.getEyePosition(RenderStates.getPartialTick());
@@ -352,6 +378,10 @@ public class ClientPortalWandPortalDrag {
         
         if (selectedPortalId == null) {
             selectedPortalId = portal.getUUID();
+            
+            if (IPConfig.getConfig().portalWandKeepLocksPerPortal) {
+                loadLocks(selectedPortalId);
+            }
         }
         else {
             if (!Objects.equals(selectedPortalId, portal.getUUID())) {
@@ -367,18 +397,30 @@ public class ClientPortalWandPortalDrag {
                             lockedAnchor = null;
                         }
                     }
+                    
+                    // The transferred locks now belong to the flipped portal.
+                    savedLocks.remove(selectedPortalId);
+                    savedLocks.remove(portal.getUUID());
                 }
                 else {
-                    // change portal selection, clear the locks and selection
                     selectionStatus = null;
-                    if (hasLock()) {
-                        CustomTextOverlay.putText(
-                            Component.translatable("imm_ptl.wand.lock_cleared")
-                                .withStyle(ChatFormatting.GOLD),
-                            5.0,
-                            "1_alert"
-                        );
-                        clearLock();
+                    
+                    if (IPConfig.getConfig().portalWandKeepLocksPerPortal) {
+                        saveLocks(selectedPortalId);
+                        loadLocks(portal.getUUID());
+                    }
+                    else {
+                        savedLocks.clear();
+                        
+                        if (hasLock()) {
+                            CustomTextOverlay.putText(
+                                Component.translatable("imm_ptl.wand.lock_cleared")
+                                    .withStyle(ChatFormatting.GOLD),
+                                5.0,
+                                "1_alert"
+                            );
+                            clearLock();
+                        }
                     }
                 }
                 selectedPortalId = portal.getUUID();
@@ -473,6 +515,32 @@ public class ClientPortalWandPortalDrag {
     
     private static boolean hasLock() {
         return lockedAnchor != null || lockWidth || lockHeight;
+    }
+    
+    // Does nothing when the option is disabled.
+    private static void saveLocks(@Nullable UUID portalId) {
+        if (portalId == null || !IPConfig.getConfig().portalWandKeepLocksPerPortal) {
+            return;
+        }
+        
+        if (hasLock()) {
+            savedLocks.put(portalId, new PortalLocks(lockedAnchor, lockWidth, lockHeight));
+        }
+        else {
+            savedLocks.remove(portalId);
+        }
+    }
+    
+    // Replaces the active locks with the saved locks of the portal, or with no locks if there are none.
+    private static void loadLocks(UUID portalId) {
+        clearLock();
+        
+        PortalLocks locks = savedLocks.get(portalId);
+        if (locks != null) {
+            lockedAnchor = locks.anchor();
+            lockWidth = locks.width();
+            lockHeight = locks.height();
+        }
     }
     
     private static void clearLock() {
@@ -725,7 +793,7 @@ public class ClientPortalWandPortalDrag {
         
         if (portal == null) {
             LOGGER.error("cannot find portal to drag {}", selectedPortalId);
-            reset();
+            resetSelectionKeepingLocks();
             return;
         }
         

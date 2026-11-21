@@ -58,6 +58,9 @@ public class IPConfig implements ConfigData {
     @ConfigEntry.Category("client")
     @ConfigEntry.Gui.Tooltip
     public boolean PortalRecursionInCompatibilityMode = false;
+    @ConfigEntry.Category("client")
+    @ConfigEntry.Gui.Tooltip
+    public boolean portalWandKeepLocksPerPortal = false;
     
     // client invisible configs
     
