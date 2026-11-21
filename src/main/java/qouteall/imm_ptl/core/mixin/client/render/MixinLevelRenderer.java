@@ -63,6 +63,7 @@ import qouteall.imm_ptl.core.render.ImmPtlViewArea;
 import qouteall.imm_ptl.core.render.MyGameRenderer;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.VisibleSectionDiscovery;
+import qouteall.imm_ptl.core.render.context_management.FogRendererContext;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
@@ -594,5 +595,19 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
     @Override
     public ObjectArrayList<SectionRenderDispatcher.RenderSection> portal_getChunkInfoList() {
         return visibleSections;
+    }
+    
+    // The sky color is sampled at the portal destination so that it matches the fog color.
+    @WrapOperation(
+        method = "method_62215", // the lambda in addSkyPass
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientLevel;getSkyColor(Lnet/minecraft/world/phys/Vec3;F)I"
+        )
+    )
+    private int ip_wrapSkyColorInSkyPass(
+        ClientLevel clientLevel, Vec3 pos, float partialTick, Operation<Integer> original
+    ) {
+        return original.call(clientLevel, FogRendererContext.getBiomeSamplingPos(pos), partialTick);
     }
 }

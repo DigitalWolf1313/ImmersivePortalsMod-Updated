@@ -11,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.ducks.IECamera;
 import qouteall.imm_ptl.core.mixin.client.multiworld_awareness.MixinFogRenderer;
+import qouteall.imm_ptl.core.portal.Portal;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -76,6 +77,21 @@ public class FogRendererContext {
                 );
             });
         }
+    }
+    
+    /**
+     * Returns the rendering portal's destination, so that biome-based colors
+     * do not change when the virtual camera moves.
+     * Returns the given position when no portal is rendering.
+     */
+    public static Vec3 getBiomeSamplingPos(Vec3 cameraPos) {
+        if (PortalRendering.isRendering()) {
+            Portal portal = PortalRendering.getRenderingPortal();
+            if (portal != null) {
+                return portal.getDestPos();
+            }
+        }
+        return cameraPos;
     }
     
     public static Vec3 getFogColorOf(
