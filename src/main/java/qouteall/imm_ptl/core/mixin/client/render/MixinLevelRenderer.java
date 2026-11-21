@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.core.mixin.client.render;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.Lighting;
@@ -54,6 +56,7 @@ import qouteall.imm_ptl.core.render.ImmPtlViewArea;
 import qouteall.imm_ptl.core.render.MyGameRenderer;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.VisibleSectionDiscovery;
+import qouteall.imm_ptl.core.render.context_management.FogRendererContext;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
@@ -675,5 +678,19 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
     @Override
     public ObjectArrayList<SectionRenderDispatcher.RenderSection> portal_getChunkInfoList() {
         return visibleSections;
+    }
+    
+    // The sky color is sampled at the portal destination so that it matches the fog color.
+    @WrapOperation(
+        method = "renderSky",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientLevel;getSkyColor(Lnet/minecraft/world/phys/Vec3;F)Lnet/minecraft/world/phys/Vec3;"
+        )
+    )
+    private Vec3 ip_wrapSkyColorInRenderSky(
+        ClientLevel clientLevel, Vec3 pos, float partialTick, Operation<Vec3> original
+    ) {
+        return original.call(clientLevel, FogRendererContext.getBiomeSamplingPos(pos), partialTick);
     }
 }

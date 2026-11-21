@@ -1,17 +1,13 @@
 package qouteall.imm_ptl.core.mixin.client.multiworld_awareness;
 
-import net.minecraft.client.multiplayer.ClientLevel;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.FogRenderer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
-import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import qouteall.imm_ptl.core.portal.Portal;
-import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.FogRendererContext;
 
 @Mixin(value = FogRenderer.class, priority = 1100)
@@ -29,27 +25,17 @@ public class MixinFogRenderer {
     @Shadow
     private static long biomeChangedTime = -1L;
     
-    // Sample the fog color from the portal's destination biome.
-    @Redirect(
+    // Sampling at the destination keeps the fog and sky colors independent of the virtual camera.
+    @WrapOperation(
         method = "Lnet/minecraft/client/renderer/FogRenderer;setupColor(Lnet/minecraft/client/Camera;FLnet/minecraft/client/multiplayer/ClientLevel;IF)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/multiplayer/ClientLevel;getBiome(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/core/Holder;"
+            target = "Lnet/minecraft/client/Camera;getPosition()Lnet/minecraft/world/phys/Vec3;"
         )
     )
-    private static Holder<Biome> ip_redirectGetBiomeInSetupColor(
-        ClientLevel level, BlockPos pos
-    ) {
-        if (PortalRendering.isRendering()) {
-            Portal portal = PortalRendering.getRenderingPortal();
-        
-        if (portal != null) {
-            return level.getBiome(BlockPos.containing(portal.getDestPos()));
-        }
-        
+    private static Vec3 ip_wrapCameraPosInSetupColor(Camera camera, Operation<Vec3> original) {
+        return FogRendererContext.getBiomeSamplingPos(original.call(camera));
     }
-    return level.getBiome(pos);
-}
     
     static {
         FogRendererContext.copyContextFromObject = context -> {
