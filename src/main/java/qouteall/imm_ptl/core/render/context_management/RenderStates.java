@@ -242,8 +242,6 @@ public class RenderStates {
             return false;
         }
         if (PortalRendering.isRendering()) {
-            Portal renderingPortal = PortalRendering.getRenderingPortal();
-            
             // The particle is drawn at its interpolated position, not at its tick position.
             double backFraction = 1.0 - partialTick;
             Vec3 renderedCenter = particle.getBoundingBox().getCenter().add(
@@ -252,12 +250,21 @@ public class RenderStates {
                 (ieParticle.portal_getZo() - ieParticle.portal_getZ()) * backFraction
             );
             
-            // The clipping plane cuts off the part of the particle outside the destination side.
-            // So particles that are slightly outside only need to be skipped when clipping is not active.
-            double valve = FrontClipping.isClippingEnabled ? -0.5 : 0.5;
-            return renderingPortal.isOnDestinationSide(renderedCenter, valve);
+            return isParticleOnDestinationSide(renderedCenter);
         }
         return true;
+    }
+    
+    /**
+     * Returns whether a particle centered at the position is on the destination side of the rendering portal.
+     */
+    public static boolean isParticleOnDestinationSide(Vec3 renderedCenter) {
+        Portal renderingPortal = PortalRendering.getRenderingPortal();
+        
+        // The clipping plane cuts off the part of the particle outside the destination side.
+        // So particles that are slightly outside only need to be skipped when clipping is not active.
+        double valve = FrontClipping.isClippingEnabled ? -0.5 : 0.5;
+        return renderingPortal.isOnDestinationSide(renderedCenter, valve);
     }
     
     public static void setPartialTick(float partialTick_) {
