@@ -11,6 +11,8 @@ import qouteall.imm_ptl.core.portal.PortalState;
 import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.my_util.Signal;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -154,6 +156,31 @@ public class ClientPortalAnimationManagement {
             // remove the entry if animation finishes
             return !portal.animation.hasAnimationDriver();
         });
+    }
+    
+    /**
+     * Returns the state that the portal's default animation has at the given time offset from now.
+     * Returns null when the portal is not running a default animation.
+     */
+    public static @Nullable PortalState getDefaultAnimationState(Portal portal, long offsetNanos) {
+        RunningDefaultAnimation animation = defaultAnimatedPortals.get(portal);
+        if (animation == null) {
+            return null;
+        }
+        
+        long time = System.nanoTime() + offsetNanos;
+        if (time >= animation.toTimeNano) {
+            return animation.toState;
+        }
+        if (time <= animation.startTimeNano) {
+            return animation.fromState;
+        }
+        
+        PortalState state = animation.getCurrentState(time);
+        if (state.fromWorld != portal.getOriginDim() || state.toWorld != portal.getDestDim()) {
+            return null;
+        }
+        return state;
     }
     
     private static void cleanup() {
