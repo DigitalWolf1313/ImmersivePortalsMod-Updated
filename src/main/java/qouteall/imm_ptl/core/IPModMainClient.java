@@ -31,6 +31,7 @@ import qouteall.imm_ptl.core.render.optimization.SharedBlockMeshBuffers;
 import qouteall.imm_ptl.core.render.renderer.RendererUsingFrameBuffer;
 import qouteall.imm_ptl.core.render.renderer.RendererUsingStencil;
 import qouteall.imm_ptl.core.teleportation.ClientTeleportationManager;
+import qouteall.imm_ptl.core.wiki.WikiClient;
 import qouteall.q_misc_util.dimension.DimensionIntId;
 import qouteall.q_misc_util.my_util.MyTaskList;
 
@@ -115,6 +116,8 @@ public class IPModMainClient {
         StableClientTimer.init();
         
         ClientPortalAnimationManagement.init();
+        
+        WikiClient.init();
         
         VisibleSectionDiscovery.init();
         

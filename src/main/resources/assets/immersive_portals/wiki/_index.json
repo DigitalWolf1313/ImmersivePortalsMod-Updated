@@ -1,0 +1,140 @@
+{
+  "default_lang": "en_us",
+  "categories": [
+    {
+      "name": "Getting Started",
+      "pages": [
+        "index",
+        "fork-changelog"
+      ]
+    },
+    {
+      "name": "Portals",
+      "pages": [
+        "portals",
+        "portal-gun",
+        "miniscaled",
+        "portal-customization",
+        "animate-wand",
+        "portal-attributes",
+        "portal-animation"
+      ]
+    },
+    {
+      "name": "Dimensions",
+      "pages": [
+        "dimension-management",
+        "dimension-stack",
+        "spatial-transformation",
+        "datapack-based-custom-portal-generation"
+      ]
+    },
+    {
+      "name": "Reference",
+      "pages": [
+        "config-options",
+        "commands-reference",
+        "miscellaneous"
+      ]
+    },
+    {
+      "name": "Developers",
+      "pages": [
+        "api-for-other-mods",
+        "old-api"
+      ]
+    }
+  ],
+  "pages": {
+    "index": {
+      "title": "Home",
+      "file": "index.md",
+      "outdated": false
+    },
+    "portals": {
+      "title": "Portals",
+      "file": "portals.md",
+      "outdated": false
+    },
+    "portal-gun": {
+      "title": "Portal Gun",
+      "file": "portal-gun.md",
+      "outdated": false
+    },
+    "miniscaled": {
+      "title": "MiniScaled",
+      "file": "miniscaled.md",
+      "outdated": false
+    },
+    "portal-customization": {
+      "title": "Portal Customization",
+      "file": "portal-customization.md",
+      "outdated": false
+    },
+    "animate-wand": {
+      "title": "Animate Portal Wand",
+      "file": "animate-wand.md",
+      "outdated": false
+    },
+    "portal-attributes": {
+      "title": "Portal Attributes",
+      "file": "portal-attributes.md",
+      "outdated": false
+    },
+    "portal-animation": {
+      "title": "Portal Animation",
+      "file": "portal-animation.md",
+      "outdated": false
+    },
+    "dimension-management": {
+      "title": "Dimension Management",
+      "file": "dimension-management.md",
+      "outdated": false
+    },
+    "dimension-stack": {
+      "title": "Dimension Stack",
+      "file": "dimension-stack.md",
+      "outdated": false
+    },
+    "spatial-transformation": {
+      "title": "Spatial Transformation",
+      "file": "spatial-transformation.md",
+      "outdated": false
+    },
+    "datapack-based-custom-portal-generation": {
+      "title": "Datapack-Based Custom Portal Generation",
+      "file": "datapack-based-custom-portal-generation.md",
+      "outdated": false
+    },
+    "config-options": {
+      "title": "Config Options",
+      "file": "config-options.md",
+      "outdated": false
+    },
+    "commands-reference": {
+      "title": "Commands Reference",
+      "file": "commands-reference.md",
+      "outdated": false
+    },
+    "miscellaneous": {
+      "title": "Miscellaneous",
+      "file": "miscellaneous.md",
+      "outdated": false
+    },
+    "api-for-other-mods": {
+      "title": "API for Other Mods",
+      "file": "api-for-other-mods.md",
+      "outdated": false
+    },
+    "old-api": {
+      "title": "API for Other Mods (old version)",
+      "file": "old-api.md",
+      "outdated": true
+    },
+    "fork-changelog": {
+      "title": "Fork Changelog",
+      "file": "fork-changelog.md",
+      "outdated": false
+    }
+  }
+}

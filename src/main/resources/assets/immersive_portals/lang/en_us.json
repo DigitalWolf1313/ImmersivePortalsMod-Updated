@@ -385,5 +385,24 @@
   "iportal.initial_screen.prev": "Previous",
   "iportal.initial_screen.i_know": "I know",
 
+  "key.imm_ptl.open_wiki": "Open Wiki",
+  "imm_ptl.config.open_wiki": "Wiki",
+  "imm_ptl.wiki.title": "Immersive Portals Wiki",
+  "imm_ptl.wiki.search": "Search...",
+  "imm_ptl.wiki.no_results": "No pages found.",
+  "imm_ptl.wiki.missing_page": "This page could not be loaded.",
+  "imm_ptl.wiki.outdated": "This page describes an old version and may no longer be accurate.",
+  "imm_ptl.wiki.updated": "Last updated: %s",
+  "imm_ptl.wiki.source": "Source:",
+  "imm_ptl.wiki.close_image": "Click anywhere to close",
+  "imm_ptl.wiki.image_loading": "Loading image: %s",
+  "imm_ptl.wiki.image_unavailable": "Image unavailable: %s",
+  "imm_ptl.wiki.container.details": "Details",
+  "imm_ptl.wiki.container.tip": "Tip",
+  "imm_ptl.wiki.container.warning": "Warning",
+  "imm_ptl.wiki.container.danger": "Danger",
+  "imm_ptl.wiki.container.info": "Info",
+  "imm_ptl.wiki.container.note": "Note",
+
   "imm_ptl.put_this_in_the_end_to_avoid_editing_trailing_comma": ""
 }
