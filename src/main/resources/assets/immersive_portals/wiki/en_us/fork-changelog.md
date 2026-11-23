@@ -39,7 +39,7 @@ Fixed VMP crashing, a more accurate Iris warning and reverted the query optimiza
 ## 6.3.0
 
 :::tip Highlights in this update:
-TAA and motion blur work with shaders,  entity teleportation is much smoother, particles go through portals, and optimized portal rendering.
+TAA and motion blur work with shaders, entity teleportation is much smoother, particles go through portals, and optimized portal rendering.
 :::
 
 - Fixed shader packs' TAA and motion blur breaking when a portal is in view.
