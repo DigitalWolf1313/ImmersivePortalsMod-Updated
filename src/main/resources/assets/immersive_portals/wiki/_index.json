@@ -15,9 +15,9 @@
         "portal-gun",
         "miniscaled",
         "portal-customization",
-        "animate-wand",
         "portal-attributes",
-        "portal-animation"
+        "portal-animation",
+        "animate-wand"
       ]
     },
     {
@@ -71,11 +71,6 @@
       "file": "portal-customization.md",
       "outdated": false
     },
-    "animate-wand": {
-      "title": "Animate Portal Wand",
-      "file": "animate-wand.md",
-      "outdated": false
-    },
     "portal-attributes": {
       "title": "Portal Attributes",
       "file": "portal-attributes.md",
@@ -84,6 +79,11 @@
     "portal-animation": {
       "title": "Portal Animation",
       "file": "portal-animation.md",
+      "outdated": false
+    },
+    "animate-wand": {
+      "title": "Animate Portal Wand",
+      "file": "animate-wand.md",
       "outdated": false
     },
     "dimension-management": {

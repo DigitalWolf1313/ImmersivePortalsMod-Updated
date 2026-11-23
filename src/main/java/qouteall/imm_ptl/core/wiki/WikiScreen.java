@@ -32,6 +32,7 @@ public class WikiScreen extends Screen {
     private static final int HEADER_HEIGHT = 30;
     private static final int ROW_HEIGHT = 12;
     private static final int SCROLLBAR_WIDTH = 6;
+    private static final int CONTENT_PADDING = 6;
     
     private static final class HistoryEntry {
         final String slug;
@@ -105,8 +106,8 @@ public class WikiScreen extends Screen {
         sideWidth = Mth.clamp(width / 4, 100, 170);
         contentX = sideWidth + 12;
         contentWidth = Math.max(60, width - contentX - 16);
-        contentTop = HEADER_HEIGHT + 4;
-        contentBottom = height - 6;
+        contentTop = HEADER_HEIGHT + 4 + CONTENT_PADDING;
+        contentBottom = height - 6 - CONTENT_PADDING;
         
         backButton = addRenderableWidget(
             Button.builder(Component.literal("<"), b -> goBack()).bounds(6, 5, 20, 20).build()
@@ -303,7 +304,7 @@ public class WikiScreen extends Screen {
     public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(g, mouseX, mouseY, partialTick);
         g.fill(0, HEADER_HEIGHT, sideWidth, height, 0x90000000);
-        g.fill(sideWidth + 4, contentTop - 2, width - 4, contentBottom + 2, 0x90000000);
+        g.fill(sideWidth + 4, contentTop - CONTENT_PADDING - 2, width - 4, contentBottom + CONTENT_PADDING + 2, 0x90000000);
     }
     
     @Override
