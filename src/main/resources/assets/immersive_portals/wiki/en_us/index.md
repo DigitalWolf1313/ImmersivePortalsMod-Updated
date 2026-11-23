@@ -8,7 +8,7 @@ updated: 2026-11-22
 manual: true
 ---
 
-This wiki describes the latest version of Immersive Portals Mod (abbreviated iPortal or ImmPtl).
+This wiki describes the latest version of Immersive Portals Updated (abbreviated iPortal+, iPortalU or ImmPtl-U).
 
 This build is a fork that adds more features and compatibility. [The changes of the latest updates are listed here.](wiki:fork-changelog)
 
@@ -37,13 +37,13 @@ This fork is built for MC 1.21.1 and MC 1.20.1 and is compatible with Sodium 0.8
 
 ### Mod Compatibility?
 
-**Immersive Portals mod is incompatible with some mods. It's recommended to check [Known compatibility issues](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/issues) before using this mod.** The mods that don't touch inner game mechanics are likely to be compatible with iPortal.
+**Immersive Portals mod is incompatible with some mods. It's recommended to check [Known compatibility issues](https://github.com/DigitalWolf1313/ImmersivePortalsMod-Updated/issues) before using this mod.** The mods that don't touch inner game mechanics are more likely to be compatible with iPortal+.
 
 **This mod deeply changes the game engine and eliminted the game engine's limitation to achieve the result.** Vanilla Minecraft does not allow loading multiple dimensions on client at the same time. Vanilla's rendering engine also does not work with portal rendering. The see-through portal and seamless teleportation cannot be achieved without deeply changing the game engine.
 
 **Any mod compatibility issue is NOT intentional.** Other mods use the game engine in some ways and this mod changes the game engine, so there may be incompatibility. Incompatibilities are not made intentionally. The compatibility issues come from how computer programs work.
 
-**Fixing compatibility issues requires a lot of efforts.** Compatibility issues can be fixed by ad-hoc hacking which is both hard and fragile. This mod is compatible with Sodium and Iris via ad-hoc hacking which is fragile (It's possible that next version of Sodium/Iris will not be compatible with iPortal). The close-sourced mods such as OptiFine are much harder to do ad-hoc hacking with so I marked OptiFine as incompatible.
+**Fixing compatibility issues requires a lot of efforts.** Compatibility issues can be fixed by ad-hoc hacking which is both hard and fragile. This mod is compatible with Sodium and Iris via ad-hoc hacking which is fragile (It's possible that next version of Sodium/Iris will not be compatible with iPortal+). The close-sourced mods such as OptiFine are much harder to do ad-hoc hacking with so I marked OptiFine as incompatible.
 
 #### Mods this fork adds support for
 
@@ -62,7 +62,7 @@ If you are a mod developer, [the possible cases of incompatibility may come from
 
 ### Will the portal impact performance?
 
-Loading more chunks and rendering more things will affects performance. I already put a lot of efforts into optimizing this mod's performance and make portal rendering compatible with [Sodium](https://modrinth.com/mod/sodium) (not all Sodium versions are compatible with iPortal, see the above).
+Loading more chunks and rendering more things will affects performance. I already put a lot of efforts into optimizing this mod's performance and make portal rendering compatible with [Sodium](https://modrinth.com/mod/sodium) (not all Sodium versions are compatible with iPortal+, see the above).
 
 It's recommended to allocate more memory to Minecraft. Not having enough memory will make the game laggy. Sometimes the official launcher will by default only allocate 2GB to Minecraft even if the computer have many memory. [How to allocate more RAM to Minecraft](https://filmora.wondershare.com/game-recording/how-to-allocate-more-ram-to-minecraft.html)
 
