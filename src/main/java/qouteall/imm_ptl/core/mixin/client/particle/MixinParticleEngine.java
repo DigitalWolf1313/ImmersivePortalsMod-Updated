@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.ducks.IEParticleManager;
+import qouteall.imm_ptl.core.ducks.IEParticleTickStamp;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.CrossPortalParticleRenderer;
 import qouteall.imm_ptl.core.render.TransformationManager;
@@ -121,6 +122,17 @@ public class MixinParticleEngine implements IEParticleManager {
     // avoid generating the particle into the wrong dimension
     @Inject(method = "Lnet/minecraft/client/particle/ParticleEngine;tickParticle(Lnet/minecraft/client/particle/Particle;)V", at = @At("HEAD"), cancellable = true)
     private void onTickParticle(Particle particle, CallbackInfo ci) {
+        // A particle that crossed a portal during this tick would tick again in the world it entered.
+        int guiTick = Minecraft.getInstance().gui.getGuiTicks();
+        IEParticleTickStamp stamp = (IEParticleTickStamp) particle;
+        if (stamp.portal_getLastTickStamp() == guiTick) {
+            ci.cancel();
+            return;
+        }
+        if (((IEParticle) particle).portal_getWorld() == Minecraft.getInstance().level) {
+            stamp.portal_setLastTickStamp(guiTick);
+        }
+        
         if (((IEParticle) particle).portal_getWorld() != Minecraft.getInstance().level) {
             ci.cancel();
         }

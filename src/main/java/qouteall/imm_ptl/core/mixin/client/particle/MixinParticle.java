@@ -8,17 +8,32 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.ClientWorldLoader;
+import qouteall.imm_ptl.core.ducks.IEParticleTickStamp;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.teleportation.ParticleTeleportation;
 
 import java.util.List;
 
 @Mixin(Particle.class)
-public abstract class MixinParticle {
+public abstract class MixinParticle implements IEParticleTickStamp {
+    @Unique
+    private int portal_lastTickStamp = -1;
+    
+    @Override
+    public int portal_getLastTickStamp() {
+        return portal_lastTickStamp;
+    }
+    
+    @Override
+    public void portal_setLastTickStamp(int stamp) {
+        portal_lastTickStamp = stamp;
+    }
+    
     @Shadow
     @Final
     @Mutable
@@ -61,6 +76,7 @@ public abstract class MixinParticle {
      * The portal check runs before the collision code,
      * so a particle passes through the wall or frame behind a portal.
      * The remaining motion is applied after the crossing, so collision then happens in the destination.
+     * An animating portal can also swallow a particle that does not move.
      */
     @Inject(method = "move", at = @At("HEAD"), cancellable = true)
     private void portal_onMove(double dx, double dy, double dz, CallbackInfo ci) {
@@ -68,40 +84,27 @@ public abstract class MixinParticle {
         if (portals.isEmpty() || !ParticleTeleportation.canCrossMore()) {
             return;
         }
-        if (dx == 0 && dy == 0 && dz == 0) {
-            return;
-        }
         
         AABB box = getBoundingBox();
         Vec3 from = box.getCenter();
         Vec3 to = from.add(dx, dy, dz);
-        AABB sweptBox = box.expandTowards(dx, dy, dz).inflate(0.1);
+        Vec3 velocity = new Vec3(xd, yd, zd);
+        Vec3 oldCenter = new Vec3(xo, yo + bbHeight / 2, zo);
         
-        Portal hitPortal = null;
-        Vec3 hitPos = null;
-        double hitDistanceSq = Double.MAX_VALUE;
-        
+        ParticleTeleportation.Crossing crossing = null;
         for (Portal portal : portals) {
-            if (!portal.getBoundingBox().intersects(sweptBox)) {
-                continue;
-            }
-            
-            Vec3 hit = portal.rayTrace(from, to);
-            if (hit == null) {
-                continue;
-            }
-            
-            double distanceSq = hit.distanceToSqr(from);
-            if (distanceSq < hitDistanceSq) {
-                hitPortal = portal;
-                hitPos = hit;
-                hitDistanceSq = distanceSq;
+            ParticleTeleportation.Crossing candidate =
+                ParticleTeleportation.check(portal, box, from, to, velocity, oldCenter);
+            if (candidate != null && (crossing == null || candidate.progress() < crossing.progress())) {
+                crossing = candidate;
             }
         }
         
-        if (hitPortal == null) {
+        if (crossing == null) {
             return;
         }
+        
+        Portal hitPortal = crossing.portal();
         
         ClientLevel destLevel = level;
         if (hitPortal.getDestDim() != level.dimension()) {
@@ -112,18 +115,10 @@ public abstract class MixinParticle {
             }
         }
         
-        Vec3 oldVelocity = new Vec3(xd, yd, zd);
-        Vec3 newVelocity = hitPortal.transformLocalVec(oldVelocity);
-        Vec3 newRemainingMotion = hitPortal.transformLocalVec(to.subtract(hitPos));
-        
-        // The content direction in the destination points away from the destination portal.
-        // Moving the particle slightly along it keeps the particle from hitting the reverse portal.
-        Vec3 exitCenter = hitPortal.transformPoint(hitPos)
-            .add(hitPortal.getContentDirection().normalize().scale(0.002));
-        
-        // The previous position is transformed too, so that render interpolation stays continuous.
-        Vec3 oldCenter = new Vec3(xo, yo + bbHeight / 2, zo);
-        Vec3 newOldCenter = hitPortal.transformPoint(oldCenter);
+        Vec3 exitCenter = crossing.exitCenter();
+        Vec3 newOldCenter = crossing.newOldCenter();
+        Vec3 newVelocity = crossing.newVelocity();
+        Vec3 newRemainingMotion = crossing.newRemainingMotion();
         
         level = destLevel;
         setPos(exitCenter.x, exitCenter.y - bbHeight / 2, exitCenter.z);
