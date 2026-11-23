@@ -1,8 +1,8 @@
 package qouteall.imm_ptl.core.mixin.client.particle;
 
-import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -19,6 +19,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.ducks.IEParticleManager;
+import qouteall.imm_ptl.core.portal.Portal;
+import qouteall.imm_ptl.core.render.CrossPortalParticleRenderer;
 import qouteall.imm_ptl.core.render.TransformationManager;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
@@ -84,22 +86,35 @@ public class MixinParticleEngine implements IEParticleManager {
         if (PortalRendering.isRendering()) {
             if (RenderStates.getRenderedPortalNum() > 4) {
                 ci.cancel();
+                return;
             }
         }
+        
+        CrossPortalParticleRenderer.beginPass(camera);
     }
     
     // maybe incompatible with sodium and iris
-    @WrapWithCondition(
+    @WrapOperation(
         method = "render",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/particle/Particle;render(Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/client/Camera;F)V"
         )
     )
-    private boolean redirectBuildGeometry(
-        Particle instance, VertexConsumer vertexConsumer, Camera camera, float v
+    private void redirectBuildGeometry(
+        Particle instance, VertexConsumer vertexConsumer, Camera camera, float v,
+        Operation<Void> original
     ) {
-        return RenderStates.shouldRenderParticle(instance, v);
+        if (RenderStates.shouldRenderParticle(instance, v)) {
+            original.call(instance, vertexConsumer, camera, v);
+        }
+        
+        Portal ghostPortal = CrossPortalParticleRenderer.findGhostPortal(instance, v);
+        if (ghostPortal != null) {
+            CrossPortalParticleRenderer.renderGhost(
+                instance, ghostPortal, vertexConsumer, camera, v, original
+            );
+        }
     }
     
     // a lava ember particle can generate a smoke particle during ticking
