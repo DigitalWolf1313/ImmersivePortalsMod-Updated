@@ -67,9 +67,9 @@ In MC 1.18 and above, this mod is incompatible with OptiFine. Because OptiFine i
 
 In older MC versions, this mod is problematic with OptiFine so it's not recommended to use this mod with OptiFine.
 
-### What Happens if I Remove iPortal?
+### What Happens if I Remove iPortal+?
 
-All see-through portals will vanish. Even if you re-install iPortal, the portals cannot recover. (Portals in unloaded chunks may remain.)
+All see-through portals will vanish. Even if you re-install iPortal+, the portals cannot recover. (Portals in unloaded chunks may remain.)
 
 Vanilla nether/end portals still exist. Dimension stack bedrock replacement will not work.
 

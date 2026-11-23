@@ -16,14 +16,13 @@ Added a new Animation portal wand, portals that emit light, an ingame wiki and s
 - **Added the Animation portal wand.** Drag the portal to a state, add a keyframe, and the wand builds a portal animation from the keyframes. Each keyframe has its own duration and easing, animations can loop, and both sides of a bi-way portal can be edited. Several portals can be linked to share one animation. See [Animate Portal Wand](wiki:animate-wand).
 - **Portals can emit light.** A portal with `lightLevel` from 1 to 15 keeps invisible light blocks around its plane, so a portal can light up its surroundings. The command stick has entries for every level and for turning the light off. [`/portal copy_light_to_destination`](wiki:commands-reference#portal-copy-light-to-destination) copies the existing light around a portal onto the destination side. See [Light Attributes](wiki:portal-attributes#light-attributes).
 - **Added an in-game wiki.** You're reading it right now! Open it inside the config screen or the by default unbound key. The pages work offline and the images are downloaded the first time they are needed.
-- Added an option Portal Wand Keeps Locks Per Portal, so each portal keeps its own wand locks
-- Fixed some portal animation bugs.
-- Entities that are touching a portal now cast shadows with shader packs.
+- Added an option so that Portal Wands Keeps Locks Per Portal.
+- Enabled Sodium's cave culling for both the outer view and the portal view.
+- Entities that are touching a portal cast shadows.
 - Fixed the biome fog inside a portal changing while the player moves.
 - Fixed the third person camera not colliding with blocks when it is looking through a portal.
 - Fixed the third person view inside a portal breaking some GUI.
-- Enabled Sodium's cave culling for both the outer view and the portal view.
-- Improved performance without Sodium a little. Sodium is still strongly recommended.
+- Improved performance without Sodium a little. Just still use sodium.
 - Squeezed out a bit more FPS from portal rendering and client chunk handling.
 
 ## 6.3.1
@@ -48,8 +47,9 @@ TAA and motion blur work with shaders, entity teleportation is much smoother, pa
 - Added some rudimentary Distant Horizons compatibility.
 - Fixed portals not being affected by the view's fog.
 - Made entity teleportation much smoother.
-- Particles now go through portals, and particles no longer face the wrong way inside portals.
-- Sounds keep playing while you go through a portal. This can be turned off with the "Enable Cross Portal Sound" option.
+- Particles now go through portals.
+- Particles no longer face the wrong way inside portals.
+- Sounds keep playing while you go through a portal.
 - Fixed not being able to crouch or sneak on cross-portal collisions.
 - Fixed Voxy not being compatible with the normal (non-compatibility) render mode.
 - Fixed Vista's viewfinder not moving and not rendering portals.
