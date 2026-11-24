@@ -51,6 +51,7 @@ import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.ducks.IEWorldRenderer;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
+import qouteall.imm_ptl.core.render.OverlayRendering;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.ImmPtlViewArea;
 import qouteall.imm_ptl.core.render.MyGameRenderer;
@@ -173,6 +174,8 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
         MyGameRenderer.resetDiffuseLighting();
         
         FrontClipping.disableClipping();
+        
+        OverlayRendering.flushPendingOverlays();
     }
     
     @IPVanillaCopy
