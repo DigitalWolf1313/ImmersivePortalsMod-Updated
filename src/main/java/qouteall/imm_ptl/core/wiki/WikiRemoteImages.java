@@ -34,10 +34,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Environment(EnvType.CLIENT)
 public final class WikiRemoteImages {
     /**
-     * The image repository URL with a trailing slash.
-     * The image path from the wiki page is appended to it.
+     * The raw URL of the wiki folder in the main repository, with a trailing slash.
+     * The image path from the wiki page, such as "images/x.png", is appended to it.
      */
-    public static final String BASE_URL = "https://raw.githubusercontent.com/DigitalWolf1313/ImmersivePortalsMod-WikiImages/main/";
+    public static final String BASE_URL = "https://raw.githubusercontent.com/DigitalWolf1313/ImmersivePortalsMod-Updated/1.21/docs/wiki/";
     
     private static final long MAX_BYTES = 8L * 1024 * 1024;
     
