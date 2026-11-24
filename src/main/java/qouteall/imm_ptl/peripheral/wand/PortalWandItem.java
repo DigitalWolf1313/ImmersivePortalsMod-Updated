@@ -82,7 +82,7 @@ public class PortalWandItem extends Item {
         });
         
         
-        IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalCreation::reset);
+        IPCGlobal.CLIENT_EXIT_EVENT.register(ClientPortalWandPortalCreation::reset);
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalDrag::reset);
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalCopy::reset);
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(ClientPortalWandPortalAnimate::reset);
