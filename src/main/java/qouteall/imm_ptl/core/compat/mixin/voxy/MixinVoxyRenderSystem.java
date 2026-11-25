@@ -7,7 +7,9 @@ import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.IPCGlobal;
+import qouteall.imm_ptl.core.compat.IPVoxyPipelineBridge;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.renderer.RendererUsingStencil;
 
@@ -23,5 +25,11 @@ public abstract class MixinVoxyRenderSystem {
             GL11.glEnable(GL11.GL_STENCIL_TEST);
             RendererUsingStencil.setStencilLimitation(PortalRendering.getPortalLayer());
         }
+    }
+    
+    // Runs before the viewport is selected so that the whole frame uses one pipeline.
+    @Inject(method = "getViewport", at = @At("HEAD"), require = 0)
+    private void iPortals$syncShaderPipeline(CallbackInfoReturnable<Object> cir) {
+        IPVoxyPipelineBridge.syncPipeline(this);
     }
 }
