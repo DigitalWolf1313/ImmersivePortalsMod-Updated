@@ -578,7 +578,7 @@ public class ServerTeleportationManager {
         Vec3 newEyePos = getRegularEntityTeleportedEyePos(entity, portal);
         
         if (!teleportsWithinSameDimension && passengerList.isEmpty() &&
-            (entity instanceof LivingEntity || entity instanceof VehicleEntity || entity instanceof ItemEntity)) {
+            isSmoothHandoffEntity(entity)) {
             Vec3 sourceTarget = portal.inverseTransformPoint(newEyePos).subtract(McHelper.getEyeOffset(entity));
             McHelper.sendToTrackers(entity, McRemoteProcedureCall.createPacketToSendToClient(
                 "qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff.RemoteCallables.prepareCrossDimensionEntityTeleport",
@@ -607,45 +607,10 @@ public class ServerTeleportationManager {
         McHelper.setEyePos(entity, newEyePos, newEyePos);
         McHelper.updateBoundingBox(entity);
         
-        if (teleportsWithinSameDimension &&
-            (entity instanceof LivingEntity || entity instanceof VehicleEntity || entity instanceof ItemEntity)) {
-            // The client transforms its interpolated state to preserve motion through the portal.
-            McHelper.sendToTrackers(
-                entity,
-                McRemoteProcedureCall.createPacketToSendToClient(
-                    "qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff.RemoteCallables.updateEntityPosThroughPortal",
-                    entity.level().dimension(),
-                    entity.getId(),
-                    portal.getId(),
-                    portal.getUUID(),
-                    entity.position(),
-                    entity.getYRot(),
-                    entity.getXRot(),
-                    entity.getYHeadRot(),
-                    yawBeforeTeleport,
-                    pitchBeforeTeleport,
-                    speedBeforeTeleport
-                )
-            );
-        }
-        else {
-            // living entities do position interpolation
-            // it may interpolate into unloaded chunks and stuck
-            // avoid position interpolation
-            McHelper.sendToTrackers(
-                entity,
-                McRemoteProcedureCall.createPacketToSendToClient(
-                    "qouteall.imm_ptl.core.teleportation.ClientTeleportationManager.RemoteCallables.updateEntityPosWithBodyRotation",
-                    entity.level().dimension(),
-                    entity.getId(),
-                    entity.position(),
-                    entity.getYRot(),
-                    entity.getXRot(),
-                    entity.getYHeadRot(),
-                    entity instanceof LivingEntity livingEntity ? livingEntity.yBodyRot : entity.getYRot()
-                )
-            );
-        }
+        sendEntityTeleportToTrackers(
+            entity, portal, teleportsWithinSameDimension,
+            yawBeforeTeleport, pitchBeforeTeleport, speedBeforeTeleport
+        );
         
         if (teleportsWithinSameDimension) {
             // Existing viewers must receive the teleport before destination viewers are paired.
@@ -704,6 +669,62 @@ public class ServerTeleportationManager {
         Vec3 exitDirection = portal.getContentDirection();
         double exitDistance = result.subtract(portal.getDestPos()).dot(exitDirection);
         return result.add(exitDirection.scale(Math.max(0, 0.001 - exitDistance)));
+    }
+    
+    /**
+     * Tells the clients tracking the entity that it has teleported.
+     * A same-dimension teleport lets the client carry its interpolated state through the portal.
+     * Any other teleport snaps the client entity to the new position.
+     */
+    private static void sendEntityTeleportToTrackers(
+        Entity entity, Portal portal, boolean teleportsWithinSameDimension,
+        float yawBeforeTeleport, float pitchBeforeTeleport, double speedBeforeTeleport
+    ) {
+        if (teleportsWithinSameDimension && isSmoothHandoffEntity(entity)) {
+            // The client transforms its interpolated state to preserve motion through the portal.
+            McHelper.sendToTrackers(
+                entity,
+                McRemoteProcedureCall.createPacketToSendToClient(
+                    "qouteall.imm_ptl.core.teleportation.ClientEntityPortalHandoff.RemoteCallables.updateEntityPosThroughPortal",
+                    entity.level().dimension(),
+                    entity.getId(),
+                    portal.getId(),
+                    portal.getUUID(),
+                    entity.position(),
+                    entity.getYRot(),
+                    entity.getXRot(),
+                    entity.getYHeadRot(),
+                    yawBeforeTeleport,
+                    pitchBeforeTeleport,
+                    speedBeforeTeleport
+                )
+            );
+        }
+        else {
+            // living entities do position interpolation
+            // it may interpolate into unloaded chunks and stuck
+            // avoid position interpolation
+            McHelper.sendToTrackers(
+                entity,
+                McRemoteProcedureCall.createPacketToSendToClient(
+                    "qouteall.imm_ptl.core.teleportation.ClientTeleportationManager.RemoteCallables.updateEntityPosWithBodyRotation",
+                    entity.level().dimension(),
+                    entity.getId(),
+                    entity.position(),
+                    entity.getYRot(),
+                    entity.getXRot(),
+                    entity.getYHeadRot(),
+                    entity instanceof LivingEntity livingEntity ? livingEntity.yBodyRot : entity.getYRot()
+                )
+            );
+        }
+    }
+    
+    /**
+     * Returns whether the client interpolates the entity's movement and can carry it smoothly through a portal.
+     */
+    private static boolean isSmoothHandoffEntity(Entity entity) {
+        return entity instanceof LivingEntity || entity instanceof VehicleEntity || entity instanceof ItemEntity;
     }
     
     /**
