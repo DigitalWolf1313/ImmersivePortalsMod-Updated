@@ -732,10 +732,7 @@ public class ClientTeleportationManager {
             entity.syncPacketPositionCodec(pos.x, pos.y, pos.z);
             // snap last tick pos so the entity doesn't slide from the old pos
             McHelper.setPosAndLastTickPos(entity, pos, pos);
-            PortalCollisionHandler collisionHandler = ((IEEntity) entity).ip_getPortalCollisionHandler();
-            if (collisionHandler != null) {
-                collisionHandler.update(entity);
-            }
+            ClientEntityPortalHandoff.refreshPortalCollision(entity);
             entity.setPos(pos);
             entity.setYRot(yaw);
             entity.setXRot(pitch);

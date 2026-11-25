@@ -21,9 +21,7 @@ import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.ducks.IEEntity;
 import qouteall.imm_ptl.core.ducks.IEEntityInterpolation;
-import qouteall.imm_ptl.core.mixin.client.accessor.IEItemEntity;
 import qouteall.imm_ptl.core.mixin.client.accessor.IELivingEntityInterpolation;
-import qouteall.imm_ptl.core.mixin.client.accessor.IEWalkAnimationState;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.my_util.DQuaternion;
@@ -47,10 +45,30 @@ public class ClientEntityPortalHandoff {
     private static final int MAX_HANDOFF_TICKS = 6;
     private static final int INTERPOLATION_STEPS = 3;
     
+    // The velocity limit is in blocks per tick.
+    private static final double MAX_HANDOFF_SPEED = 15;
+    
+    // The mapped client position may differ from the server position by this many blocks plus a share of the speed.
+    // A larger error can mean that the entity was just tracked.
+    private static final double ERROR_ALLOWANCE_BASE = 8;
+    private static final double ERROR_ALLOWANCE_PER_SPEED = 20;
+    
+    // An interpolation target closer than this to the entity counts as already reached.
+    static final double LERP_TARGET_EPSILON_SQR = 1.0E-12;
+    
     private static final Map<Integer, PendingEntityTeleport> pendingEntityTeleports = new HashMap<>();
     private static final Map<Integer, PendingCrossDimensionEntityTeleport> pendingCrossDimensionEntityTeleports = new HashMap<>();
     
-    private static class PendingCrossDimensionEntityTeleport {
+    private interface PendingHandoff {
+        /**
+         * Advances the wait by one tick and returns whether the handoff should finish now.
+         */
+        boolean shouldFinish();
+        
+        void finish();
+    }
+    
+    private static class PendingCrossDimensionEntityTeleport implements PendingHandoff {
         final Entity sourceEntity;
         final Portal portal;
         final ResourceKey<Level> destination;
@@ -63,13 +81,37 @@ public class ClientEntityPortalHandoff {
             this.destination = destination;
         }
         
-        void finish() {
-            pendingCrossDimensionEntityTeleports.remove(sourceEntity.getId(), this);
+        /**
+         * Returns the destination entity that corresponds to the source entity.
+         * Returns null when the destination world has not received it yet.
+         */
+        @Nullable
+        Entity findDestinationEntity() {
             ClientLevel destinationWorld = ClientWorldLoader.getOptionalWorld(destination);
-            Entity destinationEntity = destinationWorld == null ? null : destinationWorld.getEntity(sourceEntity.getId());
-            if (!sourceEntity.isRemoved() && !portal.isRemoved() && destinationEntity != null &&
-                destinationEntity.getUUID().equals(sourceEntity.getUUID())) {
-                transferEntityRenderState(sourceEntity, destinationEntity, portal);
+            if (destinationWorld == null) return null;
+            
+            Entity entity = destinationWorld.getEntity(sourceEntity.getId());
+            return entity != null && entity.getUUID().equals(sourceEntity.getUUID()) ? entity : null;
+        }
+        
+        @Override
+        public boolean shouldFinish() {
+            ++ticks;
+            boolean destinationReady = findDestinationEntity() != null;
+            boolean crossed = hasCrossedPlane(portal, sourceEntity);
+            
+            // The transferred render history already covers the crossing frame.
+            // Waiting another tick would let the source reach its lerp target and visibly stop.
+            return sourceEntity.isRemoved() || portal.isRemoved() ||
+                (crossed && destinationReady) || ticks >= MAX_HANDOFF_TICKS;
+        }
+        
+        @Override
+        public void finish() {
+            pendingCrossDimensionEntityTeleports.remove(sourceEntity.getId(), this);
+            Entity destinationEntity = findDestinationEntity();
+            if (!sourceEntity.isRemoved() && !portal.isRemoved() && destinationEntity != null) {
+                ClientEntityRenderStateTransfer.transfer(sourceEntity, destinationEntity, portal);
             }
             ClientLevel sourceWorld = (ClientLevel) sourceEntity.level();
             if (removalReceived && sourceWorld.getEntity(sourceEntity.getId()) == sourceEntity) {
@@ -78,7 +120,7 @@ public class ClientEntityPortalHandoff {
         }
     }
     
-    private static class PendingEntityTeleport {
+    private static class PendingEntityTeleport implements PendingHandoff {
         final Entity entity;
         final Portal portal;
         final Runnable teleport;
@@ -91,7 +133,14 @@ public class ClientEntityPortalHandoff {
             this.teleport = teleport;
         }
         
-        void finish() {
+        @Override
+        public boolean shouldFinish() {
+            return entity.isRemoved() || portal.isRemoved() ||
+                hasCrossedPlane(portal, entity) || ++ticks >= MAX_HANDOFF_TICKS;
+        }
+        
+        @Override
+        public void finish() {
             pendingEntityTeleports.remove(entity.getId(), this);
             if (entity.isRemoved() || entity.level().getEntity(entity.getId()) != entity) return;
             LOGGER.debug("Finishing entity portal handoff: id={} ticks={} distance={} queuedPackets={}",
@@ -117,30 +166,16 @@ public class ClientEntityPortalHandoff {
     ) {}
     
     public static void tick() {
-        if (!pendingCrossDimensionEntityTeleports.isEmpty()) {
-            for (PendingCrossDimensionEntityTeleport pending : new ArrayList<>(pendingCrossDimensionEntityTeleports.values())) {
-                ++pending.ticks;
-                ClientLevel destinationWorld = ClientWorldLoader.getOptionalWorld(pending.destination);
-                Entity destinationEntity = destinationWorld == null ? null : destinationWorld.getEntity(pending.sourceEntity.getId());
-                boolean destinationReady = destinationEntity != null &&
-                    destinationEntity.getUUID().equals(pending.sourceEntity.getUUID());
-                boolean crossed = pending.portal.getDistanceToPlane(pending.sourceEntity.getEyePosition()) <= 0;
-                if (pending.sourceEntity.isRemoved() || pending.portal.isRemoved() ||
-                    (crossed && destinationReady) || pending.ticks >= MAX_HANDOFF_TICKS) {
-                    // The transferred render history already covers the crossing frame.
-                    // Waiting another tick would let the source reach its lerp target and visibly stop.
-                    pending.finish();
-                }
-            }
-        }
+        tickPending(pendingCrossDimensionEntityTeleports);
+        tickPending(pendingEntityTeleports);
+    }
+    
+    private static void tickPending(Map<Integer, ? extends PendingHandoff> pendingMap) {
+        if (pendingMap.isEmpty()) return;
         
-        if (!pendingEntityTeleports.isEmpty()) {
-            for (PendingEntityTeleport pending : new ArrayList<>(pendingEntityTeleports.values())) {
-                if (pending.entity.isRemoved() || pending.portal.isRemoved() ||
-                    pending.portal.getDistanceToPlane(pending.entity.getEyePosition()) <= 0 ||
-                    ++pending.ticks >= MAX_HANDOFF_TICKS) {
-                    pending.finish();
-                }
+        for (PendingHandoff pending : new ArrayList<PendingHandoff>(pendingMap.values())) {
+            if (pending.shouldFinish()) {
+                pending.finish();
             }
         }
     }
@@ -182,12 +217,39 @@ public class ClientEntityPortalHandoff {
         }
     }
     
-    private static int getRemainingInterpolationSteps(Entity entity) {
+    static Vec3 getLerpTarget(Entity entity) {
+        return new Vec3(entity.lerpTargetX(), entity.lerpTargetY(), entity.lerpTargetZ());
+    }
+    
+    static int getRemainingInterpolationSteps(Entity entity) {
         if (entity instanceof IEEntityInterpolation interpolation) {
             return interpolation.ip_getLerpSteps();
         }
-        Vec3 target = new Vec3(entity.lerpTargetX(), entity.lerpTargetY(), entity.lerpTargetZ());
-        return target.distanceToSqr(entity.position()) > 1.0E-12 ? INTERPOLATION_STEPS : 0;
+        return getLerpTarget(entity).distanceToSqr(entity.position()) > LERP_TARGET_EPSILON_SQR ?
+            INTERPOLATION_STEPS : 0;
+    }
+    
+    /**
+     * Updates the entity's portal collision entries.
+     * Entries that refer to portals near a previous position can clip the moved entity against the wrong portal.
+     */
+    static void refreshPortalCollision(Entity entity) {
+        PortalCollisionHandler collisionHandler = ((IEEntity) entity).ip_getPortalCollisionHandler();
+        if (collisionHandler != null) {
+            collisionHandler.update(entity);
+        }
+    }
+    
+    private static boolean hasCrossedPlane(Portal portal, Entity entity) {
+        return portal.getDistanceToPlane(entity.getEyePosition()) <= 0;
+    }
+    
+    /**
+     * Returns whether moving the entity to the source-side target passes through the portal.
+     */
+    private static boolean passesThroughPortal(Entity entity, Portal portal, Vec3 sourceTarget) {
+        Vec3 eyeOffset = entity.getEyePosition().subtract(entity.position());
+        return portal.rayTrace(entity.getEyePosition(), sourceTarget.add(eyeOffset)) != null;
     }
     
     /**
@@ -211,65 +273,6 @@ public class ClientEntityPortalHandoff {
         return null;
     }
     
-    private static void transferEntityRenderState(Entity source, Entity destination, Portal portal) {
-        Vec3 target = new Vec3(destination.lerpTargetX(), destination.lerpTargetY(), destination.lerpTargetZ());
-        float targetYaw = destination.lerpTargetYRot();
-        float targetPitch = destination.lerpTargetXRot();
-        float targetHeadYaw = destination.getYHeadRot();
-        int remainingSteps = getRemainingInterpolationSteps(destination);
-        Vec3 mappedPos = portal.transformPoint(source.position());
-        
-        // A stale source must not pull an entity back from a later teleport.
-        if (mappedPos.distanceToSqr(target) > 64) {
-            return;
-        }
-        
-        // An existing server correction is continued.
-        // A freely moving entity must not start interpolating toward an out-of-date pre-handoff position.
-        if (remainingSteps > 0 && !(destination instanceof ItemEntity)) {
-            setInterpolationTarget(destination, target, targetYaw, targetPitch, remainingSteps);
-        }
-        
-        McHelper.setPosAndLastTickPos(destination, mappedPos,
-            portal.transformPoint(new Vec3(source.xo, source.yo, source.zo)));
-        Vec3 renderOldPos = portal.transformPoint(new Vec3(source.xOld, source.yOld, source.zOld));
-        destination.xOld = renderOldPos.x;
-        destination.yOld = renderOldPos.y;
-        destination.zOld = renderOldPos.z;
-        McHelper.updateBoundingBox(destination);
-        
-        destination.setYRot(TeleportationUtil.transformEntityYaw(portal, source.getYRot()));
-        destination.yRotO = TeleportationUtil.transformEntityYaw(portal, source.yRotO);
-        Vec3 look = portal.transformLocalVecNonScale(source.getLookAngle()).normalize();
-        Vec3 oldLook = portal.transformLocalVecNonScale(
-            Vec3.directionFromRotation(source.xRotO, source.yRotO)
-        ).normalize();
-        destination.setXRot((float) Math.toDegrees(Math.asin(Math.clamp(-look.y, -1.0, 1.0))));
-        destination.xRotO = (float) Math.toDegrees(Math.asin(Math.clamp(-oldLook.y, -1.0, 1.0)));
-        if (source instanceof LivingEntity oldLiving && destination instanceof LivingEntity newLiving) {
-            newLiving.yBodyRot = TeleportationUtil.transformEntityYaw(portal, oldLiving.yBodyRot);
-            newLiving.yBodyRotO = TeleportationUtil.transformEntityYaw(portal, oldLiving.yBodyRotO);
-            newLiving.yHeadRot = TeleportationUtil.transformEntityYaw(portal, oldLiving.yHeadRot);
-            newLiving.yHeadRotO = TeleportationUtil.transformEntityYaw(portal, oldLiving.yHeadRotO);
-            newLiving.lerpHeadTo(targetHeadYaw, 3);
-            
-            // The destination entity is new, so its leg swing would otherwise restart from zero.
-            IEWalkAnimationState oldWalk = (IEWalkAnimationState) oldLiving.walkAnimation;
-            IEWalkAnimationState newWalk = (IEWalkAnimationState) newLiving.walkAnimation;
-            newWalk.ip_setSpeed(oldLiving.walkAnimation.speed());
-            newWalk.ip_setSpeedOld(oldWalk.ip_getSpeedOld());
-            newWalk.ip_setPosition(oldWalk.ip_getPosition());
-        }
-        if (source instanceof ItemEntity oldItem && destination instanceof ItemEntity newItem) {
-            ((IEItemEntity) newItem).ip_setAge(oldItem.getAge());
-            ((IEItemEntity) newItem).ip_setBobOffs(oldItem.bobOffs);
-        }
-        PortalCollisionHandler collisionHandler = ((IEEntity) destination).ip_getPortalCollisionHandler();
-        if (collisionHandler != null) {
-            collisionHandler.update(destination);
-        }
-    }
-    
     private static void applyEntityPosThroughPortal(ResourceKey<Level> dim, int entityId, ServerHandoff handoff) {
         ClientLevel world = ClientWorldLoader.getWorld(dim);
         Entity entity = world.getEntity(entityId);
@@ -277,24 +280,23 @@ public class ClientEntityPortalHandoff {
         
         Vec3 curPos = entity.position();
         Vec3 lastTickPos = new Vec3(entity.xo, entity.yo, entity.zo);
-        Vec3 lerpTarget = new Vec3(entity.lerpTargetX(), entity.lerpTargetY(), entity.lerpTargetZ());
+        Vec3 lerpTarget = getLerpTarget(entity);
         float lerpYaw = entity.lerpTargetYRot();
         float lerpPitch = entity.lerpTargetXRot();
         Vec3 velocity = entity.getDeltaMovement();
         Vec3 newVelocity = handoff.transformVec().apply(velocity);
-        if (newVelocity.length() > 15) {
-            newVelocity = newVelocity.normalize().scale(15);
+        if (newVelocity.length() > MAX_HANDOFF_SPEED) {
+            newVelocity = newVelocity.normalize().scale(MAX_HANDOFF_SPEED);
         }
-        int remainingSteps = lerpTarget.distanceToSqr(curPos) > 1.0E-12 ?
+        int remainingSteps = lerpTarget.distanceToSqr(curPos) > LERP_TARGET_EPSILON_SQR ?
             getRemainingInterpolationSteps(entity) : 0;
         
         Vec3 mappedCurPos = handoff.transformPoint().apply(curPos);
         double error = mappedCurPos.distanceTo(handoff.pos());
-        // Interpolation lag is allowed for.
-        // A larger error can mean that the entity was just tracked.
-        double allowedError = 8 + 20 * Math.max(handoff.speed(), velocity.length());
+        double allowedError = ERROR_ALLOWANCE_BASE +
+            ERROR_ALLOWANCE_PER_SPEED * Math.max(handoff.speed(), velocity.length());
         
-        LOGGER.info("Entity portal update: id={} clientPos={} clientTarget={} mappedPos={} serverPos={} error={} limit={}",
+        LOGGER.debug("Entity portal update: id={} clientPos={} clientTarget={} mappedPos={} serverPos={} error={} limit={}",
             entityId, curPos, lerpTarget, mappedCurPos, handoff.pos(), error, allowedError);
         
         if (error > allowedError) {
@@ -314,32 +316,13 @@ public class ClientEntityPortalHandoff {
             handoff.transformPoint().apply(lastTickPos)
         );
         McHelper.updateBoundingBox(entity);
-        // Collision entries refer to portals near the old position.
-        // Keeping them until the next entity tick can clip the moved entity against the source portal.
-        PortalCollisionHandler collisionHandler = ((IEEntity) entity).ip_getPortalCollisionHandler();
-        if (collisionHandler != null) {
-            collisionHandler.update(entity);
-        }
+        refreshPortalCollision(entity);
         
         // This matches the server's reset base before the queued movement is replayed.
         // The render position intentionally retains its interpolation lag.
         entity.syncPacketPositionCodec(handoff.pos().x, handoff.pos().y, handoff.pos().z);
         
-        if (deltaYaw != 0 || deltaPitch != 0) {
-            entity.setYRot(entity.getYRot() + deltaYaw);
-            entity.yRotO += deltaYaw;
-            entity.setXRot(entity.getXRot() + deltaPitch);
-            entity.xRotO += deltaPitch;
-            if (entity instanceof LivingEntity livingEntity) {
-                livingEntity.yHeadRot += deltaYaw;
-                livingEntity.yHeadRotO += deltaYaw;
-                livingEntity.yBodyRot += deltaYaw;
-                livingEntity.yBodyRotO += deltaYaw;
-                if (livingEntity instanceof IELivingEntityInterpolation headLerp && headLerp.ip_getLerpHeadSteps() > 0) {
-                    headLerp.ip_setLerpYHeadRot(headLerp.ip_getLerpYHeadRot() + deltaYaw);
-                }
-            }
-        }
+        shiftEntityRotation(entity, deltaYaw, deltaPitch);
         
         // Keeps the original interpolation deadline.
         // Restarting it would pull a fast entity toward a stale target after the crossing.
@@ -355,6 +338,27 @@ public class ClientEntityPortalHandoff {
         entity.lerpMotion(newVelocity.x, newVelocity.y, newVelocity.z);
     }
     
+    /**
+     * Adds the rotation the server applied during the teleport to the entity's current and previous rotations.
+     */
+    private static void shiftEntityRotation(Entity entity, float deltaYaw, float deltaPitch) {
+        if (deltaYaw == 0 && deltaPitch == 0) return;
+        
+        entity.setYRot(entity.getYRot() + deltaYaw);
+        entity.yRotO += deltaYaw;
+        entity.setXRot(entity.getXRot() + deltaPitch);
+        entity.xRotO += deltaPitch;
+        if (entity instanceof LivingEntity livingEntity) {
+            livingEntity.yHeadRot += deltaYaw;
+            livingEntity.yHeadRotO += deltaYaw;
+            livingEntity.yBodyRot += deltaYaw;
+            livingEntity.yBodyRotO += deltaYaw;
+            if (livingEntity instanceof IELivingEntityInterpolation headLerp && headLerp.ip_getLerpHeadSteps() > 0) {
+                headLerp.ip_setLerpYHeadRot(headLerp.ip_getLerpYHeadRot() + deltaYaw);
+            }
+        }
+    }
+    
     public static class RemoteCallables {
         public static void prepareCrossDimensionEntityTeleport(
             ResourceKey<Level> sourceDimension, ResourceKey<Level> destinationDimension,
@@ -365,9 +369,8 @@ public class ClientEntityPortalHandoff {
             Portal portal = findPortal(world, portalId, portalUuid);
             if (entity == null || portal == null) return;
             
-            Vec3 eyeOffset = entity.getEyePosition().subtract(entity.position());
-            boolean alreadyCrossed = portal.getDistanceToPlane(entity.getEyePosition()) <= 0;
-            if (!alreadyCrossed && portal.rayTrace(entity.getEyePosition(), sourceTarget.add(eyeOffset)) == null) return;
+            boolean alreadyCrossed = hasCrossedPlane(portal, entity);
+            if (!alreadyCrossed && !passesThroughPortal(entity, portal, sourceTarget)) return;
             
             PendingCrossDimensionEntityTeleport previous = pendingCrossDimensionEntityTeleports.get(entityId);
             if (previous != null) previous.finish();
@@ -418,11 +421,9 @@ public class ClientEntityPortalHandoff {
             
             Vec3 sourceTarget = rotation.getConjugated()
                 .rotate(serverNewPos.subtract(destPos).scale(1.0 / scale)).add(originPos);
-            Vec3 eyeOffset = entity.getEyePosition().subtract(entity.position());
-            if (portal.getDistanceToPlane(entity.getEyePosition()) > 0 &&
-                portal.rayTrace(entity.getEyePosition(), sourceTarget.add(eyeOffset)) != null) {
+            if (!hasCrossedPlane(portal, entity) && passesThroughPortal(entity, portal, sourceTarget)) {
                 setInterpolationTarget(entity, sourceTarget, entity.getYRot(), entity.getXRot(), INTERPOLATION_STEPS);
-                LOGGER.info("Delaying entity portal handoff: id={} sourcePos={} sourceTarget={} distance={}",
+                LOGGER.debug("Delaying entity portal handoff: id={} sourcePos={} sourceTarget={} distance={}",
                     entityId, entity.position(), sourceTarget, portal.getDistanceToPlane(entity.getEyePosition()));
                 pendingEntityTeleports.put(entityId, new PendingEntityTeleport(
                     entity, portal, () -> applyEntityPosThroughPortal(dim, entityId, handoff)
