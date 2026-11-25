@@ -495,25 +495,22 @@ public class CollisionHelper {
     }
     
     /**
-     * Register portals the entity may collide with while moving to the target position.
-     * <p>
-     * The normal update predicts movement from velocity, which fails for server-side players
-     * (the server applies client-sent movement) and for entities that move fast or change velocity
-     * abruptly, making the server miss portals and clip the movement against blocks behind them.
-     * Using the actual movement before it's applied fixes that.
-     * <p>
-     * The entity's current position decides whether it can collide, same as the normal update.
+     * Registers the portals that a player's movement packet sweeps through.
+     * The server only updates colliding portals at the end of a tick,
+     * so a fast-moving player would otherwise be blocked by the blocks behind a portal.
+     * The server then rejects the move and teleports the player back, which removes the momentum.
+     * The side of the portal is checked from the position before the movement.
      */
     public static void notifyCollidingPortalsForMovement(Entity entity, Vec3 targetPos) {
         Vec3 movement = targetPos.subtract(entity.position());
-        
         if (movement.lengthSqr() > 20 * 20) {
-            // same limit as in cross-portal collision calculation
             return;
         }
         
-        AABB currentBox = entity.getBoundingBox();
-        AABB sweptBox = currentBox.minmax(currentBox.move(movement));
+        Level world = entity.level();
+        AABB oldBox = entity.getBoundingBox();
+        AABB sweptBox = oldBox.minmax(oldBox.move(movement));
+        Vec3 eyePos = entity.getEyePosition();
         
         Consumer<Portal> notifier = portal -> {
             if (!portal.isTeleportable()) {
@@ -524,20 +521,17 @@ public class CollisionHelper {
                 return;
             }
             
-            if (canCollideWithPortal(entity, portal, 0)) {
-                ((IEEntity) entity).ip_notifyCollidingWithPortal(portal);
+            if (!mayEntityCollideWithPortal(entity, portal, eyePos, sweptBox)) {
+                return;
             }
+
+            ((IEEntity) entity).ip_notifyCollidingWithPortal(portal);
         };
         
-        McHelper.findEntitiesByBox(
-            Portal.class,
-            entity.level(),
-            sweptBox,
-            IPGlobal.maxNormalPortalRadius,
-            p -> true
-        ).forEach(notifier);
-        
-        GlobalPortalStorage.getGlobalPortals(entity.level()).forEach(notifier);
+        McHelper.foreachEntitiesByBoxApproximateRegions(
+            Portal.class, world, sweptBox, IPGlobal.maxNormalPortalRadius, notifier
+        );
+        GlobalPortalStorage.getGlobalPortals(world).forEach(notifier);
     }
     
     public static AABB getStretchedBoundingBox(Entity entity) {
