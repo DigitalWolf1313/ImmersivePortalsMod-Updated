@@ -4,7 +4,7 @@ import com.mojang.logging.LogUtils;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.util.profiling.Profiler;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -210,7 +210,6 @@ public class PortalRenderInfo implements AutoCloseable {
     }
     
     public static boolean renderAndDecideVisibility(Portal portal, Runnable queryRendering) {
-        ProfilerFiller profiler = Minecraft.getInstance().getProfiler();
         
         boolean decision;
         if (IPGlobal.offsetOcclusionQuery) {
@@ -233,9 +232,9 @@ public class PortalRenderInfo implements AutoCloseable {
                 boolean lastFrameVisible = lastFrameQuery.fetchQueryResult();
                 
                 if (!lastFrameVisible && noPredict) {
-                    profiler.push("fetch_this_frame");
+                    Profiler.get().push("fetch_this_frame");
                     decision = thisFrameQuery.fetchQueryResult();
-                    profiler.pop();
+                    Profiler.get().pop();
                     QueryManager.queryStallCounter++;
                 }
                 else {
@@ -244,9 +243,9 @@ public class PortalRenderInfo implements AutoCloseable {
                 }
             }
             else {
-                profiler.push("fetch_this_frame");
+                Profiler.get().push("fetch_this_frame");
                 decision = thisFrameQuery.fetchQueryResult();
-                profiler.pop();
+                Profiler.get().pop();
                 QueryManager.queryStallCounter++;
             }
         }

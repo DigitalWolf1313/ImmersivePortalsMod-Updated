@@ -59,7 +59,7 @@ public class WorldWrappingPortal extends GlobalTrackedPortal {
         int zoneId,
         boolean isInward
     ) {
-        WorldWrappingPortal portal = WorldWrappingPortal.ENTITY_TYPE.create(serverWorld);
+        WorldWrappingPortal portal = WorldWrappingPortal.ENTITY_TYPE.create(serverWorld, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         portal.isInward = isInward;
         portal.zoneId = zoneId;
         
@@ -87,8 +87,8 @@ public class WorldWrappingPortal extends GlobalTrackedPortal {
         portal.setPos(center.x, center.y, center.z);
         portal.setDestination(destination);
         
-        portal.setAxisW(Vec3.atLowerCornerOf(axises.getA().getNormal()));
-        portal.setAxisH(Vec3.atLowerCornerOf(axises.getB().getNormal()));
+        portal.setAxisW(Vec3.atLowerCornerOf(axises.getA().getUnitVec3i()));
+        portal.setAxisH(Vec3.atLowerCornerOf(axises.getB().getUnitVec3i()));
         portal.setWidth(Helper.getCoordinate(areaSize, axises.getA().getAxis()));
         portal.setHeight(Helper.getCoordinate(areaSize, axises.getB().getAxis()));
         

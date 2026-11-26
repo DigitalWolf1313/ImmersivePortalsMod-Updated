@@ -95,11 +95,28 @@ public class ShaderCodeTransformation {
         return result;
     }
     
+    /**
+     * Core shader ids look like "minecraft:core/rendertype_solid".
+     * The config lists them by file name only, such as "rendertype_solid".
+     * Other ids, such as "sodium:blocks/block_layer_opaque.vsh" or "iris_xxx", are returned unchanged.
+     */
+    private static String getShortShaderId(String shaderId) {
+        int colonIndex = shaderId.indexOf(':');
+        if (colonIndex != -1) {
+            String path = shaderId.substring(colonIndex + 1);
+            if (path.startsWith("core/")) {
+                return path.substring("core/".length());
+            }
+        }
+        return shaderId;
+    }
+    
     @Nullable
     private static Config getConfig(CompiledShader.Type type, String shaderId) {
+        String shortId = getShortShaderId(shaderId);
         return configs.stream().filter(
             config -> matches(config.type, type) &&
-                config.affectedShaders.contains(shaderId)
+                (config.affectedShaders.contains(shaderId) || config.affectedShaders.contains(shortId))
         ).findFirst().orElse(null);
     }
     

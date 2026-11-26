@@ -58,7 +58,7 @@
   "imm_ptl.command_desc.remove_connected_portals": "Portal canlılarını kaldır",
   "imm_ptl.command.eradicate_portal_cluster": "Portalı tamamen kaldırın",
   "imm_ptl.command_desc.eradicate_portal_cluster": "Portal varlıklarını kaldır",
-  "imm_ptl.command.complete_bi_way_bi_faced_portal": "Portalı tek yönlü ve tek yüzlü hale getirin",
+  "imm_ptl.command.complete_bi_way_bi_faced_portal": "Portalı çift yönlü ve çift yüzlü hale getirin",
   "imm_ptl.command_desc.complete_bi_way_bi_faced_portal": "Portal canlıları oluştur",
   "imm_ptl.command.complete_bi_way_portal": "Portalı çift yönlü hale getirin",
   "imm_ptl.command_desc.complete_bi_way_portal": "Yeni bir portal canlısı oluşturun",

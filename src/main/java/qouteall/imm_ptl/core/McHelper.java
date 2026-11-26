@@ -29,6 +29,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.AbortableIterationConsumer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -396,7 +397,7 @@ public class McHelper {
     
     
     public static Portal copyEntity(Portal portal) {
-        Portal newPortal = ((Portal) portal.getType().create(portal.level()));
+        Portal newPortal = ((Portal) portal.getType().create(portal.level(), EntitySpawnReason.COMMAND));
         
         Validate.notNull(newPortal);
         
@@ -433,7 +434,10 @@ public class McHelper {
     }
     
     public static void invokeCommandAs(Entity commandSender, List<String> commandList) {
-        CommandSourceStack commandSource = commandSender.createCommandSourceStack().withPermission(2).withSuppressedOutput();
+        CommandSourceStack commandSource = commandSender
+            .createCommandSourceStackForNameResolution((net.minecraft.server.level.ServerLevel) commandSender.level())
+            .withPermission(2)
+            .withSuppressedOutput();
         MinecraftServer server = commandSender.getServer();
         assert server != null;
         Commands commandManager = server.getCommands();
@@ -862,11 +866,11 @@ public class McHelper {
     }
     
     public static int getMinY(LevelAccessor world) {
-        return world.getMinBuildHeight();
+        return world.getMinY();
     }
     
     public static int getMaxYExclusive(LevelAccessor world) {
-        return world.getMaxBuildHeight();
+        return world.getMaxY() + 1;
     }
     
     public static int getMaxContentYExclusive(LevelAccessor world) {
@@ -874,11 +878,11 @@ public class McHelper {
     }
     
     public static int getMinSectionY(LevelAccessor world) {
-        return world.getMinSection();
+        return world.getMinSectionY();
     }
     
     public static int getMaxSectionYExclusive(LevelAccessor world) {
-        return world.getMaxSection();
+        return world.getMaxSectionY() + 1;
     }
     
     public static int getYSectionNumber(LevelAccessor world) {

@@ -6,22 +6,14 @@ import qouteall.imm_ptl.core.portal.Portal;
 
 public class RendererDummy extends PortalRenderer {
     @Override
+    public void onBeforeTranslucentRendering(org.joml.Matrix4f modelView) {}
+    @Override
     public boolean replaceFrameBufferClearing() {
         return false;
     }
     
     @Override
     public void prepareRendering() {
-    
-    }
-    
-    @Override
-    public void onBeforeTranslucentRendering(Matrix4f modelView) {
-    
-    }
-    
-    @Override
-    public void onAfterTranslucentRendering(Matrix4f modelView) {
     
     }
     

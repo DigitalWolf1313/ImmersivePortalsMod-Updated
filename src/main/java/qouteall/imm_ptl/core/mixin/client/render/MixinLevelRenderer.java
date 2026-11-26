@@ -147,12 +147,27 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
     ) {
         IPCGlobal.renderer.onBeforeTranslucentRendering(modelView);
         
-        MyGameRenderer.updateFogColor();
-        MyGameRenderer.resetFogState();
+        RenderSystem.setShaderFog(fogParameters);
         
         MyGameRenderer.resetDiffuseLighting();
         
         FrontClipping.disableClipping();
+    }
+
+    @WrapOperation(
+        method = "renderLevel",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/LevelRenderer;getTransparencyChain()Lnet/minecraft/client/renderer/PostChain;"
+        )
+    )
+    private PostChain skipTransparencyChainDuringPortalRendering(
+        LevelRenderer instance, Operation<PostChain> original
+    ) {
+        if (PortalRendering.isRendering()) {
+            return null;
+        }
+        return original.call(instance);
     }
     
     @IPVanillaCopy
@@ -489,7 +504,7 @@ public abstract class MixinLevelRenderer implements IEWorldRenderer {
     }
     
     /**
-     * when rendering portal, it won't call {@link ViewArea#repositionCamera(double, double)}
+     * when rendering portal, it won't call {@link ViewArea#repositionCamera}
      * So {@link ViewArea#getRenderSectionAt} will return incorrect result
      */
     @Inject(

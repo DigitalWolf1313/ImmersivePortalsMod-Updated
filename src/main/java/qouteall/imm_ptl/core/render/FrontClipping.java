@@ -10,7 +10,11 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.ARBSeparateShaderObjects;
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL41;
+import org.lwjgl.opengl.GLCapabilities;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
@@ -194,14 +198,14 @@ public class FrontClipping {
 //                    (float) equation[0], (float) equation[1],
 //                    (float) equation[2], (float) equation[3]
 //                );
-                GL20.glUniform4f(
-                    uniformLocation,
+                setClippingUniform(
+                    (IEShader) shader, uniformLocation,
                     (float) equation[0], (float) equation[1],
                     (float) equation[2], (float) equation[3]
                 );
             }
             else {
-                GL20.glUniform4f(uniformLocation, 0, 0, 0, 1);
+                setClippingUniform((IEShader) shader, uniformLocation, 0, 0, 0, 1);
 //                clippingEquationUniform.set(0f, 0f, 0f, 1f);
             }
         }
@@ -220,7 +224,37 @@ public class FrontClipping {
         
         int uniformLocation = ((IEShader) shader).ip_getClippingEquationUniformLocation();
         if (uniformLocation != -1) {
-            GL20.glUniform4f(uniformLocation, 0, 0, 0, 1);
+            setClippingUniform((IEShader) shader, uniformLocation, 0, 0, 0, 1);
+        }
+    }
+    
+    /**
+     * Shader setting can happen while another program, or no program, is bound.
+     * Iris leaves no program bound, so a plain glUniform call raises GL_INVALID_OPERATION.
+     * The core profile context may report less than OpenGL 4.1, so direct program access is not always available.
+     * Then the target program is bound temporarily and the previously bound program is restored.
+     */
+    private static void setClippingUniform(
+        IEShader shader, int location, float x, float y, float z, float w
+    ) {
+        int programId = shader.ip_getProgramId();
+        GLCapabilities caps = GL.getCapabilities();
+        
+        if (caps.OpenGL41) {
+            GL41.glProgramUniform4f(programId, location, x, y, z, w);
+        }
+        else if (caps.GL_ARB_separate_shader_objects) {
+            ARBSeparateShaderObjects.glProgramUniform4f(programId, location, x, y, z, w);
+        }
+        else {
+            int previousProgram = GL20.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+            if (previousProgram != programId) {
+                GL20.glUseProgram(programId);
+            }
+            GL20.glUniform4f(location, x, y, z, w);
+            if (previousProgram != programId) {
+                GL20.glUseProgram(previousProgram);
+            }
         }
     }
 }

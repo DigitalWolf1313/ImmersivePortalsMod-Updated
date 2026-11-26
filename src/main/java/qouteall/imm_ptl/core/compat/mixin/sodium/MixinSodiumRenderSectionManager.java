@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.compat.sodium_compatibility.IESodiumRenderSectionManager;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumRenderingContext;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 
@@ -40,13 +41,15 @@ public class MixinSodiumRenderSectionManager implements IESodiumRenderSectionMan
     }
     
     /**
-     * The section visibility information will be wrong if rendered a portal.
-     * Just cancel this optimization.
+     * The section visibility information is wrong after a portal view has searched the sections.
+     * Vanilla collects visible entities before the main view updates the terrain,
+     * so that can also happen before any portal is rendered in the current frame.
+     * Just cancel this optimization in those cases.
      * isSectionVisible() is currently only used for culling entities.
      */
     @Inject(method = "isSectionVisible", at = @At("HEAD"), cancellable = true)
     private void onIsSectionVisible(int x, int y, int z, CallbackInfoReturnable<Boolean> cir) {
-        if (RenderStates.portalsRenderedThisFrame != 0) {
+        if (RenderStates.portalsRenderedThisFrame != 0 || SodiumInterface.lastSectionSearchWasForPortal) {
             cir.setReturnValue(true);
         }
     }

@@ -129,7 +129,7 @@ public class NetherPortalGeneration {
         Vec3 indicatorPos = fromShape.innerAreaBox.getCenterVec();
         
         LoadingIndicatorEntity indicatorEntity =
-            LoadingIndicatorEntity.entityType.create(fromWorld);
+            LoadingIndicatorEntity.entityType.create(fromWorld, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         indicatorEntity.isValid = true;
         indicatorEntity.setPos(
             indicatorPos.x, indicatorPos.y, indicatorPos.z

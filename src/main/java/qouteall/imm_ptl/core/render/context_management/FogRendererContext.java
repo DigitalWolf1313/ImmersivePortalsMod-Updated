@@ -5,13 +5,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.FogRenderer;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.ducks.IECamera;
+import qouteall.imm_ptl.core.mixin.client.multiworld_awareness.MixinFogRenderer;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import org.joml.Vector4f;
 
 /**
  * {@link FogRenderer}
@@ -19,9 +23,6 @@ import java.util.function.Supplier;
  */
 @SuppressWarnings("SpellCheckingInspection")
 public class FogRendererContext {
-    public float red;
-    public float green;
-    public float blue;
     public int targetBiomeFog = -1;
     public int previousBiomeFog = -1;
     public long biomeChangedTime = -1L;
@@ -33,8 +34,19 @@ public class FogRendererContext {
     public static StaticFieldsSwappingManager<FogRendererContext> swappingManager;
     
     public static void init() {
-        //load the class and apply mixin
-        FogRenderer.class.hashCode();
+        copyContextFromObject = context -> {
+            context.targetBiomeFog = MixinFogRenderer.ip_getTargetBiomeFog();
+            context.previousBiomeFog = MixinFogRenderer.ip_getPreviousBiomeFog();
+            context.biomeChangedTime = MixinFogRenderer.ip_getBiomeChangedTime();
+        };
+
+        copyContextToObject = context -> {
+            MixinFogRenderer.ip_setTargetBiomeFog(context.targetBiomeFog);
+            MixinFogRenderer.ip_setPreviousBiomeFog(context.previousBiomeFog);
+            MixinFogRenderer.ip_setBiomeChangedTime(context.biomeChangedTime);
+        };
+
+        getCurrentFogColor = FogRendererContext::getFogColorForCurrentView;
         
         swappingManager = new StaticFieldsSwappingManager<>(
             copyContextFromObject, copyContextToObject, false,
@@ -45,6 +57,10 @@ public class FogRendererContext {
     }
     
     public static void update() {
+        if (swappingManager == null) {
+            init();
+        }
+
         swappingManager.setOuterDimension(RenderStates.originalPlayerDimension);
         swappingManager.resetChecks();
         if (ClientWorldLoader.getIsInitialized()) {
@@ -67,7 +83,6 @@ public class FogRendererContext {
     ) {
         Minecraft client = Minecraft.getInstance();
         
-        client.getProfiler().push("get_fog_color");
         
         ClientLevel oldWorld = client.level;
         
@@ -84,28 +99,41 @@ public class FogRendererContext {
         client.level = destWorld;
         
         Camera newCamera = new Camera();
-        ((IECamera) newCamera).portal_setPos(pos);
+        ((IECamera) newCamera).ip_resetState(pos, destWorld);
         ((IECamera) newCamera).portal_setFocusedEntity(client.cameraEntity);
         
+        Profiler.get().push("get_fog_color");
         try {
-            FogRenderer.setupColor(
-                newCamera,
-                RenderStates.getPartialTick(),
-                destWorld,
-                client.options.getEffectiveRenderDistance(),
-                client.gameRenderer.getDarkenWorldAmount(RenderStates.getPartialTick())
-            );
-            
-            Vec3 result = getCurrentFogColor.get();
-            
-            return result;
+            return computeFogColor(newCamera, destWorld);
         }
         finally {
             swappingManager.popSwapping();
             client.level = oldWorld;
+            Profiler.get().pop();
             
-            client.getProfiler().pop();
         }
+    }
+
+    public static Vec3 getFogColorForCurrentView() {
+        Minecraft client = Minecraft.getInstance();
+        ClientLevel world = client.level;
+        if (world == null) {
+            throw new IllegalStateException("Cannot compute fog color without a client world");
+        }
+        return computeFogColor(client.gameRenderer.getMainCamera(), world);
+    }
+
+    private static Vec3 computeFogColor(Camera camera, ClientLevel world) {
+        Minecraft client = Minecraft.getInstance();
+        float partialTick = RenderStates.getPartialTick();
+        Vector4f color = FogRenderer.computeFogColor(
+            camera,
+            partialTick,
+            world,
+            client.options.getEffectiveRenderDistance(),
+            client.gameRenderer.getDarkenWorldAmount(partialTick)
+        );
+        return new Vec3(color.x(), color.y(), color.z());
     }
     
     public static void onPlayerTeleport(ResourceKey<Level> from, ResourceKey<Level> to) {

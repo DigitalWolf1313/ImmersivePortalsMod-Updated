@@ -13,13 +13,15 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -34,7 +36,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PortalWandItem extends Item {
-    public static final PortalWandItem instance = new PortalWandItem(new Properties());
+    public static final PortalWandItem instance = new PortalWandItem(
+        new Properties().setId(ResourceKey.create(
+            Registries.ITEM,
+            ResourceLocation.fromNamespaceAndPath("immersive_portals", "portal_wand")
+        ))
+    );
     
     public static void init() {
         Registry.register(
@@ -179,7 +186,7 @@ public class PortalWandItem extends Item {
     }
     
     @Override
-    public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+    public InteractionResult use(Level world, Player player, InteractionHand hand) {
         ItemStack itemStack = player.getItemInHand(hand);
         Mode mode = itemStack.getOrDefault(COMPONENT_TYPE, Mode.FALLBACK);
         
@@ -188,7 +195,7 @@ public class PortalWandItem extends Item {
                 if (!PortalWandInteraction.isDragging(((ServerPlayer) player))) {
                     Mode nextMode = mode.next();
                     itemStack.set(COMPONENT_TYPE, nextMode);
-                    return new InteractionResultHolder<>(InteractionResult.SUCCESS, itemStack);
+                    return InteractionResult.SUCCESS;
                 }
             }
         }
@@ -249,8 +256,8 @@ public class PortalWandItem extends Item {
     }
     
     public static void showSettings(Player player) {
-        player.sendSystemMessage(Component.translatable("imm_ptl.wand.settings_1"));
-        player.sendSystemMessage(Component.translatable("imm_ptl.wand.settings_alignment"));
+        player.displayClientMessage(Component.translatable("imm_ptl.wand.settings_1"), false);
+        player.displayClientMessage(Component.translatable("imm_ptl.wand.settings_alignment"), false);
         
         int[] alignments = new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 32, 64};
         
@@ -268,13 +275,13 @@ public class PortalWandItem extends Item {
             "/imm_ptl_client_debug wand set_cursor_alignment 0"
         ));
         
-        player.sendSystemMessage(
-            alignmentSettingTexts.stream().reduce(Component.literal(""), (a, b) -> a.append(" ").append(b))
+        player.displayClientMessage(
+            alignmentSettingTexts.stream().reduce(Component.literal(""), (a, b) -> a.append(" ").append(b)), false
         );
         
-        player.sendSystemMessage(Component.translatable(
+        player.displayClientMessage(Component.translatable(
             "imm_ptl.wand.settings_2", Minecraft.getInstance().options.keyChat.getTranslatedKeyMessage()
-        ));
+        ), false);
     }
     
     private static boolean instructionInformed = false;

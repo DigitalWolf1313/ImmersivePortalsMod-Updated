@@ -16,8 +16,10 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.phys.Vec3;
@@ -80,6 +82,20 @@ public class ClientWorldLoader {
     public static boolean isClientRemoteTicking = false;
     
     private static boolean isWorldSwitched = false;
+    
+    /**
+     * The server does not send the sea level of dimensions other than the player's one.
+     * Vanilla dimension types use their vanilla values and other dimension types use the overworld value.
+     */
+    private static int getSeaLevelForDimensionType(ResourceKey<DimensionType> dimensionTypeKey) {
+        if (dimensionTypeKey.equals(BuiltinDimensionTypes.NETHER)) {
+            return 32;
+        }
+        if (dimensionTypeKey.equals(BuiltinDimensionTypes.END)) {
+            return 0;
+        }
+        return 63;
+    }
     
     public static void init() {
         DimensionAPI.CLIENT_DIMENSION_UPDATE_EVENT.register((serverDimensions) -> {
@@ -396,8 +412,8 @@ public class ClientWorldLoader {
         }
         
         isCreatingClientWorld = true;
+        Profiler.get().push("create_world");
         
-        CLIENT.getProfiler().push("create_world");
         
         int chunkLoadDistance = 3; // my own chunk manager doesn't need it
         
@@ -432,8 +448,8 @@ public class ClientWorldLoader {
             int simulationDistance = CLIENT.level.getServerSimulationDistance();
             
             Holder<DimensionType> dimensionType = registryManager
-                .registryOrThrow(Registries.DIMENSION_TYPE)
-                .getHolderOrThrow(dimensionTypeKey);
+                .lookup(Registries.DIMENSION_TYPE).orElseThrow()
+                .getOrThrow(dimensionTypeKey);
             
             // currently use a separated level data object
             // day time is not shared between worlds
@@ -449,10 +465,10 @@ public class ClientWorldLoader {
                 dimensionType,
                 chunkLoadDistance,
                 simulationDistance,// seems that client world does not use this
-                CLIENT::getProfiler,
                 worldRenderer,
                 CLIENT.level.isDebug(),
-                CLIENT.level.getBiomeManager().biomeZoomSeed
+                CLIENT.level.getBiomeManager().biomeZoomSeed,
+                getSeaLevelForDimensionType(dimensionTypeKey)
             );
             
             // all worlds share the same map data map
@@ -478,7 +494,7 @@ public class ClientWorldLoader {
         }
         finally {
             isCreatingClientWorld = false;
-            CLIENT.getProfiler().pop();
+            Profiler.get().pop();
         }
         
         CLIENT_WORLD_LOAD_EVENT.invoker().accept(newWorld);
@@ -613,13 +629,13 @@ public class ClientWorldLoader {
             LocalPlayer player = Minecraft.getInstance().player;
             assert player != null;
             RegistryAccess registryAccess = player.connection.registryAccess();
-            Registry<Biome> biomes = registryAccess.registryOrThrow(Registries.BIOME);
+            Registry<Biome> biomes = registryAccess.lookup(Registries.BIOME).orElseThrow();
             
             for (Map.Entry<String, Integer> entry : idMap.entrySet()) {
                 ResourceLocation id = McHelper.newResourceLocation(entry.getKey());
                 int expectedId = entry.getValue();
                 
-                if (biomes.getId(biomes.get(id)) != expectedId) {
+                if (biomes.getId(biomes.get(id).orElseThrow().value()) != expectedId) {
                     LOGGER.error("Biome id mismatch: {} {}", id, expectedId);
                 }
             }

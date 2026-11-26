@@ -44,6 +44,13 @@ logs/
 /misc/mesh_to_visualize.json
 
 /remappedSrc
+/renderDoc
+/minecraft-And-Mods-src
+/accuratehitboxes-neoforge-2.4.2-1.20.1_mapped
+/physics-mod-pro-v188k-neoforge-mc-1.21.1_mapped
 
 crowdin-translate-1.2.jar
 src/main/resources/immersive_portals.timestamp
+
+# wiki images are pushed to the image repository
+wiki-images-staging/

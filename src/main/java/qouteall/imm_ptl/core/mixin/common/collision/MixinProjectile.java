@@ -13,7 +13,7 @@ public abstract class MixinProjectile extends MixinEntity {
     
     // make it recognize the owner in another dimension
     @Redirect(
-        method = "getOwner",
+        method = "findOwner",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/server/level/ServerLevel;getEntity(Ljava/util/UUID;)Lnet/minecraft/world/entity/Entity;"

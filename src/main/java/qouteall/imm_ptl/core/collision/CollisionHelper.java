@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -401,7 +402,7 @@ public class CollisionHelper {
     }
     
     public static void updateCollidingPortalForWorld(Level world, float partialTick) {
-        world.getProfiler().push("update_colliding_portal");
+        Profiler.get().push("update_colliding_portal");
         
         List<Portal> globalPortals = GlobalPortalStorage.getGlobalPortals(world);
         Iterable<Entity> worldEntityList = McHelper.getWorldEntityList(world);
@@ -424,8 +425,8 @@ public class CollisionHelper {
                 }
             }
         }
+        Profiler.get().pop();
         
-        world.getProfiler().pop();
     }
     
     public static void init() {

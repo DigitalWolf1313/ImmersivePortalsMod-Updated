@@ -22,7 +22,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
 import qouteall.imm_ptl.core.api.ImmPtlEntityExtension;
@@ -33,6 +32,9 @@ import qouteall.imm_ptl.core.portal.EndPortalEntity;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.my_util.CountDownInt;
+
+import java.util.List;
+import java.util.Set;
 
 @Mixin(Entity.class)
 public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
@@ -152,7 +154,7 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
     }
     
     @Redirect(
-        method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks()V",
+        method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks(Ljava/util/List;Ljava/util/Set;)V",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/world/entity/Entity;getBoundingBox()Lnet/minecraft/world/phys/AABB;"
@@ -163,17 +165,13 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
     }
     
     @Inject(
-        method = "checkInsideBlocks",
-        at = @At(
-            value = "INVOKE_ASSIGN",
-            target = "Lnet/minecraft/world/entity/Entity;getBoundingBox()Lnet/minecraft/world/phys/AABB;",
-            shift = At.Shift.AFTER
-        ),
-        locals = LocalCapture.CAPTURE_FAILHARD,
+        method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks(Ljava/util/List;Ljava/util/Set;)V",
+        at = @At("HEAD"),
         cancellable = true
     )
-    private void onCheckInsideBlocks(CallbackInfo ci, AABB box) {
-        if (box == null) {
+    private void onCheckInsideBlocks(List<?> movements, Set<?> blocksInside, CallbackInfo ci) {
+        Entity entity = (Entity) (Object) this;
+        if (ip_getActiveCollisionBox(entity.getBoundingBox()) == null) {
             ci.cancel();
         }
     }

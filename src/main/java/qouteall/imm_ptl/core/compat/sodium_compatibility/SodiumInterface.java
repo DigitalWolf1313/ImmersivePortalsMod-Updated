@@ -21,6 +21,13 @@ public class SodiumInterface {
     @Nullable
     public static FrustumCuller frustumCuller = null;
     
+    /**
+     * Whether the latest Sodium visible section search was done for a portal view.
+     * Vanilla collects visible entities before Sodium updates the terrain in a frame,
+     * so entity culling then reads the section visibility left by the previous frame's last portal view.
+     */
+    public static boolean lastSectionSearchWasForPortal = false;
+    
     public static class Invoker {
         public boolean isSodiumPresent() {
             return false;

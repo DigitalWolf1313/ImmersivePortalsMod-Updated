@@ -4,15 +4,17 @@ import com.mojang.serialization.MapCodec;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
-import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import qouteall.dimlib.api.DimensionAPI;
 import qouteall.imm_ptl.core.McHelper;
@@ -30,12 +32,28 @@ import qouteall.imm_ptl.peripheral.wand.PortalWandItem;
 import java.util.function.BiConsumer;
 
 public class PeripheralModMain {
+    private static final ResourceKey<Block> PORTAL_HELPER_BLOCK_KEY = ResourceKey.create(
+        Registries.BLOCK,
+        McHelper.newResourceLocation("immersive_portals", "portal_helper")
+    );
+    private static final ResourceKey<Item> PORTAL_HELPER_ITEM_KEY = ResourceKey.create(
+        Registries.ITEM,
+        McHelper.newResourceLocation("immersive_portals", "portal_helper")
+    );
     
     public static final Block portalHelperBlock =
-        new Block(FabricBlockSettings.of().noOcclusion().isRedstoneConductor((a, b, c) -> false));
+        new Block(
+            BlockBehaviour.Properties.of()
+                .setId(PORTAL_HELPER_BLOCK_KEY)
+                .noOcclusion()
+                .isRedstoneConductor((a, b, c) -> false)
+        );
     
     public static final BlockItem portalHelperBlockItem =
-        new PortalHelperItem(PeripheralModMain.portalHelperBlock, new Item.Properties());
+        new PortalHelperItem(
+            PeripheralModMain.portalHelperBlock,
+            new Item.Properties().setId(PORTAL_HELPER_ITEM_KEY)
+        );
     
     public static final CreativeModeTab TAB =
         FabricItemGroup.builder()

@@ -7,6 +7,8 @@ configs:
       - rendertype_cutout
       - rendertype_cutout_mipped
       - rendertype_translucent
+      - rendertype_tripwire
+      - terrain
     transformations:
       - pattern: |-
           void ( )*main( )*\(( )*( )*\)( )*(
@@ -14,7 +16,7 @@ configs:
         replacement: |-
           uniform vec4 iportal_ClippingEquation;
           void main() {
-              gl_ClipDistance[0] = dot(Position.xyz + ChunkOffset, iportal_ClippingEquation.xyz) +
+              gl_ClipDistance[0] = dot(Position.xyz + ModelOffset, iportal_ClippingEquation.xyz) +
                   iportal_ClippingEquation.w;
     debugOutput: false
   - comment: For portal area rendering and entity rendering and particle
@@ -28,10 +30,11 @@ configs:
       - rendertype_entity_translucent_cull
       - rendertype_entity_translucent
       - rendertype_entity_smooth_cutout
-      - rendertype_beacon_beam",
+      - rendertype_beacon_beam
       - rendertype_entity_translucent_emissive
       - rendertype_entity_translucent_cull
       - portal_area
+      - entity
       - particle
     transformations:
       - pattern: |-

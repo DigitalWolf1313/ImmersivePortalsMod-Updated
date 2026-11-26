@@ -5,4 +5,6 @@ import org.jetbrains.annotations.Nullable;
 
 public interface IEShader {
     int ip_getClippingEquationUniformLocation();
+    
+    int ip_getProgramId();
 }

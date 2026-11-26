@@ -264,7 +264,7 @@ public class IrisPortalRenderer extends PortalRenderer {
         
         MyRenderHelper.drawScreenFrameBuffer(
             deferredFbs[innerLayer].fb,
-            true,
+            false,
             false
         );
         

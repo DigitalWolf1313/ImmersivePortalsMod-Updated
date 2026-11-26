@@ -73,7 +73,7 @@ public class MixinLevelRenderer_Optional {
         method = "renderSectionLayer",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/ShaderInstance;apply()V"
+            target = "Lnet/minecraft/client/renderer/CompiledShaderProgram;apply()V"
         ),
         require = 0
     )

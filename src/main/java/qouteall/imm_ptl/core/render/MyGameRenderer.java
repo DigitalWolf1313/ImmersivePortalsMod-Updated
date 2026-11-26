@@ -1,6 +1,7 @@
 package qouteall.imm_ptl.core.render;
 
 import com.mojang.blaze3d.platform.Lighting;
+import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.fabricmc.api.EnvType;
@@ -8,7 +9,6 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.FogRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.PostChain;
@@ -17,7 +17,7 @@ import net.minecraft.client.renderer.SectionBufferBuilderPack;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.Mth;
+import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -148,7 +148,6 @@ public class MyGameRenderer {
             ((IEWorldRenderer) oldWorldRenderer).portal_getChunkInfoList();
         HitResult oldCrosshairTarget = client.hitResult;
         Camera oldCamera = client.gameRenderer.getMainCamera();
-        PostChain oldTransparencyShader = ((IEWorldRenderer) worldRenderer).portal_getTransparencyShader();
         RenderBuffers oldRenderBuffers = ((IEWorldRenderer) worldRenderer).ip_getRenderBuffers();
         RenderBuffers oldClientRenderBuffers = client.renderBuffers();
         SectionBufferBuilderPack oldSectionRenderDispatcherFixedBuffers =
@@ -213,10 +212,7 @@ public class MyGameRenderer {
         Object newSodiumContext = SodiumInterface.invoker.createNewContext(renderDistance);
         SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
         
-        ((IEWorldRenderer) worldRenderer).portal_setTransparencyShader(null);
-        
         IERenderSystem.ip_setModelViewStack(new Matrix4fStack(16));
-        RenderSystem.applyModelViewMatrix();
         
         IrisInterface.invoker.setPipeline(worldRenderer, null);
         
@@ -226,13 +222,11 @@ public class MyGameRenderer {
         }
         
         //invoke rendering
+        Profiler.get().push("render_portal_content");
         invokeWrapper.accept(() -> {
-            client.getProfiler().push("render_portal_content");
-            client.gameRenderer.renderLevel(
-                client.getTimer()
-            );
-            client.getProfiler().pop();
+            client.gameRenderer.renderLevel(client.getDeltaTracker());
         });
+        Profiler.get().pop();
         
         SodiumInterface.invoker.switchContextWithCurrentWorldRenderer(newSodiumContext);
         
@@ -249,7 +243,6 @@ public class MyGameRenderer {
         client.hitResult = oldCrosshairTarget;
         ieGameRenderer.ip_setCamera(oldCamera);
         
-        ((IEWorldRenderer) worldRenderer).portal_setTransparencyShader(oldTransparencyShader);
         
         FogRendererContext.swappingManager.popSwapping();
         
@@ -266,9 +259,8 @@ public class MyGameRenderer {
         
         ((IEWorldRenderer) worldRenderer).portal_setFrustum(oldFrustum);
         
-        client.gameRenderer.resetProjectionMatrix(oldProjectionMatrix);
+        RenderSystem.setProjectionMatrix(oldProjectionMatrix, ProjectionType.PERSPECTIVE);
         IERenderSystem.ip_setModelViewStack(oldModelViewStack);
-        RenderSystem.applyModelViewMatrix();
         
         IrisInterface.invoker.setPipeline(worldRenderer, irisPipeline);
         
@@ -282,38 +274,6 @@ public class MyGameRenderer {
         CHelper.checkGlError();
         
         client.smartCull = true;
-    }
-    
-    /**
-     * {@link LevelRenderer#renderLevel}
-     */
-    @IPVanillaCopy
-    public static void resetFogState() {
-        Camera camera = client.gameRenderer.getMainCamera();
-        float g = client.gameRenderer.getRenderDistance();
-        
-        Vec3 cameraPos = camera.getPosition();
-        double x = cameraPos.x();
-        double y = cameraPos.y();
-        double z = cameraPos.z();
-        
-        boolean isFoggy = client.level.effects().isFoggyAt(Mth.floor(x), Mth.floor(y)) ||
-            client.gui.getBossOverlay().shouldCreateWorldFog();
-        
-        FogRenderer.setupFog(
-            camera, FogRenderer.FogMode.FOG_TERRAIN, Math.max(g, 32.0F), isFoggy, RenderStates.getPartialTick()
-        );
-        FogRenderer.levelFogColor();
-    }
-    
-    public static void updateFogColor() {
-        FogRenderer.setupColor(
-            client.gameRenderer.getMainCamera(),
-            RenderStates.getPartialTick(),
-            client.level,
-            client.options.getEffectiveRenderDistance(),
-            client.gameRenderer.getDarkenWorldAmount(RenderStates.getPartialTick())
-        );
     }
     
     /**

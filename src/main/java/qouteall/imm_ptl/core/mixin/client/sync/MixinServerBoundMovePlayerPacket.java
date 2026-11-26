@@ -17,8 +17,9 @@ public class MixinServerBoundMovePlayerPacket {
         at = @At("RETURN")
     )
     private void onConstruct(
-        double x, double y, double z, float yaw, float pitch, boolean onGround,
-        boolean changePosition, boolean changeLook, CallbackInfo ci
+        double x, double y, double z, float yaw, float pitch,
+        boolean onGround, boolean horizontalCollision, boolean hasPosition, boolean hasRotation,
+        CallbackInfo ci
     ) {
         ResourceKey<Level> dimension = Minecraft.getInstance().player.level().dimension();
         ((IEPlayerMoveC2SPacket) this).ip_setPlayerDimension(dimension);

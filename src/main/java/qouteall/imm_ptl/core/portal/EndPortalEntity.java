@@ -147,7 +147,7 @@ public class EndPortalEntity extends Portal {
         
         Vec3 portalCenter = thisSideBox.getCenter();
         
-        EndPortalEntity portal = EndPortalEntity.ENTITY_TYPE.create(world);
+        EndPortalEntity portal = EndPortalEntity.ENTITY_TYPE.create(world, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         assert portal != null;
         
         portal.setOriginPos(portalCenter);

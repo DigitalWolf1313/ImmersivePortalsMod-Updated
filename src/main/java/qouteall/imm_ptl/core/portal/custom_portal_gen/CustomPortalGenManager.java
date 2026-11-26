@@ -67,9 +67,9 @@ public class CustomPortalGenManager {
         CustomPortalGenManager manager = new CustomPortalGenManager();
         
         Registry<CustomPortalGeneration> registry = server.registryAccess()
-            .registryOrThrow(CustomPortalGeneration.REGISTRY_KEY);
+            .lookup(CustomPortalGeneration.REGISTRY_KEY).orElseThrow();
         Registry<CustomPortalGeneration> legacyRegistry = server.registryAccess()
-            .registryOrThrow(CustomPortalGeneration.LEGACY_REGISTRY_KEY);
+            .lookup(CustomPortalGeneration.LEGACY_REGISTRY_KEY).orElseThrow();
         
         for (var entry : registry.entrySet()) {
             manager.addEntry(server, entry.getKey(), entry.getValue());

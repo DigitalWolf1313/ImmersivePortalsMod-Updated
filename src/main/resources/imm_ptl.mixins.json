@@ -1,7 +1,7 @@
 {
   "required": true,
   "package": "qouteall.imm_ptl.core.mixin",
-  "compatibilityLevel": "JAVA_17",
+  "compatibilityLevel": "JAVA_21",
   "plugin": "qouteall.imm_ptl.core.IPMixinPlugin",
   "mixins": [
     "common.MixinClipContext",
@@ -13,7 +13,6 @@
     "common.MixinServerChunkCache",
     "common.MixinServerLevel",
     "common.chunk_sync.IEChunkMap_Accessor",
-    "common.chunk_sync.IEChunkTaskPriorityQueueSorter",
     "common.chunk_sync.IEDistanceManager",
     "common.chunk_sync.IEServerCommonPacketListenerImpl",
     "common.chunk_sync.MixinChunkHolder",
@@ -116,7 +115,7 @@
     "client.render.MixinMultiBufferSourceBufferSource",
     "client.render.MixinRenderSection",
     "client.render.MixinRenderSystem_Clipping",
-    "client.render.MixinRenderSystem_Fog",
+    "client.render.MixinLevelRenderer_Fog",
     "client.render.MixinScreenEffectRenderer",
     "client.render.MixinSectionRenderDispatcher",
     "client.render.framebuffer.MixinMainTarget",

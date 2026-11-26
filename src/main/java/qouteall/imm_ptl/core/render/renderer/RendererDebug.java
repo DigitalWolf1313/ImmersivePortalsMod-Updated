@@ -16,15 +16,9 @@ import java.util.List;
 
 public class RendererDebug extends PortalRenderer {
     @Override
-    public void onBeforeTranslucentRendering(Matrix4f modelView) {
+    public void onBeforeTranslucentRendering(org.joml.Matrix4f modelView) {
         renderPortals(modelView);
     }
-    
-    @Override
-    public void onAfterTranslucentRendering(Matrix4f modelView) {
-    
-    }
-    
     @Override
     public void onHandRenderingEnded() {
     
@@ -63,10 +57,7 @@ public class RendererDebug extends PortalRenderer {
         
         GlStateManager._clearColor(1, 0, 1, 1);
         GlStateManager._clearDepth(1);
-        GlStateManager._clear(
-            GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT,
-            Minecraft.ON_OSX
-        );
+        GlStateManager._clear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
         GL11.glDisable(GL11.GL_STENCIL_TEST);
         
         renderPortalContent(portal);

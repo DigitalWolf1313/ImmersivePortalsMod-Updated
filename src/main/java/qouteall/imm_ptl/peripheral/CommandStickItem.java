@@ -11,21 +11,23 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.commands.PortalCommand;
@@ -93,7 +95,10 @@ public class CommandStickItem extends Item {
     }
     
     public static final CommandStickItem instance = new CommandStickItem(
-        new Item.Properties()
+        new Item.Properties().setId(ResourceKey.create(
+            Registries.ITEM,
+            ResourceLocation.fromNamespaceAndPath("immersive_portals", "command_stick")
+        ))
     );
     
     public CommandStickItem(Properties settings) {
@@ -107,7 +112,7 @@ public class CommandStickItem extends Item {
     }
     
     @Override
-    public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+    public InteractionResult use(Level world, Player player, InteractionHand hand) {
         doUse(player, player.getItemInHand(hand));
         return super.use(world, player, hand);
     }
@@ -125,7 +130,7 @@ public class CommandStickItem extends Item {
                 return;
             }
             
-            CommandSourceStack commandSource = player.createCommandSourceStack().withPermission(2);
+            CommandSourceStack commandSource = ((ServerPlayer) player).createCommandSourceStack().withPermission(2);
             
             MinecraftServer server = player.getServer();
             assert server != null;
@@ -181,14 +186,14 @@ public class CommandStickItem extends Item {
     }
     
     @Override
-    public @NotNull String getDescriptionId(ItemStack stack) {
+    public Component getName(ItemStack stack) {
         Data data = stack.get(COMPONENT_TYPE);
         
         if (data == null) {
-            return "";
+            return super.getName(stack);
         }
         
-        return data.nameTranslationKey;
+        return Component.translatable(data.nameTranslationKey);
     }
     
     public static void sendMessage(Player player, Component message) {

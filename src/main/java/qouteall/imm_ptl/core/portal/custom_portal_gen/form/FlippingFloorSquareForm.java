@@ -163,13 +163,13 @@ public class FlippingFloorSquareForm extends PortalGenForm {
             .filter(intBox -> intBox.stream().allMatch(
                 pos -> {
                     BlockState blockState = toWorld.getBlockState(pos);
-                    return !blockState.isSolidRender(toWorld, pos) &&
+                    return !blockState.isSolidRender() &&
                         blockState.getBlock() != PortalPlaceholderBlock.instance &&
                         blockState.getFluidState().isEmpty();
                 }
             ))
             .filter(intBox -> intBox.getSurfaceLayer(Direction.DOWN)
-                .getMoved(Direction.DOWN.getNormal())
+                .getMoved(Direction.DOWN.getUnitVec3i())
                 .stream().allMatch(
                     blockPos -> {
                         BlockState blockState = toWorld.getBlockState(blockPos);
@@ -179,14 +179,14 @@ public class FlippingFloorSquareForm extends PortalGenForm {
                 )
             )
             .findFirst().orElseGet(() -> IntBox.fromBasePointAndSize(toPos, areaSize))
-            .getMoved(Direction.DOWN.getNormal());
+            .getMoved(Direction.DOWN.getUnitVec3i());
     }
     
     public static GeneralBreakablePortal[] createPortals(
         ServerLevel fromWorld, ServerLevel toWorld,
         BlockPortalShape fromShape, BlockPortalShape toShape
     ) {
-        GeneralBreakablePortal pa = GeneralBreakablePortal.ENTITY_TYPE.create(fromWorld);
+        GeneralBreakablePortal pa = GeneralBreakablePortal.ENTITY_TYPE.create(fromWorld, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         fromShape.initPortalPosAxisShape(pa, Direction.AxisDirection.POSITIVE);
         
         pa.setDestination(toShape.innerAreaBox.getCenterVec());

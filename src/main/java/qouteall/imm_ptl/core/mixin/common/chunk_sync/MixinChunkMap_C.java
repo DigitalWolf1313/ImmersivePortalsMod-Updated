@@ -71,10 +71,11 @@ public abstract class MixinChunkMap_C implements IEChunkMap {
     
     /**
      * @author qouteall
-     * @reason
+     * @reason Immersive Portals sends chunks through its own tracking pipeline.
      */
     @Overwrite
-    private void onChunkReadyToSend(LevelChunk chunk) {
+    private void onChunkReadyToSend(ChunkHolder chunkHolder, LevelChunk chunk) {
         ImmPtlChunkTracking.onChunkProvidedDeferred(chunk);
+        level.getChunkSource().onChunkReadyToSend(chunkHolder);
     }
 }

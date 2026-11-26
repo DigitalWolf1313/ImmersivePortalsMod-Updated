@@ -74,13 +74,13 @@ public class MixinFrustum implements IEFrustum {
     }
     
     @Inject(
-        method = "cubeInFrustum",
+        method = "cubeInFrustum(DDDDDD)I",
         at = @At("HEAD"),
         cancellable = true
     )
     private void onCubeInFrustum(
         double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
-        CallbackInfoReturnable<Boolean> cir
+        CallbackInfoReturnable<Integer> cir
     ) {
         if (ip_canDetermineInvisibleWithCamCoord(
             (float) (minX - portal_camX),
@@ -90,7 +90,7 @@ public class MixinFrustum implements IEFrustum {
             (float) (maxY - portal_camY),
             (float) (maxZ - portal_camZ)
         )) {
-            cir.setReturnValue(false);
+            cir.setReturnValue(0);
         }
     }
     

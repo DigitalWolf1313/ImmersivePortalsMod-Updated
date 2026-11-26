@@ -23,7 +23,7 @@ public abstract class MixinShaderInstance implements IEShader {
     private int programId;
     
     @Unique
-    private int ip_clippingEquationLoccation;
+    private int ip_clippingEquationLoccation = -1;
     
     @Inject(
         method = "setupUniforms",
@@ -36,5 +36,10 @@ public abstract class MixinShaderInstance implements IEShader {
     @Override
     public int ip_getClippingEquationUniformLocation() {
         return ip_clippingEquationLoccation;
+    }
+    
+    @Override
+    public int ip_getProgramId() {
+        return programId;
     }
 }

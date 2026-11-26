@@ -15,7 +15,7 @@ import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
 import qouteall.imm_ptl.core.render.FrontClipping;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 
-@Mixin(value = RenderSystem.class, remap = false)
+@Mixin(RenderSystem.class)
 public class MixinRenderSystem_Clipping {
     @Inject(
         method = "setShader(Lnet/minecraft/client/renderer/CompiledShaderProgram;)V",

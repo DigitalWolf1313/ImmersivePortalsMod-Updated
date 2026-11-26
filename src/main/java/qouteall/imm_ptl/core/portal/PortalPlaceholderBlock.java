@@ -4,6 +4,8 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -28,6 +30,11 @@ import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.portal.nether_portal.BreakablePortalEntity;
 
 public class PortalPlaceholderBlock extends Block {
+    private static final ResourceKey<Block> BLOCK_KEY = ResourceKey.create(
+        Registries.BLOCK,
+        McHelper.newResourceLocation("immersive_portals", "nether_portal_block")
+    );
+
     public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
     public static final VoxelShape X_AABB = Block.box(
         6.0D,
@@ -56,6 +63,7 @@ public class PortalPlaceholderBlock extends Block {
     
     public static final PortalPlaceholderBlock instance = new PortalPlaceholderBlock(
         BlockBehaviour.Properties.of()
+            .setId(BLOCK_KEY)
             .noCollission()
             .sound(SoundType.GLASS)
             .strength(1.0f, 0)

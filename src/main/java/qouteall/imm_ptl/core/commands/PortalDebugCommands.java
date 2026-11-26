@@ -578,7 +578,7 @@ public class PortalDebugCommands {
             .requires(serverCommandSource -> serverCommandSource.hasPermission(3))
             .executes(context -> {
                 RegistryAccess.Frozen registryAccess = MiscHelper.getServer().registryAccess();
-                Registry<Biome> biomes = registryAccess.registryOrThrow(Registries.BIOME);
+                Registry<Biome> biomes = registryAccess.lookup(Registries.BIOME).orElseThrow();
                 Map<String, Integer> map = new HashMap<>();
                 for (Map.Entry<ResourceKey<Biome>, Biome> entry : biomes.entrySet()) {
                     String strId = entry.getKey().location().toString();

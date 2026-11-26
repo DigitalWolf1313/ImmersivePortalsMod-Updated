@@ -52,7 +52,7 @@ public class MiscNetworking {
             CompoundTag dimIntIdTag = rec.toTag(dim -> true);
             
             RegistryAccess registryManager = server.registryAccess();
-            Registry<DimensionType> dimensionTypes = registryManager.registryOrThrow(Registries.DIMENSION_TYPE);
+            Registry<DimensionType> dimensionTypes = registryManager.lookup(Registries.DIMENSION_TYPE).orElseThrow();
             
             CompoundTag dimIdToDimTypeIdTag = new CompoundTag();
             for (ServerLevel world : server.getAllLevels()) {

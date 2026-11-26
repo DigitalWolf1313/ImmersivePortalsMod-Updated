@@ -14,7 +14,7 @@ import qouteall.imm_ptl.peripheral.alternate_dimension.AlternateDimensions;
 public class MixinFogRenderer_A_CVB {
     //avoid alternate dimension dark when seeing from overworld
     @Redirect(
-        method = "Lnet/minecraft/client/renderer/FogRenderer;setupColor(Lnet/minecraft/client/Camera;FLnet/minecraft/client/multiplayer/ClientLevel;IF)V",
+        method = "computeFogColor(Lnet/minecraft/client/Camera;FLnet/minecraft/client/multiplayer/ClientLevel;IF)Lorg/joml/Vector4f;",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/Camera;getPosition()Lnet/minecraft/world/phys/Vec3;"

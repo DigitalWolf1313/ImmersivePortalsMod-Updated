@@ -8,7 +8,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.client.renderer.CompiledShaderProgram;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import qouteall.imm_ptl.core.CHelper;
@@ -81,14 +81,17 @@ public class ViewAreaRenderer {
         
         CHelper.enableDepthClamp();
         
-        ShaderInstance shader = MyRenderHelper.portalAreaShader;
-        RenderSystem.setShader(() -> shader);
-        
-        shader.MODEL_VIEW_MATRIX.set(modelViewMatrix);
-        shader.PROJECTION_MATRIX.set(projectionMatrix);
-        
+        CompiledShaderProgram shader = Objects.requireNonNull(
+            RenderSystem.setShader(MyRenderHelper.PORTAL_AREA),
+            "Portal area shader is not loaded"
+        );
+        shader.setDefaultUniforms(
+            VertexFormat.Mode.TRIANGLES,
+            modelViewMatrix,
+            projectionMatrix,
+            Minecraft.getInstance().getWindow()
+        );
         FrontClipping.updateClippingEquationUniformForCurrentShader(false);
-        
         shader.apply();
         
         ViewAreaRenderer.buildPortalViewAreaTrianglesBuffer(
@@ -99,6 +102,7 @@ public class ViewAreaRenderer {
         );
         
         shader.clear();
+        RenderSystem.clearShader();
         
         GlStateManager._enableCull();
         CHelper.disableDepthClamp();

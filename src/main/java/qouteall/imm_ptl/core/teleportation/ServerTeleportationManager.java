@@ -10,12 +10,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
@@ -118,7 +120,7 @@ public class ServerTeleportationManager {
         if (entity.isRemoved()) {
             return;
         }
-        if (!entity.canChangeDimensions(entity.level(), portal.getDestinationWorld())) {
+        if (!entity.canTeleport(entity.level(), portal.getDestinationWorld())) {
             return;
         }
         if (isJustTeleported(entity, 1)) {
@@ -332,7 +334,7 @@ public class ServerTeleportationManager {
         Vec3 newEyePos
     ) {
         MinecraftServer server = player.server;
-        server.getProfiler().push("portal_teleport");
+        Profiler.get().push("portal_teleport");
         
         ServerLevel fromWorld = (ServerLevel) player.level();
         ServerLevel toWorld = server.getLevel(dimensionTo);
@@ -353,8 +355,8 @@ public class ServerTeleportationManager {
         PortalCollisionHandler.updateCollidingPortalAfterTeleportation(
             player, newEyePos, newEyePos, 1
         );
+        Profiler.get().pop();
         
-        server.getProfiler().pop();
     }
     
     public void forceTeleportPlayer(
@@ -642,7 +644,7 @@ public class ServerTeleportationManager {
         if (recreateEntity) {
             Entity oldEntity = entity;
             Entity newEntity;
-            newEntity = entity.getType().create(toWorld);
+            newEntity = entity.getType().create(toWorld, EntitySpawnReason.COMMAND);
             if (newEntity == null) {
                 return oldEntity;
             }
@@ -690,7 +692,7 @@ public class ServerTeleportationManager {
         
         Entity oldEntity = entity;
         Entity newEntity;
-        newEntity = entity.getType().create(toWorld);
+        newEntity = entity.getType().create(toWorld, EntitySpawnReason.COMMAND);
         Validate.isTrue(newEntity != null);
         
         newEntity.restoreFrom(oldEntity);

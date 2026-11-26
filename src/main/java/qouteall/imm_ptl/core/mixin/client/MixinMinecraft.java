@@ -8,7 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderBuffers;
-import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.util.profiling.Profiler;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
@@ -52,9 +52,6 @@ public abstract class MixinMinecraft implements IEMinecraftClient {
     
     @Shadow
     private static int fps;
-    
-    @Shadow
-    public abstract ProfilerFiller getProfiler();
     
     @Shadow
     @Nullable
@@ -125,8 +122,7 @@ public abstract class MixinMinecraft implements IEMinecraftClient {
         )
     )
     private void onAfterClientTick(CallbackInfo ci) {
-        getProfiler().push("imm_ptl_client_tick");
-        
+        Profiler.get().push("imm_ptl_client_tick");
         // including ticking remote worlds
         ClientWorldLoader.tick();
         
@@ -137,8 +133,8 @@ public abstract class MixinMinecraft implements IEMinecraftClient {
         ClientTeleportationManager.manageTeleportation(true);
         
         IPGlobal.POST_CLIENT_TICK_EVENT.invoker().run();
+        Profiler.get().pop();
         
-        getProfiler().pop();
     }
     
     @Inject(

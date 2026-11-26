@@ -55,23 +55,34 @@ public class WireRenderingHelper {
         
         matrixStack.mulPose(rotation.toMcQuaternion());
         Matrix4f matrix = matrixStack.last().pose();
+        Matrix3f normalMatrix = matrixStack.last().normal();
         
         float alpha = ((color >> 24) & 0xff) / 255f;
         float red = ((color >> 16) & 0xff) / 255f;
         float green = ((color >> 8) & 0xff) / 255f;
         float blue = (color & 0xff) / 255f;
         
-        LevelRenderer.renderLineBox(
-            matrixStack,
-            vertexConsumer,
-            -boxSize / 2,
-            -boxSize / 2,
-            -boxSize / 2,
-            boxSize / 2,
-            boxSize / 2,
-            boxSize / 2,
-            red, green, blue, alpha
-        );
+        float s = (float) (boxSize / 2);
+        float[][] vertices = {
+            {-s,-s,-s}, {s,-s,-s}, {s,s,-s}, {-s,s,-s},
+            {-s,-s,s}, {s,-s,s}, {s,s,s}, {-s,s,s}
+        };
+        int[][] edges = {
+            {0,1},{1,2},{2,3},{3,0},{4,5},{5,6},{6,7},{7,4},
+            {0,4},{1,5},{2,6},{3,7}
+        };
+        for (int[] edge : edges) {
+            float[] a = vertices[edge[0]];
+            float[] b = vertices[edge[1]];
+            Vector3f normal = new Vector3f(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+            normalMatrix.transform(normal);
+            vertexConsumer.addVertex(matrix, a[0], a[1], a[2])
+                .setColor(red, green, blue, alpha)
+                .setNormal(normal.x, normal.y, normal.z);
+            vertexConsumer.addVertex(matrix, b[0], b[1], b[2])
+                .setColor(red, green, blue, alpha)
+                .setNormal(normal.x, normal.y, normal.z);
+        }
         matrixStack.popPose();
     }
     

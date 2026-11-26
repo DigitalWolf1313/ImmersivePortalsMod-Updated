@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.CHelper;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 
@@ -47,6 +48,7 @@ public abstract class MixinSodiumOcclusionCuller {
         
         ip_modifiedStartPoint = null;
         ip_tolerantInitialFrustumTestFail = false;
+        SodiumInterface.lastSectionSearchWasForPortal = PortalRendering.isRendering();
         
         if (PortalRendering.isRendering()) {
             Portal portal = PortalRendering.getRenderingPortal();

@@ -62,23 +62,30 @@ public class MyRenderHelper {
     
     public static final Minecraft client = Minecraft.getInstance();
     
-    public static final ShaderProgram BLIT_SCREEN_NOBLEND = CoreShadersAccessor.register(
+    public static final ShaderProgram BLIT_SCREEN_NOBLEND = registerShader(
         "blit_screen_noblend",
-        DefaultVertexFormat.BLIT_SCREEN,
-        ShaderDefines.EMPTY
+        DefaultVertexFormat.BLIT_SCREEN
     );
     
-    public static final ShaderProgram PORTAL_AREA = CoreShadersAccessor.register(
+    public static final ShaderProgram PORTAL_AREA = registerShader(
         "portal_area",
-        DefaultVertexFormat.POSITION_COLOR,
-        ShaderDefines.EMPTY
+        DefaultVertexFormat.POSITION_COLOR
     );
     
-    public static final ShaderProgram PORTAL_DRAW_FB_IN_AREA = CoreShadersAccessor.register(
+    public static final ShaderProgram PORTAL_DRAW_FB_IN_AREA = registerShader(
         "portal_draw_fb_in_area",
-        DefaultVertexFormat.POSITION_COLOR,
-        ShaderDefines.EMPTY
+        DefaultVertexFormat.POSITION_COLOR
     );
+
+    private static ShaderProgram registerShader(String name, VertexFormat vertexFormat) {
+        ShaderProgram shaderProgram = new ShaderProgram(
+            ResourceLocation.fromNamespaceAndPath("immersive_portals", "core/" + name),
+            vertexFormat,
+            ShaderDefines.EMPTY
+        );
+        CoreShadersAccessor.getPrograms().add(shaderProgram);
+        return shaderProgram;
+    }
     
 //    public static final SignalBiArged<ResourceProvider, Consumer<ShaderInstance>> loadShaderSignal =
 //        new SignalBiArged<>();
@@ -187,9 +194,9 @@ public class MyRenderHelper {
         Objects.requireNonNull(shader, "shader is null")
             .bindSampler("DiffuseSampler", textureProvider.getColorTextureId());
         Objects.requireNonNull(shader.getUniform("w"), "no w")
-            .set(textureProvider.width);
+            .set((float) textureProvider.width);
         Objects.requireNonNull(shader.getUniform("h"), "no h")
-            .set(textureProvider.height);
+            .set((float) textureProvider.height);
 
         if (shader.MODEL_VIEW_MATRIX != null) {
             shader.MODEL_VIEW_MATRIX.set(modelViewMatrix);
@@ -271,10 +278,16 @@ public class MyRenderHelper {
     public static void renderScreenTriangle(int r, int g, int b, int a) {
         ShaderProgram shader = CoreShaders.POSITION_COLOR;
         Validate.notNull(shader, "Position color shader is null");
+        RenderSystem.setShader(shader);
+        CompiledShaderProgram compiledShader = RenderSystem.getShader();
+        Validate.notNull(compiledShader, "Position color shader program is not loaded");
         
         Matrix4f identityMatrix = new Matrix4f();
         identityMatrix.identity();
-        
+
+        Matrix4f oldProjectionMatrix = new Matrix4f(RenderSystem.getProjectionMatrix());
+        ProjectionType oldProjectionType = RenderSystem.getProjectionType();
+
         RenderSystem.getModelViewStack().pushMatrix();
         RenderSystem.getModelViewStack().set(identityMatrix);
         
@@ -295,8 +308,9 @@ public class MyRenderHelper {
         BufferUploader.drawWithShader(bufferBuilder.buildOrThrow());
         
         RenderSystem.getModelViewStack().popMatrix();
+        RenderSystem.setProjectionMatrix(oldProjectionMatrix, oldProjectionType);
         
-        Objects.requireNonNull(RenderSystem.getShader()).clear();
+        compiledShader.clear();
         RenderSystem.clearShader();
     }
     
