@@ -8,16 +8,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * Makes Voxy's MipGen solidify() thread-safe.
- *
- * Voxy's original code uses shared static SCRATCH/QUEUE buffers, which crash when
- * multiple threads call solidify() concurrently (e.g. when Immersive Portals renders
- * multiple dimensions/worlds).
+ * Gives each thread its own scratch buffers in Voxy's MipGen solidify().
+ * Voxy's shared static buffers crash when several threads call it at once,
+ * which happens when Immersive Portals renders several dimensions.
  */
 @Pseudo
 @Mixin(targets = "me.cortex.voxy.client.core.model.MipGen")
 public class MixinVoxyMipGen {
-    // MODEL_TEXTURE_SIZE is checked <= 16 by Voxy's static initializer, so 16x16 is the max.
+    // Voxy limits MODEL_TEXTURE_SIZE to 16, so 16x16 is the largest scratch size needed.
     private static final int SCRATCH_SIZE = 16 * 16;
     
     @Unique
