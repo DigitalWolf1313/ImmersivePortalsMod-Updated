@@ -23,6 +23,9 @@ import qouteall.q_misc_util.Helper;
 import qouteall.q_misc_util.my_util.IntBox;
 import qouteall.q_misc_util.my_util.Mesh2D;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 
 public class BreakableMirror extends Mirror {
@@ -204,7 +207,7 @@ public class BreakableMirror extends Mirror {
         breakableMirror.setAxisW(Vec3.atLowerCornerOf(wDirection.getNormal()));
         breakableMirror.setAxisH(Vec3.atLowerCornerOf(hDirection.getNormal()));
         
-        initializeMirrorGeometryShape(breakableMirror, facing, shape);
+        initializeMirrorGeometryShape(breakableMirror, shape, isPane);
         
         breakIntersectedMirror(breakableMirror);
         
@@ -214,11 +217,10 @@ public class BreakableMirror extends Mirror {
     }
     
     private static void initializeMirrorGeometryShape(
-        BreakableMirror breakableMirror, Direction facing, BlockPortalShape shape
+        BreakableMirror breakableMirror, BlockPortalShape shape, boolean isPane
     ) {
-        if (shape.isRectangle()) {
-            // if it's rectangular, no special shape
-            // this does not handle the jagged glass pane edge
+        if (shape.isRectangle() && !isPane) {
+            // Full glass blocks fill the whole wall box, so the default shape is exact.
             breakableMirror.setPortalShapeToDefault();
             return;
         }
@@ -228,26 +230,76 @@ public class BreakableMirror extends Mirror {
         Vec3 axisW = breakableMirror.getAxisW();
         Vec3 axisH = breakableMirror.getAxisH();
         
+        // The mesh coordinates are normalized to [-1, 1] over the half width and half height.
+        double halfWidth = breakableMirror.getWidth() / 2;
+        double halfHeight = breakableMirror.getHeight() / 2;
+        
         Mesh2D mesh2D = new Mesh2D();
         for (BlockPos blockPos : shape.area) {
             VoxelShape collisionShape = world.getBlockState(blockPos).getCollisionShape(world, blockPos);
             
-            if (!collisionShape.isEmpty()) {
-                AABB bounds = collisionShape.bounds().move(Vec3.atLowerCornerOf(blockPos));
-                Vec3 p1 = new Vec3(bounds.minX, bounds.minY, bounds.minZ);
-                Vec3 p2 = new Vec3(bounds.maxX, bounds.maxY, bounds.maxZ);
-                double p1LocalX = p1.subtract(center).dot(axisW);
-                double p1LocalY = p1.subtract(center).dot(axisH);
-                double p2LocalX = p2.subtract(center).dot(axisW);
-                double p2LocalY = p2.subtract(center).dot(axisH);
-                mesh2D.addQuad(
-                    p1LocalX, p1LocalY,
-                    p2LocalX, p2LocalY
-                );
+            if (collisionShape.isEmpty()) {
+                continue;
             }
+            
+            Vec3 blockOffset = Vec3.atLowerCornerOf(blockPos).subtract(center);
+            List<double[]> rects = new ArrayList<>();
+            
+            // Each voxel box is projected separately so that a glass pane's post and arms keep their real size.
+            collisionShape.forAllBoxes((x1, y1, z1, x2, y2, z2) -> {
+                Vec3 p1 = blockOffset.add(x1, y1, z1);
+                Vec3 p2 = blockOffset.add(x2, y2, z2);
+                double w1 = p1.dot(axisW) / halfWidth;
+                double w2 = p2.dot(axisW) / halfWidth;
+                double h1 = p1.dot(axisH) / halfHeight;
+                double h2 = p2.dot(axisH) / halfHeight;
+                rects.add(new double[]{
+                    Math.min(w1, w2), Math.min(h1, h2),
+                    Math.max(w1, w2), Math.max(h1, h2)
+                });
+            });
+            
+            addRectUnion(mesh2D, rects);
         }
         
         breakableMirror.setPortalShape(new SpecialFlatPortalShape(mesh2D));
+    }
+    
+    /**
+     * Adds the union of the rectangles as non-overlapping quads.
+     * Each rectangle is {minX, minY, maxX, maxY}.
+     */
+    private static void addRectUnion(Mesh2D mesh2D, List<double[]> rects) {
+        TreeSet<Double> xSet = new TreeSet<>();
+        TreeSet<Double> ySet = new TreeSet<>();
+        for (double[] r : rects) {
+            xSet.add(r[0]);
+            xSet.add(r[2]);
+            ySet.add(r[1]);
+            ySet.add(r[3]);
+        }
+        
+        Double[] xs = xSet.toArray(new Double[0]);
+        Double[] ys = ySet.toArray(new Double[0]);
+        
+        for (int i = 0; i < xs.length - 1; i++) {
+            for (int j = 0; j < ys.length - 1; j++) {
+                double cx = (xs[i] + xs[i + 1]) / 2;
+                double cy = (ys[j] + ys[j + 1]) / 2;
+                
+                boolean covered = false;
+                for (double[] r : rects) {
+                    if (cx > r[0] && cx < r[2] && cy > r[1] && cy < r[3]) {
+                        covered = true;
+                        break;
+                    }
+                }
+                
+                if (covered) {
+                    mesh2D.addQuad(xs[i], ys[j], xs[i + 1], ys[j + 1]);
+                }
+            }
+        }
     }
     
     public IntBox getAreaBox() {
