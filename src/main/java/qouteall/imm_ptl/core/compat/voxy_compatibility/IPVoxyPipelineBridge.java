@@ -1,4 +1,4 @@
-package qouteall.imm_ptl.core.compat;
+package qouteall.imm_ptl.core.compat.voxy_compatibility;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;

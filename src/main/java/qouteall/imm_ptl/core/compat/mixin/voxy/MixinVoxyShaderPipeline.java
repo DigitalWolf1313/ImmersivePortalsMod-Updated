@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import qouteall.imm_ptl.core.compat.IPVoxyPipelineBridge;
+import qouteall.imm_ptl.core.compat.voxy_compatibility.IPVoxyPipelineBridge;
 
 /**
  * Several Voxy pipelines can exist for the same shader data while Immersive Portals renders other dimensions.

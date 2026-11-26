@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.IPCGlobal;
-import qouteall.imm_ptl.core.compat.IPVoxyPipelineBridge;
+import qouteall.imm_ptl.core.compat.voxy_compatibility.IPVoxyPipelineBridge;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.renderer.RendererUsingStencil;
 

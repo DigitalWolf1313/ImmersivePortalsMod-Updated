@@ -1,4 +1,4 @@
-package qouteall.imm_ptl.core.compat;
+package qouteall.imm_ptl.core.compat.voxy_compatibility;
 
 import net.irisshaders.iris.gl.sampler.GlSampler;
 import net.irisshaders.iris.gl.sampler.SamplerHolder;

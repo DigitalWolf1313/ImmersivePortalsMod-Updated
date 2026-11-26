@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import qouteall.imm_ptl.core.compat.IPVoxyIrisSamplers;
+import qouteall.imm_ptl.core.compat.voxy_compatibility.IPVoxyIrisSamplers;
 
 @Pseudo
 @Mixin(targets = "me.cortex.voxy.client.iris.VoxySamplers", remap = false)
