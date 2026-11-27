@@ -17,7 +17,11 @@ import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
 import qouteall.imm_ptl.core.ducks.IECamera;
+import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.Portal;
+import virtuoel.pehkui.api.ScaleData;
+import virtuoel.pehkui.api.ScaleType;
+import virtuoel.pehkui.api.ScaleTypes;
 
 @SuppressWarnings({"resource", "JavadocReference", "DanglingJavadoc"})
 public class ScaleUtils {
@@ -65,6 +69,9 @@ public class ScaleUtils {
     }
     
     public static double getScale(Entity entity) {
+        if (O_O.getIsPehkuiPresent()) {
+            return PehkuiScaling.getScale(entity);
+        }
         if (entity instanceof LivingEntity livingEntity) {
             return livingEntity.getScale();
         }
@@ -72,6 +79,9 @@ public class ScaleUtils {
     }
     
     public static double getBaseScale(Entity entity) {
+        if (O_O.getIsPehkuiPresent()) {
+            return PehkuiScaling.getBaseScale(entity);
+        }
         AttributeInstance scaleAttr = getScaleAttr(entity);
         if (scaleAttr != null) {
             return scaleAttr.getBaseValue();
@@ -80,6 +90,9 @@ public class ScaleUtils {
     }
     
     public static double getIPortalScaling(Entity entity) {
+        if (O_O.getIsPehkuiPresent()) {
+            return PehkuiScaling.getScale(entity);
+        }
         AttributeInstance scaleAttr = getScaleAttr(entity);
         if (scaleAttr == null) {
             return 1;
@@ -97,6 +110,11 @@ public class ScaleUtils {
     }
     
     public static void setIPortalScaling(Entity entity, double newScale) {
+        if (O_O.getIsPehkuiPresent()) {
+            PehkuiScaling.setScale(entity, newScale);
+            return;
+        }
+
         AttributeInstance scaleAttr = getScaleAttr(entity);
         if (scaleAttr == null) {
             return;
@@ -140,6 +158,11 @@ public class ScaleUtils {
     }
     
     public static void setBaseScale(Entity entity, double scale) {
+        if (O_O.getIsPehkuiPresent()) {
+            PehkuiScaling.setScale(entity, scale);
+            return;
+        }
+
         AttributeInstance scaleAttr = getScaleAttr(entity);
         if (scaleAttr != null) {
             scaleAttr.setBaseValue(scale);
@@ -150,15 +173,76 @@ public class ScaleUtils {
     }
     
     public static double computeThirdPersonScale(Entity entity) {
+        if (O_O.getIsPehkuiPresent()) {
+            return PehkuiScaling.getThirdPersonScale(entity);
+        }
         return getScale(entity);
     }
     
     public static double computeBlockReachScale(Entity entity) {
+        if (O_O.getIsPehkuiPresent()) {
+            return PehkuiScaling.getBlockReachScale(entity);
+        }
         return getScale(entity);
     }
     
     public static double computeMotionScale(Entity entity) {
+        if (O_O.getIsPehkuiPresent()) {
+            return PehkuiScaling.getMotionScale(entity);
+        }
         return getScale(entity);
+    }
+    
+    /**
+     * Holds every reference to the Pehkui API,
+     * so that Pehkui classes are not loaded when Pehkui is absent.
+     */
+    private static class PehkuiScaling {
+        
+        private static double getScale(ScaleType type, Entity entity) {
+            ScaleData data = getData(type, entity);
+            return data == null ? 1.0 : data.getScale();
+        }
+        
+        private static @Nullable ScaleData getData(ScaleType type, Entity entity) {
+            // Only living entities are scaled, to match the attribute-based path.
+            return entity instanceof LivingEntity ? type.getScaleData(entity) : null;
+        }
+        
+        static double getBaseScale(Entity entity) {
+            ScaleData data = getData(ScaleTypes.BASE, entity);
+            return data == null ? 1.0 : data.getBaseScale();
+        }
+        
+        /**
+         * Portal scaling and the base scale are the same value when Pehkui is present.
+         */
+        static void setScale(Entity entity, double scale) {
+            ScaleData data = getData(ScaleTypes.BASE, entity);
+            if (data == null) {
+                return;
+            }
+            data.setScale((float) scale);
+            
+            // It updates the cached eye height, which feet position calculation relies on.
+            entity.refreshDimensions();
+        }
+        
+        static double getScale(Entity entity) {
+            return getScale(ScaleTypes.BASE, entity);
+        }
+        
+        static double getThirdPersonScale(Entity entity) {
+            return getScale(ScaleTypes.THIRD_PERSON, entity);
+        }
+        
+        static double getBlockReachScale(Entity entity) {
+            return getScale(ScaleTypes.BLOCK_REACH, entity);
+        }
+        
+        static double getMotionScale(Entity entity) {
+            return getScale(ScaleTypes.MOTION, entity);
+        }
     }
     
     private static void doScalingForEntity(Entity entity, Portal portal) {
