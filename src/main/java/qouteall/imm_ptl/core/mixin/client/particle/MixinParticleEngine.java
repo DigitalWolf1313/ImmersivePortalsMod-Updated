@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.MultiBufferSource;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -41,10 +41,10 @@ public class MixinParticleEngine implements IEParticleManager {
      */
     @WrapMethod(method = "render")
     private void renderWithTransformedCamera(
-        LightTexture lightTexture, Camera camera, float partialTick, Operation<Void> original
+        Camera camera, float partialTick, MultiBufferSource.BufferSource bufferSource, Operation<Void> original
     ) {
         if (!WorldRenderInfo.isRendering() && !TransformationManager.isAnimationRunning()) {
-            original.call(lightTexture, camera, partialTick);
+            original.call(camera, partialTick, bufferSource);
             return;
         }
         
@@ -65,7 +65,7 @@ public class MixinParticleEngine implements IEParticleManager {
             camera.getLookVector().set(0, 0, -1).rotate(camera.rotation());
             camera.getUpVector().set(0, 1, 0).rotate(camera.rotation());
             camera.getLeftVector().set(-1, 0, 0).rotate(camera.rotation());
-            original.call(lightTexture, camera, partialTick);
+            original.call(camera, partialTick, bufferSource);
         }
         finally {
             camera.rotation().set(oldRotation);
@@ -82,7 +82,7 @@ public class MixinParticleEngine implements IEParticleManager {
         cancellable = true
     )
     private void onBeginRenderParticles(
-        LightTexture lightTexture, Camera camera, float f, CallbackInfo ci
+        Camera camera, float f, MultiBufferSource.BufferSource bufferSource, CallbackInfo ci
     ) {
         if (PortalRendering.isRendering()) {
             if (RenderStates.getRenderedPortalNum() > 4) {
@@ -95,14 +95,15 @@ public class MixinParticleEngine implements IEParticleManager {
     }
     
     // maybe incompatible with sodium and iris
+    // Since 1.21.4 the per-particle render call lives in the static renderParticleType.
     @WrapOperation(
-        method = "render",
+        method = "renderParticleType",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/particle/Particle;render(Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/client/Camera;F)V"
         )
     )
-    private void redirectBuildGeometry(
+    private static void redirectBuildGeometry(
         Particle instance, VertexConsumer vertexConsumer, Camera camera, float v,
         Operation<Void> original
     ) {

@@ -600,7 +600,7 @@ public class Portal extends Entity implements
     @Override
     public @NotNull AABB getBoundingBox() {
         if (boundingBoxCache == null) {
-            boundingBoxCache = makeBoundingBox();
+            boundingBoxCache = makeBoundingBox(position());
         }
         return boundingBoxCache;
     }
@@ -1003,7 +1003,7 @@ public class Portal extends Entity implements
     }
     
     @Override
-    protected @NotNull AABB makeBoundingBox() {
+    protected @NotNull AABB makeBoundingBox(Vec3 position) {
         if (axisW == null) {
             // it may be called when the portal is not yet initialized
             boundingBoxCache = null;

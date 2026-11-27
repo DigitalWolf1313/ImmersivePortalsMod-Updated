@@ -1,5 +1,7 @@
 package qouteall.imm_ptl.core.mixin.client.render;
 
+import net.minecraft.client.renderer.MultiBufferSource;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -17,13 +19,14 @@ import qouteall.imm_ptl.core.teleportation.ClientTeleportationManager;
 public class MixinScreenEffectRenderer {
     //avoid rendering suffocating when colliding with portal
     @Inject(
-        method = "Lnet/minecraft/client/renderer/ScreenEffectRenderer;renderTex(Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;Lcom/mojang/blaze3d/vertex/PoseStack;)V",
+        method = "Lnet/minecraft/client/renderer/ScreenEffectRenderer;renderTex(Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;)V",
         at = @At("HEAD"),
         cancellable = true
     )
     private static void onRenderInWallOverlay(
         TextureAtlasSprite sprite,
         PoseStack matrices,
+        MultiBufferSource bufferSource,
         CallbackInfo ci
     ) {
         if (PortalRendering.isRendering()) {

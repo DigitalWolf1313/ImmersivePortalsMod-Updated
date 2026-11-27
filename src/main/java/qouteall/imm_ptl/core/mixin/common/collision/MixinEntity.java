@@ -165,15 +165,21 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
         }
     }
     
-    @Redirect(
+    // Since 1.21.4 the per-movement box comes from makeBoundingBox(Vec3) instead of getBoundingBox().
+    @WrapOperation(
         method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks(Ljava/util/List;Ljava/util/Set;)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/world/entity/Entity;getBoundingBox()Lnet/minecraft/world/phys/AABB;"
+            target = "Lnet/minecraft/world/entity/Entity;makeBoundingBox(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/AABB;"
         )
     )
-    private AABB redirectBoundingBoxInCheckingBlockCollision(Entity entity) {
-        return ip_getActiveCollisionBox(entity.getBoundingBox());
+    private AABB wrapBoundingBoxInCheckingBlockCollision(
+        Entity entity, Vec3 position, Operation<AABB> original
+    ) {
+        AABB box = original.call(entity, position);
+        AABB activeBox = ip_getActiveCollisionBox(box);
+        // The head injection already cancels the whole check when the current box is inactive.
+        return activeBox != null ? activeBox : box;
     }
     
     @Inject(

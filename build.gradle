@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.13-SNAPSHOT'
+    id 'fabric-loom' version '1.17-SNAPSHOT'
 
     id 'maven-publish'
 
@@ -106,10 +106,10 @@ dependencies {
         transitive(false)
     }
 
-    modApi("com.github.iPortalTeam:DimLib:${dimlib_version}") {
+    modApi("com.github.DigitalWolf1313:DimLib:${dimlib_version}") {
         exclude(group: "net.fabricmc.fabric-api")
     }
-    include("com.github.iPortalTeam:DimLib:${dimlib_version}")
+    include("com.github.DigitalWolf1313:DimLib:${dimlib_version}")
 
     modCompileOnly "maven.modrinth:distanthorizons:${distant_horizons_version}"
 

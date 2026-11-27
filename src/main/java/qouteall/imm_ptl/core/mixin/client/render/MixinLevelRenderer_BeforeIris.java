@@ -19,7 +19,7 @@ public class MixinLevelRenderer_BeforeIris {
     @Inject(method = "renderLevel", at = @At(value = "CONSTANT", args = "stringValue=translucent"))
     private void iris$beginTranslucents(
         GraphicsResourceAllocator graphicsResourceAllocator, DeltaTracker deltaTracker, boolean bl,
-        Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f modelView,
+        Camera camera, GameRenderer gameRenderer, Matrix4f modelView,
         Matrix4f matrix4f2, CallbackInfo ci
     ) {
         IPCGlobal.renderer.onBeginIrisTranslucentRendering(modelView);
