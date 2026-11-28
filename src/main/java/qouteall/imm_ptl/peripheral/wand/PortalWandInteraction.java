@@ -7,11 +7,11 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.player.Player;
@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.IPPerServerInfo;
 import qouteall.imm_ptl.core.McHelper;
+import qouteall.imm_ptl.core.mc_utils.NbtBridge;
 import qouteall.imm_ptl.core.platform_specific.IPConfig;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
@@ -34,19 +35,19 @@ import qouteall.imm_ptl.core.portal.animation.DeltaUnilateralPortalState;
 import qouteall.imm_ptl.core.portal.animation.NormalAnimation;
 import qouteall.imm_ptl.core.portal.animation.PortalAnimation;
 import qouteall.imm_ptl.core.portal.animation.PortalAnimationDriver;
-import qouteall.q_misc_util.api.McRemoteProcedureCall;
 import qouteall.imm_ptl.core.portal.animation.TimingFunction;
 import qouteall.imm_ptl.core.portal.animation.UnilateralPortalState;
 import qouteall.imm_ptl.core.portal.util.PortalLocalXYNormalized;
 import qouteall.imm_ptl.peripheral.CommandStickItem;
+import qouteall.q_misc_util.api.McRemoteProcedureCall;
 import qouteall.q_misc_util.my_util.DQuaternion;
 import qouteall.q_misc_util.my_util.Plane;
 import qouteall.q_misc_util.my_util.Range;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
 
@@ -523,7 +524,7 @@ public class PortalWandInteraction {
     }
     
     private static void handleFinishDrag(ServerPlayer player) {
-        DraggingSession session = of(player.server).draggingSessionMap.remove(player);
+        DraggingSession session = of(player.getServer()).draggingSessionMap.remove(player);
         
         if (session == null) {
             return;
@@ -539,7 +540,7 @@ public class PortalWandInteraction {
     }
     
     private static void handleUndoDrag(ServerPlayer player) {
-        PortalWandInteraction portalWandInteraction = of(player.server);
+        PortalWandInteraction portalWandInteraction = of(player.getServer());
         DraggingSession session = portalWandInteraction.draggingSessionMap.get(player);
         
         if (session == null) {
@@ -566,7 +567,7 @@ public class PortalWandInteraction {
     private static void handleDraggingRequest(
         ServerPlayer player, UUID portalId, Vec3 cursorPos, DraggingInfo draggingInfo, Portal portal
     ) {
-        PortalWandInteraction portalWandInteraction = of(player.server);
+        PortalWandInteraction portalWandInteraction = of(player.getServer());
         
         DraggingSession session = portalWandInteraction.draggingSessionMap.get(player);
         
@@ -665,7 +666,7 @@ public class PortalWandInteraction {
     }
     
     public static boolean isDragging(ServerPlayer player) {
-        return of(player.server).draggingSessionMap.containsKey(player);
+        return of(player.getServer()).draggingSessionMap.containsKey(player);
     }
     
     @Nullable
@@ -1028,8 +1029,8 @@ public class PortalWandInteraction {
     
     private static PortalState tagToState(CompoundTag tag) {
         return UnilateralPortalState.combine(
-            UnilateralPortalState.fromTag(tag.getCompound("thisSide")),
-            UnilateralPortalState.fromTag(tag.getCompound("otherSide"))
+            UnilateralPortalState.fromTag(tag.getCompoundOrEmpty("thisSide")),
+            UnilateralPortalState.fromTag(tag.getCompoundOrEmpty("otherSide"))
         );
     }
     
@@ -1136,15 +1137,15 @@ public class PortalWandInteraction {
         ListTag sameSide = new ListTag();
         ListTag otherSide = new ListTag();
         
-        sameSide.add(NbtUtils.createUUID(portal.getUUID()));
+        sameSide.add(NbtBridge.createUUID(portal.getUUID()));
         if (extension.flippedPortal != null) {
-            sameSide.add(NbtUtils.createUUID(extension.flippedPortal.getUUID()));
+            sameSide.add(NbtBridge.createUUID(extension.flippedPortal.getUUID()));
         }
         if (extension.reversePortal != null) {
-            otherSide.add(NbtUtils.createUUID(extension.reversePortal.getUUID()));
+            otherSide.add(NbtBridge.createUUID(extension.reversePortal.getUUID()));
         }
         if (extension.parallelPortal != null) {
-            otherSide.add(NbtUtils.createUUID(extension.parallelPortal.getUUID()));
+            otherSide.add(NbtBridge.createUUID(extension.parallelPortal.getUUID()));
         }
         
         data.put("sameSideIds", sameSide);
@@ -1239,7 +1240,7 @@ public class PortalWandInteraction {
         );
         
         CompoundTag data = new CompoundTag();
-        data.putUUID("portalId", holder.getUUID());
+        NbtBridge.putUUID(data, "portalId", holder.getUUID());
         data.put("start", stateToTag(initialState));
         data.put("thisKeyframes", thisKeyframes);
         data.put("otherKeyframes", otherKeyframes);
@@ -1292,8 +1293,8 @@ public class PortalWandInteraction {
         List<NormalAnimation.Phase> phases = new ArrayList<>();
         
         for (int i = 0; i < keyframeList.size(); i++) {
-            CompoundTag keyframe = keyframeList.getCompound(i);
-            UnilateralPortalState state = UnilateralPortalState.fromTag(keyframe.getCompound("state"));
+            CompoundTag keyframe = keyframeList.getCompoundOrEmpty(i);
+            UnilateralPortalState state = UnilateralPortalState.fromTag(keyframe.getCompoundOrEmpty("state"));
             
             if (!validateSideState(expectedDimension, state, isThisSide)) {
                 player.sendSystemMessage(Component.literal("Invalid keyframe " + (i + 1)));
@@ -1301,8 +1302,8 @@ public class PortalWandInteraction {
                 return null;
             }
             
-            long durationTicks = Mth.clamp(keyframe.getInt("durationTicks"), 0, MAX_KEYFRAME_TICKS);
-            TimingFunction easing = parseTimingFunction(keyframe.getString("easing"));
+            long durationTicks = Mth.clamp(keyframe.getIntOr("durationTicks", 0), 0, MAX_KEYFRAME_TICKS);
+            TimingFunction easing = parseTimingFunction(keyframe.getStringOr("easing", ""));
             
             phases.add(new NormalAnimation.Phase(
                 durationTicks, state.subtract(reference).purgeFPError(), easing
@@ -1342,10 +1343,10 @@ public class PortalWandInteraction {
     private static List<List<NormalAnimation.Phase>> parseAnimationPhases(
         ServerPlayer player, PortalState initialState, CompoundTag data
     ) {
-        boolean loop = data.getBoolean("loop");
+        boolean loop = data.getBooleanOr("loop", false);
         
         List<NormalAnimation.Phase> thisPhases = parseSidePhases(
-            player, initialState.getThisSideState(), data.getList("thisKeyframes", Tag.TAG_COMPOUND),
+            player, initialState.getThisSideState(), data.getListOrEmpty("thisKeyframes"),
             loop, true, initialState.fromWorld
         );
         if (thisPhases == null) {
@@ -1353,7 +1354,7 @@ public class PortalWandInteraction {
         }
         
         List<NormalAnimation.Phase> otherPhases = parseSidePhases(
-            player, initialState.getOtherSideState(), data.getList("otherKeyframes", Tag.TAG_COMPOUND),
+            player, initialState.getOtherSideState(), data.getListOrEmpty("otherKeyframes"),
             loop, false, initialState.toWorld
         );
         if (otherPhases == null) {
@@ -1506,7 +1507,7 @@ public class PortalWandInteraction {
         List<NormalAnimation.Phase> thisPhases, List<NormalAnimation.Phase> otherPhases,
         boolean loopsInfinitely, boolean isPreview
     ) {
-        ListTag idList = data.getList("linkedIds", Tag.TAG_INT_ARRAY);
+        ListTag idList = data.getListOrEmpty("linkedIds");
         if (idList.isEmpty()) {
             return;
         }
@@ -1516,12 +1517,12 @@ public class PortalWandInteraction {
         int skipped = 0;
         
         for (int i = 0; i < Math.min(idList.size(), MAX_LINKED_PORTALS); i++) {
-            UUID id = NbtUtils.loadUUID(idList.get(i));
+            UUID id = NbtBridge.loadUUID(idList.get(i));
             if (coveredIds.contains(id)) {
                 continue;
             }
             
-            Portal linked = findPortalInAnyDimension(player.server, id);
+            Portal linked = findPortalInAnyDimension(player.getServer(), id);
             if (linked == null) {
                 skipped++;
                 continue;
@@ -1570,7 +1571,7 @@ public class PortalWandInteraction {
         }
         
         for (UUID id : ids) {
-            Portal portal = findPortalInAnyDimension(player.server, id);
+            Portal portal = findPortalInAnyDimension(player.getServer(), id);
             if (portal == null) {
                 continue;
             }
@@ -1599,9 +1600,9 @@ public class PortalWandInteraction {
             return;
         }
         
-        ListTag thisKeyframes = data.getList("thisKeyframes", Tag.TAG_COMPOUND);
-        ListTag otherKeyframes = data.getList("otherKeyframes", Tag.TAG_COMPOUND);
-        boolean loop = data.getBoolean("loop");
+        ListTag thisKeyframes = data.getListOrEmpty("thisKeyframes");
+        ListTag otherKeyframes = data.getListOrEmpty("otherKeyframes");
+        boolean loop = data.getBooleanOr("loop", false);
         
         if (thisKeyframes.isEmpty() && otherKeyframes.isEmpty()) {
             if (session.editsExisting()) {
@@ -1642,8 +1643,8 @@ public class PortalWandInteraction {
         
         Portal portal = getAnimationSessionPortal(session);
         if (portal == null
-            || (data.getList("thisKeyframes", Tag.TAG_COMPOUND).isEmpty()
-            && data.getList("otherKeyframes", Tag.TAG_COMPOUND).isEmpty())
+            || (data.getListOrEmpty("thisKeyframes").isEmpty()
+            && data.getListOrEmpty("otherKeyframes").isEmpty())
         ) {
             return;
         }

@@ -97,9 +97,9 @@ public class VisibleSectionDiscovery {
         // breadth-first searching
         while (!tempQueue.isEmpty()) {
             RenderSection curr = tempQueue.poll();
-            int cx = SectionPos.blockToSectionCoord(curr.getOrigin().getX());
-            int cy = SectionPos.blockToSectionCoord(curr.getOrigin().getY());
-            int cz = SectionPos.blockToSectionCoord(curr.getOrigin().getZ());
+            int cx = SectionPos.blockToSectionCoord(curr.getRenderOrigin().getX());
+            int cy = SectionPos.blockToSectionCoord(curr.getRenderOrigin().getY());
+            int cz = SectionPos.blockToSectionCoord(curr.getRenderOrigin().getZ());
             
             checkSection(cx + 1, cy, cz, false);
             checkSection(cx - 1, cy, cz, false);

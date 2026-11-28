@@ -55,12 +55,13 @@ import org.slf4j.Logger;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.api.PortalAPI;
+import qouteall.imm_ptl.core.mc_utils.NbtBridge;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
 import qouteall.imm_ptl.core.portal.Mirror;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
-import qouteall.imm_ptl.core.portal.PortalManipulation;
 import qouteall.imm_ptl.core.portal.PortalLightEmitter;
+import qouteall.imm_ptl.core.portal.PortalManipulation;
 import qouteall.imm_ptl.core.portal.PortalState;
 import qouteall.imm_ptl.core.portal.PortalUtils;
 import qouteall.imm_ptl.core.portal.animation.UnilateralPortalState;
@@ -431,7 +432,7 @@ public class PortalCommand {
                 .executes(context -> processPortalTargetedCommand(
                     context,
                     portal -> {
-                        Component name = ComponentArgument.getComponent(context, "name");
+                        Component name = ComponentArgument.getRawComponent(context, "name");
                         portal.setCustomName(name);
                     }
                 ))
@@ -2275,7 +2276,7 @@ public class PortalCommand {
     public static void sendPortalInfo(Consumer<Component> func, Portal portal) {
         func.accept(
             McHelper.compoundTagToTextSorted(
-                portal.saveWithoutId(new CompoundTag()),
+                NbtBridge.saveEntity(portal),
                 " ",
                 0
             )
@@ -2485,9 +2486,9 @@ public class PortalCommand {
     private static void updateEntityFullNbt(Entity entity, CompoundTag nbt) {
         nbt.remove("id");
         nbt.remove("UUID"); // not allowed to change UUID
-        CompoundTag result = entity.saveWithoutId(new CompoundTag());
+        CompoundTag result = NbtBridge.saveEntity(entity);
         result.merge(nbt);
-        entity.load(result);
+        NbtBridge.loadEntity(entity, result);
     }
     
     private static void registerEulerCommands(LiteralArgumentBuilder<CommandSourceStack> builder) {

@@ -31,30 +31,13 @@ public class MixinLevelRenderer_Optional {
     @Final
     private Minecraft minecraft;
     
-    //avoid translucent sort while rendering portal
-    @Redirect(
-        method = "renderSectionLayer",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/RenderType;translucent()Lnet/minecraft/client/renderer/RenderType;",
-            ordinal = 0
-        ),
-        require = 0
-    )
-    private RenderType redirectGetTranslucent() {
-        if (PortalRendering.isRendering()) {
-            return null;
-        }
-        return RenderType.translucent();
-    }
-    
     //the camera position is used for translucent sort
     //avoid messing it
     @Redirect(
         method = "Lnet/minecraft/client/renderer/LevelRenderer;setupRender(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/culling/Frustum;ZZ)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/chunk/SectionRenderDispatcher;setCamera(Lnet/minecraft/world/phys/Vec3;)V"
+            target = "Lnet/minecraft/client/renderer/chunk/SectionRenderDispatcher;setCameraPosition(Lnet/minecraft/world/phys/Vec3;)V"
         ),
         require = 0
     )
@@ -66,21 +49,7 @@ public class MixinLevelRenderer_Optional {
                 return;
             }
         }
-        chunkBuilder.setCamera(cameraPosition);
-    }
-    
-    @Inject(
-        method = "renderSectionLayer",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/CompiledShaderProgram;apply()V"
-        ),
-        require = 0
-    )
-    private void onGetShaderInRenderingLayer(
-        RenderType renderType, double x, double y, double z, Matrix4f projectionMatrix, Matrix4f frustrumMatrix, CallbackInfo ci
-    ) {
-        FrontClipping.updateClippingEquationUniformForCurrentShader(false);
+        chunkBuilder.setCameraPosition(cameraPosition);
     }
     
     // correct the position of updating ViewArea

@@ -7,6 +7,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -165,9 +166,9 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
         }
     }
     
-    // Since 1.21.4 the per-movement box comes from makeBoundingBox(Vec3) instead of getBoundingBox().
+    // The per-movement box comes from makeBoundingBox(Vec3).
     @WrapOperation(
-        method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks(Ljava/util/List;Ljava/util/Set;)V",
+        method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/entity/InsideBlockEffectApplier$StepBasedCollector;Lit/unimi/dsi/fastutil/longs/LongSet;)V",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/world/entity/Entity;makeBoundingBox(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/AABB;"
@@ -183,11 +184,13 @@ public abstract class MixinEntity implements IEEntity, ImmPtlEntityExtension {
     }
     
     @Inject(
-        method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks(Ljava/util/List;Ljava/util/Set;)V",
+        method = "Lnet/minecraft/world/entity/Entity;checkInsideBlocks(Ljava/util/List;Lnet/minecraft/world/entity/InsideBlockEffectApplier$StepBasedCollector;)V",
         at = @At("HEAD"),
         cancellable = true
     )
-    private void onCheckInsideBlocks(List<?> movements, Set<?> blocksInside, CallbackInfo ci) {
+    private void onCheckInsideBlocks(
+        List<?> movements, InsideBlockEffectApplier.StepBasedCollector collector, CallbackInfo ci
+    ) {
         Entity entity = (Entity) (Object) this;
         if (ip_getActiveCollisionBox(entity.getBoundingBox()) == null) {
             ci.cancel();

@@ -9,6 +9,7 @@
     "flywheel.MixinFlywheelProgramCompiler",
     "flywheel.MixinFlywheelQuadConverter",
     "iris.MixinIrisCompositeRenderer",
+    "iris.MixinIrisCompositePass",
     "iris.MixinIrisCameraPositionTracker",
     "iris.MixinIrisMatrixUniforms",
     "iris.MixinIrisProgramUniforms",

@@ -1,17 +1,14 @@
 package qouteall.imm_ptl.core.render;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.buffers.BufferUsage;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.CompiledShaderProgram;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -22,7 +19,6 @@ import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.q_misc_util.my_util.TriangleConsumer;
 
-import java.lang.ref.WeakReference;
 import java.util.Objects;
 
 public class ViewAreaRenderer {
@@ -33,37 +29,27 @@ public class ViewAreaRenderer {
         boolean doFaceCulling, boolean doModifyColor,
         boolean doModifyDepth, boolean doClip
     ) {
+        renderPortalArea(
+            portal, fogColor, modelViewMatrix, projectionMatrix,
+            doFaceCulling, doModifyColor, doModifyDepth, doClip,
+            Minecraft.getInstance().getMainRenderTarget()
+        );
+    }
+    
+    public static void renderPortalArea(
+        Portal portal, Vec3 fogColor,
+        Matrix4f modelViewMatrix, Matrix4f projectionMatrix,
+        boolean doFaceCulling, boolean doModifyColor,
+        boolean doModifyDepth, boolean doClip,
+        RenderTarget target
+    ) {
+        MeshData mesh = buildViewAreaMesh(fogColor, portal, CHelper.getCurrentCameraPos());
+        if (mesh == null) {
+            return;
+        }
         
-        if (doFaceCulling) {
-            GlStateManager._enableCull();
-        }
-        else {
-            GlStateManager._disableCull();
-        }
-        
-        if (portal.isFuseView() && IPGlobal.maxPortalLayer != 0) {
-            GlStateManager._colorMask(false, false, false, false);
-        }
-        else {
-            if (!doModifyColor) {
-                GlStateManager._colorMask(false, false, false, false);
-            }
-            else {
-                GlStateManager._colorMask(true, true, true, true);
-            }
-        }
-        
-        if (doModifyDepth) {
-            if (portal.isFuseView()) {
-                GlStateManager._depthMask(false);
-            }
-            else {
-                GlStateManager._depthMask(true);
-            }
-        }
-        else {
-            GlStateManager._depthMask(false);
-        }
+        boolean writeColor = doModifyColor && !(portal.isFuseView() && IPGlobal.maxPortalLayer != 0);
+        boolean writeDepth = doModifyDepth && !portal.isFuseView();
         
         boolean shouldReverseCull = PortalRendering.isRenderingOddNumberOfMirrors();
         if (shouldReverseCull) {
@@ -82,122 +68,39 @@ public class ViewAreaRenderer {
             FrontClipping.disableClipping();
         }
         
-        GlStateManager._enableDepthTest();
-        
         CHelper.enableDepthClamp();
         
-        CompiledShaderProgram shader = Objects.requireNonNull(
-            RenderSystem.setShader(MyRenderHelper.PORTAL_AREA),
-            "Portal area shader is not loaded"
-        );
-        shader.setDefaultUniforms(
-            VertexFormat.Mode.TRIANGLES,
-            modelViewMatrix,
-            projectionMatrix,
-            Minecraft.getInstance().getWindow()
-        );
-        FrontClipping.updateClippingEquationUniformForCurrentShader(false);
-        shader.apply();
-        
-        ViewAreaRenderer.buildPortalViewAreaTrianglesBuffer(
-            fogColor,
-            portal,
-            CHelper.getCurrentCameraPos(),
-            RenderStates.getPartialTick()
-        );
-        
-        shader.clear();
-        RenderSystem.clearShader();
-        
-        GlStateManager._enableCull();
-        CHelper.disableDepthClamp();
-        
-        GlStateManager._colorMask(true, true, true, true);
-        GlStateManager._depthMask(true);
-        
-        if (shouldReverseCull) {
-            MyRenderHelper.recoverFaceCulling();
+        try {
+            PortalDraw.drawMesh(
+                "portal area",
+                PortalPipelines.portalArea(doFaceCulling, writeColor, writeDepth),
+                mesh, target,
+                modelViewMatrix, IPRenderSystem.uploadProjectionMatrix(projectionMatrix),
+                null, doClip, false
+            );
         }
-        
-        if (PortalRendering.isRendering()) {
-            FrontClipping.disableClipping();
+        finally {
+            CHelper.disableDepthClamp();
+            
+            if (shouldReverseCull) {
+                MyRenderHelper.recoverFaceCulling();
+            }
+            
+            if (PortalRendering.isRendering()) {
+                FrontClipping.disableClipping();
+            }
         }
         
         CHelper.checkGlError();
     }
     
-    private static final int MAX_CACHED_LAYERS = 16;
-    
-    private static final ViewAreaMeshCache[] meshCaches = new ViewAreaMeshCache[MAX_CACHED_LAYERS];
-    
-    // Each portal layer keeps the view area mesh that was last uploaded for it.
-    // The query, depth restore and fog passes of one portal then share a single upload.
-    // Rendering the portal's content uses the deeper layers' slots, so it does not evict this one.
-    private static class ViewAreaMeshCache {
-        final VertexBuffer buffer = new VertexBuffer(BufferUsage.DYNAMIC_WRITE);
-        
-        @Nullable
-        private WeakReference<Portal> portal;
-        private int frameIndex = -1;
-        private double cameraX, cameraY, cameraZ;
-        private double colorX, colorY, colorZ;
-        
-        boolean matches(Portal portal, Vec3 cameraPos, Vec3 color, int frameIndex) {
-            return this.frameIndex == frameIndex &&
-                this.portal != null && this.portal.get() == portal &&
-                cameraX == cameraPos.x && cameraY == cameraPos.y && cameraZ == cameraPos.z &&
-                colorX == color.x && colorY == color.y && colorZ == color.z;
-        }
-        
-        void remember(Portal portal, Vec3 cameraPos, Vec3 color, int frameIndex) {
-            if (this.portal == null || this.portal.get() != portal) {
-                this.portal = new WeakReference<>(portal);
-            }
-            this.frameIndex = frameIndex;
-            cameraX = cameraPos.x;
-            cameraY = cameraPos.y;
-            cameraZ = cameraPos.z;
-            colorX = color.x;
-            colorY = color.y;
-            colorZ = color.z;
-        }
-        
-        void invalidate() {
-            frameIndex = -1;
-        }
-    }
-    
-    public static void buildPortalViewAreaTrianglesBuffer(
-        Vec3 fogColor, Portal portal,
-        Vec3 cameraPos, float partialTick
-    ) {
-        int layer = PortalRendering.getPortalLayer();
-        
-        if (layer >= MAX_CACHED_LAYERS) {
-            BufferUploader.draw(buildViewAreaMesh(fogColor, portal, cameraPos));
-            return;
-        }
-        
-        ViewAreaMeshCache cache = meshCaches[layer];
-        if (cache == null) {
-            cache = new ViewAreaMeshCache();
-            meshCaches[layer] = cache;
-        }
-        
-        // The vertex array must be bound before uploading so that the vertex format gets set up on it.
-        cache.buffer.bind();
-        
-        if (!cache.matches(portal, cameraPos, fogColor, RenderStates.frameIndex)) {
-            cache.invalidate();
-            cache.buffer.upload(buildViewAreaMesh(fogColor, portal, cameraPos));
-            cache.remember(portal, cameraPos, fogColor, RenderStates.frameIndex);
-        }
-        
-        cache.buffer.draw();
-    }
-    
-    private static MeshData buildViewAreaMesh(Vec3 fogColor, Portal portal, Vec3 cameraPos) {
-        Tesselator tessellator = RenderSystem.renderThreadTesselator();
+    /**
+     * Builds the triangles of the portal view area relative to the camera.
+     * Returns null when the portal shape has no triangles.
+     */
+    @Nullable
+    public static MeshData buildViewAreaMesh(Vec3 fogColor, Portal portal, Vec3 cameraPos) {
+        Tesselator tessellator = Tesselator.getInstance();
         BufferBuilder bufferBuilder = tessellator
             .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         
@@ -217,7 +120,7 @@ public class ViewAreaRenderer {
         
         portal.renderViewAreaMesh(originRelativeToCamera, vertexOutput);
         
-        return Objects.requireNonNull(bufferBuilder.build());
+        return bufferBuilder.build();
     }
     
     public static void outputTriangle(

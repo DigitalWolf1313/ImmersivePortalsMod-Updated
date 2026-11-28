@@ -83,6 +83,14 @@ public class SodiumInterface {
             ((IESodiumRenderSectionManager) renderSectionManager)
                 .ip_swapContext(((SodiumRenderingContext) context));
             
+            // Sodium compares the camera position with the last one to detect movement.
+            // Each context keeps its own, so the jump between the outer view and a portal view
+            // is not treated as camera movement, which would corrupt the translucent sorting triggers.
+            IESodiumWorldRenderer ieSwr = (IESodiumWorldRenderer) swr;
+            var tmpCameraPos = ieSwr.ip_getLastCameraPos();
+            ieSwr.ip_setLastCameraPos(((SodiumRenderingContext) context).lastCameraPos);
+            ((SodiumRenderingContext) context).lastCameraPos = tmpCameraPos;
+            
             swr.scheduleTerrainUpdate();
         }
         

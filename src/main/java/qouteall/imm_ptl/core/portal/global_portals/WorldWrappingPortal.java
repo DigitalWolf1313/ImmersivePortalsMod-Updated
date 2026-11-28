@@ -37,10 +37,10 @@ public class WorldWrappingPortal extends GlobalTrackedPortal {
         super.readAdditionalSaveData(compoundTag);
         
         if (compoundTag.contains("isInward")) {
-            isInward = compoundTag.getBoolean("isInward");
+            isInward = compoundTag.getBooleanOr("isInward", false);
         }
         if (compoundTag.contains("zoneId")) {
-            zoneId = compoundTag.getInt("zoneId");
+            zoneId = compoundTag.getIntOr("zoneId", 0);
         }
     }
     

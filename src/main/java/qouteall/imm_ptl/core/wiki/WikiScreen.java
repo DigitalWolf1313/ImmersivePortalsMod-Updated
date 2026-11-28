@@ -5,11 +5,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -387,7 +388,7 @@ public class WikiScreen extends Screen {
         if (zoomedImage == null) {
             String link = linkAt(mouseX, mouseY);
             if (link != null) {
-                g.renderTooltip(font, linkTooltip(link), mouseX, mouseY);
+                g.setTooltipForNextFrame(font, linkTooltip(link), mouseX, mouseY);
             }
         }
     }
@@ -397,11 +398,11 @@ public class WikiScreen extends Screen {
             g.drawString(font, t.text(), x, y, t.color());
             return;
         }
-        g.pose().pushPose();
-        g.pose().translate(x, y, 0);
-        g.pose().scale(t.scale(), t.scale(), 1f);
+        g.pose().pushMatrix();
+        g.pose().translate((float) (x), (float) (y));
+        g.pose().scale((float) (t.scale()), (float) (t.scale()));
         g.drawString(font, t.text(), 0, 0, t.color());
-        g.pose().popPose();
+        g.pose().popMatrix();
     }
     
     private void drawImage(GuiGraphics g, WikiLayout.Cmd.Image im, int x, int y) {
@@ -409,7 +410,7 @@ public class WikiScreen extends Screen {
         if (location == null) {
             return;
         }
-        g.blit(RenderType::guiTextured, location, x, y, 0f, 0f, im.width(), im.height(), im.texWidth(), im.texHeight(), im.texWidth(), im.texHeight());
+        g.blit(RenderPipelines.GUI_TEXTURED, location, x, y, 0f, 0f, im.width(), im.height(), im.texWidth(), im.texHeight(), im.texWidth(), im.texHeight());
         g.renderOutline(x - 1, y - 1, im.width() + 2, im.height() + 2, 0x60FFFFFF);
     }
     
@@ -453,16 +454,16 @@ public class WikiScreen extends Screen {
             zoomedImage = null;
             return;
         }
-        g.pose().pushPose();
-        g.pose().translate(0, 0, 400);
+        g.pose().pushMatrix();
+        g.pose().translate((float) (0), (float) (0));
         g.fill(0, 0, width, height, 0xE6000000);
         
         double fit = Math.min(3.0, Math.min((width - 24.0) / size[0], (height - 40.0) / size[1]));
         int w = Math.max(1, (int) (size[0] * fit));
         int h = Math.max(1, (int) (size[1] * fit));
-        g.blit(RenderType::guiTextured, location, (width - w) / 2, (height - h) / 2 - 6, 0f, 0f, w, h, size[0], size[1], size[0], size[1]);
+        g.blit(RenderPipelines.GUI_TEXTURED, location, (width - w) / 2, (height - h) / 2 - 6, 0f, 0f, w, h, size[0], size[1], size[0], size[1]);
         g.drawCenteredString(font, Component.translatable("imm_ptl.wiki.close_image"), width / 2, height - 16, 0xFFAAAAAA);
-        g.pose().popPose();
+        g.pose().popMatrix();
     }
     
     @Nullable
@@ -481,10 +482,9 @@ public class WikiScreen extends Screen {
                 continue;
             }
             Style style = font.getSplitter().componentStyleAtWidth(t.text(), (int) (lx / t.scale()));
-            if (style != null && style.getClickEvent() != null
-                && style.getClickEvent().getAction() == ClickEvent.Action.OPEN_URL
+            if (style != null && style.getClickEvent() instanceof ClickEvent.OpenUrl openUrl
             ) {
-                return style.getClickEvent().getValue();
+                return openUrl.uri().toString();
             }
         }
         return null;

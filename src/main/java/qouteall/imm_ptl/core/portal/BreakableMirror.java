@@ -49,14 +49,14 @@ public class BreakableMirror extends Mirror {
         if (tag.contains("boxXL")) {
             wallArea = new IntBox(
                 new BlockPos(
-                    tag.getInt("boxXL"),
-                    tag.getInt("boxYL"),
-                    tag.getInt("boxZL")
+                    tag.getIntOr("boxXL", 0),
+                    tag.getIntOr("boxYL", 0),
+                    tag.getIntOr("boxZL", 0)
                 ),
                 new BlockPos(
-                    tag.getInt("boxXH"),
-                    tag.getInt("boxYH"),
-                    tag.getInt("boxZH")
+                    tag.getIntOr("boxXH", 0),
+                    tag.getIntOr("boxYH", 0),
+                    tag.getIntOr("boxZH", 0)
                 )
             );
         }
@@ -64,13 +64,13 @@ public class BreakableMirror extends Mirror {
             wallArea = null;
         }
         if (tag.contains("blockPortalShape")) {
-            blockPortalShape = BlockPortalShape.fromTag(tag.getCompound("blockPortalShape"));
+            blockPortalShape = BlockPortalShape.fromTag(tag.getCompoundOrEmpty("blockPortalShape"));
         }
         else {
             blockPortalShape = null;
         }
         if (tag.contains("unbreakable")) {
-            unbreakable = tag.getBoolean("unbreakable");
+            unbreakable = tag.getBooleanOr("unbreakable", false);
         }
     }
     

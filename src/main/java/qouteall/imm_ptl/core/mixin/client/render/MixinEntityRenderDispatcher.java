@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
+import qouteall.imm_ptl.core.render.context_management.RenderStates;
 
 
 @Mixin(EntityRenderDispatcher.class)
@@ -42,7 +43,7 @@ public class MixinEntityRenderDispatcher {
     
     // The shadow strength fades with distance, so a projection must measure it from its destination position.
     @WrapOperation(
-        method = "render(Lnet/minecraft/world/entity/Entity;DDDFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/renderer/entity/EntityRenderer;)V",
+        method = "render(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;DDDLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/renderer/entity/EntityRenderer;)V",
         at = @At(
             value = "FIELD",
             target = "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;distanceToCameraSq:D",
@@ -59,24 +60,24 @@ public class MixinEntityRenderDispatcher {
     
     // The vanilla shadow would sample the destination world at the entity's source coordinates.
     @WrapOperation(
-        method = "render(Lnet/minecraft/world/entity/Entity;DDDFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/renderer/entity/EntityRenderer;)V",
+        method = "render(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;DDDLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/renderer/entity/EntityRenderer;)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;renderShadow(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;FFLnet/minecraft/world/level/LevelReader;F)V"
+            target = "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;renderShadow(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;FLnet/minecraft/world/level/LevelReader;F)V"
         )
     )
     private static void ip_renderProjectionShadow(
-        PoseStack poseStack, MultiBufferSource buffer, EntityRenderState state, float weight, float partialTick,
+        PoseStack poseStack, MultiBufferSource buffer, EntityRenderState state, float weight,
         LevelReader level, float size, Operation<Void> original
     ) {
         if (CrossPortalEntityRenderer.isRenderingEntityProjection) {
             // The Iris shadow map has no circle shadows.
             if (!IrisInterface.invoker.isRenderingShadowMap()) {
-                CrossPortalEntityRenderer.renderProjectionShadow(buffer, weight, partialTick, size);
+                CrossPortalEntityRenderer.renderProjectionShadow(buffer, weight, RenderStates.getPartialTick(), size);
             }
             return;
         }
-        original.call(poseStack, buffer, state, weight, partialTick, level, size);
+        original.call(poseStack, buffer, state, weight, level, size);
     }
     
 }

@@ -1,11 +1,12 @@
 package qouteall.imm_ptl.core.compat.iris_compatibility;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL43C;
+import qouteall.imm_ptl.core.render.IPGlHelper;
 
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_NEAREST;
@@ -17,7 +18,7 @@ public class IPIrisHelper {
         RenderTarget from, RenderTarget to,
         boolean copyDepth, boolean copyStencil
     ) {
-        from.unbindWrite();
+        IPGlHelper.unbindWrite();
         
         int mask = 0;
         
@@ -38,8 +39,8 @@ public class IPIrisHelper {
             }
         }
         
-        GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, from.frameBufferId);
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, to.frameBufferId);
+        GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, IPGlHelper.getFbo(from));
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, IPGlHelper.getFbo(to));
         
         GL30.glBlitFramebuffer(
             0, 0, from.width, from.height,
@@ -47,7 +48,7 @@ public class IPIrisHelper {
             mask, GL_NEAREST
         );
         
-        from.unbindWrite();
+        IPGlHelper.unbindWrite();
     }
     
     public static boolean isCopyImageSubDataSupported() {
@@ -58,13 +59,13 @@ public class IPIrisHelper {
         RenderTarget from, RenderTarget to
     ) {
         GL43C.glCopyImageSubData(
-            from.getDepthTextureId(),
+            IPGlHelper.getDepthTextureId(from),
             GL43C.GL_TEXTURE_2D,
             0,
             0,
             0,
             0,
-            to.getDepthTextureId(),
+            IPGlHelper.getDepthTextureId(to),
             GL43C.GL_TEXTURE_2D,
             0,
             0,
@@ -80,13 +81,13 @@ public class IPIrisHelper {
         RenderTarget from, RenderTarget to
     ) {
         GL43C.glCopyImageSubData(
-            from.getColorTextureId(),
+            IPGlHelper.getColorTextureId(from),
             GL43C.GL_TEXTURE_2D,
             0,
             0,
             0,
             0,
-            to.getColorTextureId(),
+            IPGlHelper.getColorTextureId(to),
             GL43C.GL_TEXTURE_2D,
             0,
             0,

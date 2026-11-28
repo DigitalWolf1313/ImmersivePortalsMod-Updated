@@ -9,8 +9,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -268,7 +268,7 @@ public class BlockManipulationServer {
             FriendlyByteBuf buf = IPMcHelper.bytesToBuf(packetBytes);
             ServerboundPlayerActionPacket packet = ServerboundPlayerActionPacket.STREAM_CODEC.decode(buf);
             
-            ServerLevel world = player.server.getLevel(dimension);
+            ServerLevel world = player.getServer().getLevel(dimension);
             Validate.notNull(world, "missing %s", dimension.location());
             
             withRedirect(
@@ -291,7 +291,7 @@ public class BlockManipulationServer {
             FriendlyByteBuf buf = IPMcHelper.bytesToBuf(packetBytes);
             ServerboundUseItemOnPacket packet = ServerboundUseItemOnPacket.STREAM_CODEC.decode(buf);
             
-            ServerLevel world = player.server.getLevel(dimension);
+            ServerLevel world = player.getServer().getLevel(dimension);
             Validate.notNull(world, "missing %s", dimension.location());
             
             withRedirect(
@@ -314,7 +314,7 @@ public class BlockManipulationServer {
             FriendlyByteBuf buf = IPMcHelper.bytesToBuf(packetBytes);
             ServerboundUseItemPacket packet = ServerboundUseItemPacket.STREAM_CODEC.decode(buf);
             
-            ServerLevel world = player.server.getLevel(dimension);
+            ServerLevel world = player.getServer().getLevel(dimension);
             Validate.notNull(world, "missing %s", dimension.location());
             
             withRedirect(
@@ -335,7 +335,7 @@ public class BlockManipulationServer {
             FriendlyByteBuf buf = IPMcHelper.bytesToBuf(packetBytes);
             ServerboundInteractPacket packet = ServerboundInteractPacket.STREAM_CODEC.decode(buf);
             
-            ServerLevel world = player.server.getLevel(dimension);
+            ServerLevel world = player.getServer().getLevel(dimension);
             Validate.notNull(world, "missing %s", dimension.location());
             
             withRedirect(
@@ -537,7 +537,7 @@ public class BlockManipulationServer {
             
             if (mountedDuringInteraction) {
                 PacketRedirection.withForceRedirectDisabled(
-                    () -> ServerTeleportationManager.of(player.server).forceTeleportPlayer(
+                    () -> ServerTeleportationManager.of(player.getServer()).forceTeleportPlayer(
                         player, world.dimension(), interactedPos
                     )
                 );
@@ -649,7 +649,8 @@ public class BlockManipulationServer {
         float yRot = Mth.wrapDegrees(packet.getYRot());
         float xRot = Mth.wrapDegrees(packet.getXRot());
         if (xRot != player.getXRot() || yRot != player.getYRot()) {
-            player.absRotateTo(yRot, xRot);
+            player.setYRot(yRot);
+            player.setXRot(xRot);
         }
         
         PortalUtils.PortalAwareRaytraceResult raytrace = PortalUtils.portalAwareRayTraceFull(

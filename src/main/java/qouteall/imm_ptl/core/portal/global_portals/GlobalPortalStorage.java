@@ -1,6 +1,7 @@
 package qouteall.imm_ptl.core.portal.global_portals;
 
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -19,11 +20,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,6 +39,7 @@ import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.api.PortalAPI;
 import qouteall.imm_ptl.core.ducks.IEClientWorld;
+import qouteall.imm_ptl.core.mc_utils.NbtBridge;
 import qouteall.imm_ptl.core.network.ImmPtlNetworking;
 import qouteall.imm_ptl.core.platform_specific.O_O;
 import qouteall.imm_ptl.core.portal.Portal;
@@ -94,23 +98,30 @@ public class GlobalPortalStorage extends SavedData {
     public static GlobalPortalStorage get(
         ServerLevel world
     ) {
-        return world.getDataStorage().computeIfAbsent(
-            new SavedData.Factory<>(
-                () -> {
-                    LOGGER.info("Global portal storage initialized {}", world.dimension().location());
-                    return new GlobalPortalStorage(world);
-                },
-                (nbt, holderLookup) -> {
-                    GlobalPortalStorage globalPortalStorage = new GlobalPortalStorage(world);
-                    globalPortalStorage.fromNbt(nbt);
-                    return globalPortalStorage;
-                },
-                null
-            ),
-            "global_portal"
+        return world.getDataStorage().computeIfAbsent(createType(world));
+    }
+
+    private static SavedDataType<GlobalPortalStorage> createType(ServerLevel world) {
+        Codec<GlobalPortalStorage> codec = CompoundTag.CODEC.xmap(
+            tag -> {
+                GlobalPortalStorage globalPortalStorage = new GlobalPortalStorage(world);
+                globalPortalStorage.fromNbt(tag);
+                return globalPortalStorage;
+            },
+            storage -> storage.save(new CompoundTag(), world.registryAccess())
+        );
+
+        return new SavedDataType<>(
+            "global_portal",
+            () -> {
+                LOGGER.info("Global portal storage initialized {}", world.dimension().location());
+                return new GlobalPortalStorage(world);
+            },
+            codec,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE
         );
     }
-    
+
     @Environment(EnvType.CLIENT)
     private static void initClient() {
         IPCGlobal.CLIENT_CLEANUP_EVENT.register(GlobalPortalStorage::onClientCleanup);
@@ -157,7 +168,7 @@ public class GlobalPortalStorage extends SavedData {
     }
     
     public void onDataChanged() {
-        setDirty(true);
+        setDirty();
         
         shouldReSync = true;
     }
@@ -208,13 +219,13 @@ public class GlobalPortalStorage extends SavedData {
         data = newData;
         
         if (tag.contains("version")) {
-            version = tag.getInt("version");
+            version = tag.getIntOr("version", 0);
         }
         
         if (tag.contains("bedrockReplacement")) {
             bedrockReplacement = NbtUtils.readBlockState(
                 currWorld.holderLookup(Registries.BLOCK),
-                tag.getCompound("bedrockReplacement")
+                tag.getCompoundOrEmpty("bedrockReplacement")
             );
         }
         else {
@@ -229,12 +240,12 @@ public class GlobalPortalStorage extends SavedData {
         Level currWorld
     ) {
         /**{@link CompoundTag#getType()}*/
-        ListTag listTag = tag.getList("data", 10);
+        ListTag listTag = tag.getListOrEmpty("data");
         
         List<Portal> newData = new ArrayList<>();
         
         for (int i = 0; i < listTag.size(); i++) {
-            CompoundTag compoundTag = listTag.getCompound(i);
+            CompoundTag compoundTag = listTag.getCompoundOrEmpty(i);
             Portal e = readPortalFromTag(currWorld, compoundTag);
             if (e != null) {
                 newData.add(e);
@@ -247,11 +258,11 @@ public class GlobalPortalStorage extends SavedData {
     }
     
     private static Portal readPortalFromTag(Level currWorld, CompoundTag compoundTag) {
-        ResourceLocation entityId = McHelper.newResourceLocation(compoundTag.getString("entity_type"));
+        ResourceLocation entityId = McHelper.newResourceLocation(compoundTag.getStringOr("entity_type", ""));
         EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(entityId).orElseThrow().value();
         
         Entity e = entityType.create(currWorld, net.minecraft.world.entity.EntitySpawnReason.LOAD);
-        e.load(compoundTag);
+        NbtBridge.loadEntity(e, compoundTag);
         
         ((Portal) e).isGlobalPortal = true;
         
@@ -262,7 +273,6 @@ public class GlobalPortalStorage extends SavedData {
         return (Portal) e;
     }
     
-    @Override
     public @NotNull CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         if (data == null) {
             return tag;
@@ -275,7 +285,7 @@ public class GlobalPortalStorage extends SavedData {
         for (Portal portal : data) {
             Validate.isTrue(portal.level() == currWorld);
             CompoundTag portalTag = new CompoundTag();
-            portal.saveWithoutId(portalTag);
+            portalTag.merge(NbtBridge.saveEntity(portal));
             portalTag.putString(
                 "entity_type",
                 EntityType.getKey(portal.getType()).toString()
@@ -303,7 +313,7 @@ public class GlobalPortalStorage extends SavedData {
         if (version <= 1) {
             upgradeData(world.get());
             version = 2;
-            setDirty(true);
+            setDirty();
         }
     }
     

@@ -235,7 +235,7 @@ public class CustomPortalGenManager {
         if (playerPosBeforeTravel.containsKey(uuid)) {
             WithDim<Vec3> startCoord = playerPosBeforeTravel.get(uuid);
             
-            ServerLevel startWorld = player.server.getLevel(startCoord.dimension());
+            ServerLevel startWorld = player.getServer().getLevel(startCoord.dimension());
             if (startWorld == null) {
                 LOGGER.error("Cannot find world {}", startCoord.dimension());
                 return;

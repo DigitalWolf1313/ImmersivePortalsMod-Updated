@@ -517,7 +517,7 @@ public class Helper {
         Tag term = tag.get(tagName);
         
         if (term instanceof StringTag) {
-            String id = ((StringTag) term).getAsString();
+            String id = ((StringTag) term).value();
             return dimIdToKey(id);
         }
         
@@ -631,9 +631,9 @@ public class Helper {
     
     public static Vec3 getVec3d(CompoundTag compoundTag, String name) {
         return new Vec3(
-            compoundTag.getDouble(name + "X"),
-            compoundTag.getDouble(name + "Y"),
-            compoundTag.getDouble(name + "Z")
+            compoundTag.getDoubleOr(name + "X", 0.0),
+            compoundTag.getDoubleOr(name + "Y", 0.0),
+            compoundTag.getDoubleOr(name + "Z", 0.0)
         );
     }
     
@@ -655,9 +655,9 @@ public class Helper {
     
     public static BlockPos getVec3i(CompoundTag compoundTag, String name) {
         return new BlockPos(
-            compoundTag.getInt(name + "X"),
-            compoundTag.getInt(name + "Y"),
-            compoundTag.getInt(name + "Z")
+            compoundTag.getIntOr(name + "X", 0),
+            compoundTag.getIntOr(name + "Y", 0),
+            compoundTag.getIntOr(name + "Z", 0)
         );
     }
     
@@ -674,10 +674,10 @@ public class Helper {
     public static DQuaternion getQuaternion(CompoundTag compoundTag, String name) {
         if (compoundTag.contains(name + "X")) {
             return new DQuaternion(
-                compoundTag.getDouble(name + "X"),
-                compoundTag.getDouble(name + "Y"),
-                compoundTag.getDouble(name + "Z"),
-                compoundTag.getDouble(name + "W")
+                compoundTag.getDoubleOr(name + "X", 0.0),
+                compoundTag.getDoubleOr(name + "Y", 0.0),
+                compoundTag.getDoubleOr(name + "Z", 0.0),
+                compoundTag.getDoubleOr(name + "W", 0.0)
             );
         }
         else {
@@ -686,7 +686,7 @@ public class Helper {
     }
     
     public static ListTag getCompoundList(CompoundTag tag, String name) {
-        return tag.getList(name, 10);
+        return tag.getListOrEmpty(name);
     }
     
     /**
@@ -927,7 +927,7 @@ public class Helper {
             return null;
         }
         
-        return new UUID(tag.getLong(key1), tag.getLong(key + "Least"));
+        return new UUID(tag.getLongOr(key1, 0L), tag.getLongOr(key + "Least", 0L));
     }
     
     public static Vec3 getFlippedVec(Vec3 vec, Vec3 flippingAxis) {
@@ -1464,11 +1464,11 @@ public class Helper {
     
     public static @Nullable Vec3 vec3FromListTag(Tag tag) {
         if (tag instanceof ListTag listTag) {
-            if (listTag.getElementType() == Tag.TAG_DOUBLE && listTag.size() == 3) {
+            if (!listTag.isEmpty() && listTag.get(0).getId() == Tag.TAG_DOUBLE && listTag.size() == 3) {
                 return new Vec3(
-                    listTag.getDouble(0),
-                    listTag.getDouble(1),
-                    listTag.getDouble(2)
+                    listTag.getDoubleOr(0, 0.0),
+                    listTag.getDoubleOr(1, 0.0),
+                    listTag.getDoubleOr(2, 0.0)
                 );
             }
         }

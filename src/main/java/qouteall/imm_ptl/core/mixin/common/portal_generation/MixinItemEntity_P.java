@@ -1,8 +1,10 @@
 package qouteall.imm_ptl.core.mixin.common.portal_generation;
 
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityReference;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.profiling.Profiler;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,15 +14,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.IPPerServerInfo;
 import qouteall.imm_ptl.core.portal.custom_portal_gen.CustomPortalGenManager;
 
-import java.util.UUID;
-
 @Mixin(ItemEntity.class)
 public abstract class MixinItemEntity_P {
     @Shadow
     public abstract ItemStack getItem();
     
     @Shadow
-    private @Nullable UUID thrower;
+    private @Nullable EntityReference<Entity> thrower;
     
     @Inject(
         method = "Lnet/minecraft/world/entity/item/ItemEntity;tick()V",

@@ -57,7 +57,7 @@ public class ImmPtlChunkTracking {
     
     // if the player object is recreated, pass in the old player object
     public static void removePlayerFromChunkTrackersAndEntityTrackers(ServerPlayer oldPlayer) {
-        for (ServerLevel world : oldPlayer.server.getAllLevels()) {
+        for (ServerLevel world : oldPlayer.getServer().getAllLevels()) {
             ServerChunkCache chunkManager = world.getChunkSource();
             IEChunkMap storage =
                 (IEChunkMap) chunkManager.chunkMap;
@@ -155,7 +155,7 @@ public class ImmPtlChunkTracking {
         // (not sending chunk packet disallows entity tracking)
         // we need to send add entity packet early,
         // otherwise player will fall when standing on cross-portal-collision when logging in
-        EntitySync.update(player.server);
+        EntitySync.update(player.getServer());
     }
     
     public static void updateForPlayer(ServerPlayer player) {
@@ -173,7 +173,7 @@ public class ImmPtlChunkTracking {
         
         chunkLoaders.addAll(playerInfo.additionalChunkLoaders);
         
-        MinecraftServer server = player.server;
+        MinecraftServer server = player.getServer();
         
         for (ChunkLoader chunkLoader : chunkLoaders) {
             ResourceKey<Level> dimension = chunkLoader.dimension();

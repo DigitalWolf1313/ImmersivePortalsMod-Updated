@@ -36,3 +36,5 @@ transitive-accessible field net/minecraft/client/multiplayer/ClientChunkCache st
 transitive-accessible field net/minecraft/client/multiplayer/ClientChunkCache level Lnet/minecraft/client/multiplayer/ClientLevel;
 
 transitive-accessible class net/minecraft/util/datafix/fixes/ItemStackComponentizationFix$ItemStackData
+
+accessible class net/minecraft/client/renderer/CloudRenderer$RelativeCameraPos

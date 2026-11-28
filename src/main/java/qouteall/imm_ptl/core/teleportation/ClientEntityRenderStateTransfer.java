@@ -27,8 +27,8 @@ final class ClientEntityRenderStateTransfer {
     
     static void transfer(Entity source, Entity destination, Portal portal) {
         Vec3 target = ClientEntityPortalHandoff.getLerpTarget(destination);
-        float targetYaw = destination.lerpTargetYRot();
-        float targetPitch = destination.lerpTargetXRot();
+        float targetYaw = ClientEntityPortalHandoff.getLerpTargetYRot(destination);
+        float targetPitch = ClientEntityPortalHandoff.getLerpTargetXRot(destination);
         float targetHeadYaw = destination.getYHeadRot();
         int remainingSteps = ClientEntityPortalHandoff.getRemainingInterpolationSteps(destination);
         Vec3 mappedPos = portal.transformPoint(source.position());

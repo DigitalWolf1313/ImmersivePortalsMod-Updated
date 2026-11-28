@@ -2,7 +2,10 @@ package qouteall.imm_ptl.core.mixin.client.render;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -10,17 +13,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.BlockGetter;
 import org.joml.Matrix4f;
 import org.joml.Quaternionfc;
+import org.joml.Vector4f;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -29,8 +35,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPGlobal;
-import qouteall.imm_ptl.core.ducks.IEGameRenderer;
 import qouteall.imm_ptl.core.ducks.IECamera;
+import qouteall.imm_ptl.core.ducks.IEGameRenderer;
 import qouteall.imm_ptl.core.portal.animation.ClientPortalAnimationManagement;
 import qouteall.imm_ptl.core.portal.animation.StableClientTimer;
 import qouteall.imm_ptl.core.render.CrossPortalViewRendering;
@@ -58,13 +64,42 @@ public abstract class MixinGameRenderer implements IEGameRenderer {
             ((IECamera) camera).ip_copyRotation(RenderStates.originalCamera);
         }
     }
+    // Vanilla clears the whole depth buffer before the hand pass.
+    // In a portal view that would erase the depth of the outer view, so translucents and clouds drawn later would not be occluded.
+    @WrapOperation(
+        method = "renderLevel",
+        at = @At(
+            value = "INVOKE",
+            target = "Lcom/mojang/blaze3d/systems/CommandEncoder;clearDepthTexture(Lcom/mojang/blaze3d/textures/GpuTexture;D)V"
+        )
+    )
+    private void ip_skipDepthClearInPortalView(
+        CommandEncoder encoder, GpuTexture depthTexture, double clearDepth, Operation<Void> original
+    ) {
+        if (WorldRenderInfo.isRendering() && !ip_renderHand) {
+            if (!ip_loggedDepthClearSkip) {
+                ip_loggedDepthClearSkip = true;
+                LOGGER.info("[IP debug] skipped the hand depth clear in a portal view");
+            }
+            return;
+        }
+        original.call(encoder, depthTexture, clearDepth);
+    }
+    
+    @Unique
+    private static boolean ip_loggedDepthClearSkip = false;
+    
     @Shadow
     @Final
     @Mutable
     private LightTexture lightTexture;
     
+    @Unique
+    private boolean ip_renderHand = true;
+    
     @Shadow
-    private boolean renderHand;
+    @Final
+    private FogRenderer fogRenderer;
     @Shadow
     @Final
     @Mutable
@@ -185,14 +220,18 @@ public abstract class MixinGameRenderer implements IEGameRenderer {
         method = "renderLevel",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V"
+            target = "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V"
         )
     )
     private void wrapRenderLevel(
-        LevelRenderer instance, GraphicsResourceAllocator graphicsResourceAllocator, DeltaTracker deltaTracker, boolean bl, Camera camera, GameRenderer gameRenderer, Matrix4f modelView, Matrix4f projection, Operation<Void> original
+        LevelRenderer instance, GraphicsResourceAllocator graphicsResourceAllocator, DeltaTracker deltaTracker,
+        boolean renderBlockOutline, Camera camera, Matrix4f modelView, Matrix4f projection,
+        GpuBufferSlice fogBuffer, Vector4f fogColor, boolean renderSky,
+        Operation<Void> original
     ) {
         original.call(
-            instance, graphicsResourceAllocator, deltaTracker, bl, camera, gameRenderer, modelView, projection
+            instance, graphicsResourceAllocator, deltaTracker, renderBlockOutline, camera,
+            modelView, projection, fogBuffer, fogColor, renderSky
         );
         
         IPCGlobal.renderer.onBeforeHandRendering(modelView);
@@ -214,13 +253,17 @@ public abstract class MixinGameRenderer implements IEGameRenderer {
     
     private static boolean portal_isRenderingHand = false;
     
-    @Inject(method = "renderItemInHand", at = @At("HEAD"))
-    private void onRenderHandBegins(Camera camera, float f, Matrix4f matrix4f, CallbackInfo ci) {
+    @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)
+    private void onRenderHandBegins(float partialTick, boolean sleeping, Matrix4f projectionMatrix, CallbackInfo ci) {
+        if (!ip_renderHand) {
+            ci.cancel();
+            return;
+        }
         portal_isRenderingHand = true;
     }
     
     @Inject(method = "renderItemInHand", at = @At("RETURN"))
-    private void onRenderHandEnds(Camera camera, float f, Matrix4f matrix4f, CallbackInfo ci) {
+    private void onRenderHandEnds(float partialTick, boolean sleeping, Matrix4f projectionMatrix, CallbackInfo ci) {
         portal_isRenderingHand = false;
     }
     
@@ -338,7 +381,17 @@ public abstract class MixinGameRenderer implements IEGameRenderer {
     
     @Override
     public boolean ip_getDoRenderHand() {
-        return renderHand;
+        return ip_renderHand;
+    }
+    
+    @Override
+    public void ip_setDoRenderHand(boolean cond) {
+        ip_renderHand = cond;
+    }
+    
+    @Override
+    public FogRenderer ip_getFogRenderer() {
+        return fogRenderer;
     }
     
     @Override

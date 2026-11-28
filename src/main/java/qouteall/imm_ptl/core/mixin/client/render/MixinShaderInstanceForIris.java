@@ -1,6 +1,5 @@
 package qouteall.imm_ptl.core.mixin.client.render;
 
-import net.minecraft.client.renderer.CompiledShaderProgram;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;

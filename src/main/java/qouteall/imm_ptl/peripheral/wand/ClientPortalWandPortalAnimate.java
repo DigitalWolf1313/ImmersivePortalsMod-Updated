@@ -23,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import qouteall.imm_ptl.core.mc_utils.NbtBridge;
 import qouteall.imm_ptl.core.mc_utils.WireRenderingHelper;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalExtension;
@@ -544,7 +545,7 @@ public class ClientPortalWandPortalAnimate {
         
         ListTag linked = new ListTag();
         for (UUID id : linkedIds) {
-            linked.add(NbtUtils.createUUID(id));
+            linked.add(NbtBridge.createUUID(id));
         }
         data.put("linkedIds", linked);
         data.putBoolean("loop", loop);
@@ -567,19 +568,19 @@ public class ClientPortalWandPortalAnimate {
         track.clear();
         
         for (int i = 0; i < list.size(); i++) {
-            CompoundTag tag = list.getCompound(i);
+            CompoundTag tag = list.getCompoundOrEmpty(i);
             
             TimingFunction easing;
             try {
-                easing = TimingFunction.valueOf(tag.getString("easing"));
+                easing = TimingFunction.valueOf(tag.getStringOr("easing", ""));
             }
             catch (IllegalArgumentException ex) {
                 easing = TimingFunction.easeInOutCubic;
             }
             
             track.keyframes.add(new Keyframe(
-                UnilateralPortalState.fromTag(tag.getCompound("state")),
-                Mth.clamp(tag.getInt("durationTicks"), 0, MAX_DURATION_TICKS),
+                UnilateralPortalState.fromTag(tag.getCompoundOrEmpty("state")),
+                Mth.clamp(tag.getIntOr("durationTicks", 0), 0, MAX_DURATION_TICKS),
                 easing
             ));
         }
@@ -596,8 +597,8 @@ public class ClientPortalWandPortalAnimate {
     
     private static PortalState tagToState(CompoundTag tag) {
         return UnilateralPortalState.combine(
-            UnilateralPortalState.fromTag(tag.getCompound("thisSide")),
-            UnilateralPortalState.fromTag(tag.getCompound("otherSide"))
+            UnilateralPortalState.fromTag(tag.getCompoundOrEmpty("thisSide")),
+            UnilateralPortalState.fromTag(tag.getCompoundOrEmpty("otherSide"))
         );
     }
     
@@ -630,13 +631,13 @@ public class ClientPortalWandPortalAnimate {
             return;
         }
         
-        portalId = data.getUUID("portalId");
+        portalId = NbtBridge.getUUID(data, "portalId");
         loadClusterIds(data);
-        startState = tagToState(data.getCompound("start"));
-        loop = data.getBoolean("loop");
+        startState = tagToState(data.getCompoundOrEmpty("start"));
+        loop = data.getBooleanOr("loop", false);
         
-        loadTrack(tracks[SIDE_THIS], data.getList("thisKeyframes", Tag.TAG_COMPOUND));
-        loadTrack(tracks[SIDE_OTHER], data.getList("otherKeyframes", Tag.TAG_COMPOUND));
+        loadTrack(tracks[SIDE_THIS], data.getListOrEmpty("thisKeyframes"));
+        loadTrack(tracks[SIDE_OTHER], data.getListOrEmpty("otherKeyframes"));
         
         awaitingTicks = 0;
     }
@@ -727,7 +728,7 @@ public class ClientPortalWandPortalAnimate {
                 return;
             }
             
-            startState = tagToState(data.getCompound("start"));
+            startState = tagToState(data.getCompoundOrEmpty("start"));
             awaitingTicks = 0;
             
             // The session portal is the one that the player clicked, so its own side is edited.
@@ -799,14 +800,14 @@ public class ClientPortalWandPortalAnimate {
     }
     
     private static void loadClusterIds(CompoundTag data) {
-        loadIds(sameSideIds, data.getList("sameSideIds", Tag.TAG_INT_ARRAY));
-        loadIds(otherSideIds, data.getList("otherSideIds", Tag.TAG_INT_ARRAY));
+        loadIds(sameSideIds, data.getListOrEmpty("sameSideIds"));
+        loadIds(otherSideIds, data.getListOrEmpty("otherSideIds"));
     }
     
     private static void loadIds(Set<UUID> ids, ListTag list) {
         ids.clear();
         for (Tag tag : list) {
-            ids.add(NbtUtils.loadUUID(tag));
+            ids.add(NbtBridge.loadUUID(tag));
         }
     }
     

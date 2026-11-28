@@ -122,7 +122,7 @@ public final class WikiRemoteImages {
         if (entry.texture == null) {
             try (InputStream in = Files.newInputStream(entry.file)) {
                 NativeImage image = NativeImage.read(in);
-                DynamicTexture texture = new DynamicTexture(image);
+                DynamicTexture texture = new DynamicTexture(() -> "imm_ptl_wiki_image", image);
                 ResourceLocation location =
                     ResourceLocation.fromNamespaceAndPath("immersive_portals", "wiki_remote/" + entry.id);
                 Minecraft.getInstance().getTextureManager().register(location, texture);

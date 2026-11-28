@@ -1,8 +1,8 @@
 package qouteall.imm_ptl.core.render;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
@@ -16,8 +16,10 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -88,18 +90,23 @@ public class OverlayRendering {
         }
     }
     
-    public static List<BakedQuad> getQuads(BakedModel model, BlockState blockState, Vec3 portalNormal) {
+    public static List<BakedQuad> getQuads(BlockStateModel model, BlockState blockState, Vec3 portalNormal) {
         Direction facing = Direction.getApproximateNearest(portalNormal.x, portalNormal.y, portalNormal.z);
+        
+        List<BlockModelPart> parts = model.collectParts(random);
         
         List<BakedQuad> result = new ArrayList<>();
         
-        result.addAll(model.getQuads(blockState, facing, random));
-        
-        result.addAll(model.getQuads(blockState, null, random));
+        for (BlockModelPart part : parts) {
+            result.addAll(part.getQuads(facing));
+            result.addAll(part.getQuads(null));
+        }
         
         if (result.isEmpty()) {
-            for (Direction direction : Direction.values()) {
-                result.addAll(model.getQuads(blockState, direction, random));
+            for (BlockModelPart part : parts) {
+                for (Direction direction : Direction.values()) {
+                    result.addAll(part.getQuads(direction));
+                }
             }
         }
         
@@ -155,20 +162,20 @@ public class OverlayRendering {
             return;
         }
         
-        RenderType renderType = Sheets.translucentItemSheet();
-        renderType.setupRenderState();
-        try {
-            RenderSystem.depthMask(false);
-            RenderSystem.enablePolygonOffset();
-            RenderSystem.polygonOffset(-1.0F, -10.0F);
-            BufferUploader.drawWithShader(mesh);
-        }
-        finally {
-            RenderSystem.polygonOffset(0.0F, 0.0F);
-            RenderSystem.disablePolygonOffset();
-            RenderSystem.depthMask(true);
-            renderType.clearRenderState();
-        }
+        Minecraft client = Minecraft.getInstance();
+        
+        PortalDraw.drawMesh(
+            "portal overlay", PortalPipelines.portalOverlay(),
+            mesh, client.getMainRenderTarget(),
+            RenderSystem.getModelViewMatrix(), null,
+            pass -> {
+                pass.bindSampler(
+                    "Sampler0", client.getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS).getTextureView()
+                );
+                pass.bindSampler("Sampler2", client.gameRenderer.lightTexture().getTextureView());
+            },
+            false, false
+        );
     }
     
     /**
@@ -206,7 +213,7 @@ public class OverlayRendering {
         
         matrixStack.translate(offset.x, offset.y, offset.z);
         
-        BakedModel model = blockRenderManager.getBlockModel(blockState);
+        BlockStateModel model = blockRenderManager.getBlockModel(blockState);
         
         List<BakedQuad> quads = getQuads(model, blockState, portal.getNormal());
         
@@ -223,7 +230,7 @@ public class OverlayRendering {
             }
             
             for (BakedQuad quad : quads) {
-                SodiumInterface.invoker.markSpriteActive(quad.getSprite());
+                SodiumInterface.invoker.markSpriteActive(quad.sprite());
                 buffer.putBulkData(
                     matrixStack.last(),
                     quad,

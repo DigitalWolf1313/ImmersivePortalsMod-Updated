@@ -16,6 +16,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.levelgen.Heightmap;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,6 +31,7 @@ import qouteall.q_misc_util.my_util.SignalArged;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -164,7 +166,7 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
     @Override
     public LevelChunk replaceWithPacketData(
         int x, int z,
-        FriendlyByteBuf buf, CompoundTag nbt,
+        FriendlyByteBuf buf, Map<Heightmap.Types, long[]> nbt,
         Consumer<ClientboundLevelChunkPacketData.BlockEntityTagOutput> consumer
     ) {
         Validate.isTrue(Thread.currentThread() == mainThread);
@@ -200,7 +202,7 @@ public class ImmPtlClientChunkMap extends ClientChunkCache {
      */
     private void loadChunkDataFromPacket(
         FriendlyByteBuf buf,
-        CompoundTag nbt,
+        Map<Heightmap.Types, long[]> nbt,
         LevelChunk worldChunk,
         Consumer<ClientboundLevelChunkPacketData.BlockEntityTagOutput> consumer
     ) {

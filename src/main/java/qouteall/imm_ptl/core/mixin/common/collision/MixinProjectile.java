@@ -1,32 +1,39 @@
 package qouteall.imm_ptl.core.mixin.common.collision;
 
-import net.minecraft.server.MinecraftServer;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityReference;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.entity.UUIDLookup;
+import net.minecraft.world.level.entity.UniquelyIdentifyable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(Projectile.class)
 public abstract class MixinProjectile extends MixinEntity {
     
-    // make it recognize the owner in another dimension
-    @Redirect(
-        method = "findOwner",
+    // Makes it recognize the owner in another dimension.
+    @WrapOperation(
+        method = "getOwner",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/server/level/ServerLevel;getEntity(Ljava/util/UUID;)Lnet/minecraft/world/entity/Entity;"
+            target = "Lnet/minecraft/world/entity/EntityReference;get(Lnet/minecraft/world/entity/EntityReference;Lnet/minecraft/world/level/entity/UUIDLookup;Ljava/lang/Class;)Lnet/minecraft/world/level/entity/UniquelyIdentifyable;"
         )
     )
-    private Entity redirectGetEntityFromUuid(
-        net.minecraft.server.level.ServerLevel serverLevel,
-        java.util.UUID uuid
+    private UniquelyIdentifyable wrapGetOwner(
+        EntityReference<?> reference, UUIDLookup<?> lookup, Class<?> entityClass,
+        Operation<UniquelyIdentifyable> original
     ) {
-        MinecraftServer server = serverLevel.getServer();
-        for (ServerLevel world : server.getAllLevels()) {
-            Entity entity = world.getEntity(uuid);
-            if (entity != null) {
+        UniquelyIdentifyable result = original.call(reference, lookup, entityClass);
+        if (result != null || reference == null || !(lookup instanceof ServerLevel serverLevel)) {
+            return result;
+        }
+        
+        for (ServerLevel level : serverLevel.getServer().getAllLevels()) {
+            Entity entity = level.getEntity(reference.getUUID());
+            if (entity != null && entityClass.isInstance(entity)) {
                 return entity;
             }
         }

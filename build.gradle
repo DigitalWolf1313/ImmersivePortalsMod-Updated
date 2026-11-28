@@ -124,8 +124,8 @@ dependencies {
     if (project.enable_iris.equals('true')) {
         modLocalRuntime "${project.iris_path}"
         implementation "org.anarres:jcpp:1.4.14" // for iris
-        implementation 'io.github.douira:glsl-transformer:2.0.0-pre13' // for iris
-        implementation 'org.antlr:antlr4-runtime:4.11.1' // for iris
+        implementation 'io.github.douira:glsl-transformer:3.0.0-pre3' // for iris
+        implementation 'org.antlr:antlr4-runtime:4.13.1' // for iris
     }
 
     if (project.enable_pehkui.equals('true')) {

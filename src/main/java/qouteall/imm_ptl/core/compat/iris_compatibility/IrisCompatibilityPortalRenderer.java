@@ -1,5 +1,6 @@
 package qouteall.imm_ptl.core.compat.iris_compatibility;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
@@ -12,6 +13,8 @@ import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
+import qouteall.imm_ptl.core.render.IPGlHelper;
+import qouteall.imm_ptl.core.render.IPRenderSystem;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.SecondaryFrameBuffer;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
@@ -54,7 +57,7 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
     
     @Override
     public boolean replaceFrameBufferClearing() {
-        client.getMainRenderTarget().bindWrite(false);
+        IPGlHelper.bindWrite(client.getMainRenderTarget(), false);
         
         return false;
     }
@@ -108,15 +111,14 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         deferredBuffer.prepare();
         
-        deferredBuffer.fb.setClearColor(1, 0, 0, 0);
-        deferredBuffer.fb.clear();
+        IPGlHelper.clear(deferredBuffer.fb, 1, 0, 0, 0, true);
         
         IPPortingLibCompat.setIsStencilEnabled(
             client.getMainRenderTarget(), false
         );
         
         // Iris now use vanilla framebuffer's depth
-        client.getMainRenderTarget().bindWrite(false);
+        IPGlHelper.bindWrite(client.getMainRenderTarget(), false);
     }
     
     protected void doRenderPortal(Portal portal, Matrix4f modelView) {
@@ -139,7 +141,7 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
             return;
         }
         
-        client.getMainRenderTarget().bindWrite(true);
+        IPGlHelper.bindWrite(client.getMainRenderTarget(), true);
         
         PortalRendering.pushPortalLayer(portal);
         
@@ -153,16 +155,16 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         if (!isDebugMode) {
             // draw portal content to the deferred buffer
-            deferredBuffer.fb.bindWrite(true);
+            IPGlHelper.bindWrite(deferredBuffer.fb, true);
             MyRenderHelper.drawPortalAreaWithFramebuffer(
                 portal,
                 client.getMainRenderTarget(),
                 modelView,
-                RenderSystem.getProjectionMatrix()
+                IPRenderSystem.getProjectionMatrix()
             );
         }
         else {
-            deferredBuffer.fb.bindWrite(true);
+            IPGlHelper.bindWrite(deferredBuffer.fb, true);
             MyRenderHelper.drawScreenFrameBuffer(
                 client.getMainRenderTarget(),
                 true, true
@@ -171,9 +173,9 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         
         CHelper.disableDepthClamp();
         
-        RenderSystem.colorMask(true, true, true, true);
+        GlStateManager._colorMask(true, true, true, true);
         
-        client.getMainRenderTarget().bindWrite(true);
+        IPGlHelper.bindWrite(client.getMainRenderTarget(), true);
     }
     
     
@@ -198,14 +200,14 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         int portalLayer = PortalRendering.getPortalLayer();
         SecondaryFrameBuffer deferredBuffer = deferredBuffers[portalLayer];
         
-        deferredBuffer.fb.bindWrite(true);
+        IPGlHelper.bindWrite(deferredBuffer.fb, true);
         
         return PortalRenderInfo.renderAndDecideVisibility(portal, () -> {
             
             ViewAreaRenderer.renderPortalArea(
                 portal, Vec3.ZERO,
                 modelView,
-                RenderSystem.getProjectionMatrix(),
+                IPRenderSystem.getProjectionMatrix(),
                 true, false, false, true
             );
         });
@@ -245,8 +247,8 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
             client.getMainRenderTarget(),
             deferredBuffer.fb
         );
-//        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, client.getMainRenderTarget().frameBufferId);
-//        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, deferredBuffer.fb.frameBufferId);
+//        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, IPGlHelper.getFbo(client.getMainRenderTarget()));
+//        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, IPGlHelper.getFbo(deferredBuffer.fb));
 //        GL30.glBlitFramebuffer(
 //            0, 0, deferredBuffer.fb.width, deferredBuffer.fb.height,
 //            0, 0, deferredBuffer.fb.width, deferredBuffer.fb.height,
@@ -264,7 +266,7 @@ public class IrisCompatibilityPortalRenderer extends PortalRenderer {
         renderPortals(effectiveModelView);
         
         RenderTarget mainFrameBuffer = client.getMainRenderTarget();
-        mainFrameBuffer.bindWrite(true);
+        IPGlHelper.bindWrite(mainFrameBuffer, true);
         
         MyRenderHelper.drawScreenFrameBuffer(
             deferredBuffer.fb,

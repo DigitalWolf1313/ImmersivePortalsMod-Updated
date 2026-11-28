@@ -50,10 +50,10 @@ public class SecondaryFrameBuffer {
         Entry entry = buffers.get(size);
         if (entry == null) {
             TextureTarget target = new TextureTarget(
+                "imm_ptl_secondary_" + width + "x" + height,
                 width, height,
                 true
             );
-            target.checkStatus();
             entry = new Entry(target, frame);
             buffers.put(size, entry);
             Helper.LOGGER.info("Secondary Framebuffer init {}x{} ({} cached)", width, height, buffers.size());

@@ -1,6 +1,7 @@
 package qouteall.imm_ptl.core.render.renderer;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.fabricmc.fabric.api.event.Event;
@@ -10,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -17,20 +19,21 @@ import org.joml.Quaternionf;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.IPCGlobal;
-import net.minecraft.world.phys.AABB;
-import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
-import qouteall.imm_ptl.core.render.FrustumCuller;
 import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.compat.IPModInfoChecking;
 import qouteall.imm_ptl.core.compat.iris_compatibility.ExperimentalIrisPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisCompatibilityPortalRenderer;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisInterface;
 import qouteall.imm_ptl.core.compat.iris_compatibility.IrisPortalRenderer;
+import qouteall.imm_ptl.core.compat.sodium_compatibility.SodiumInterface;
 import qouteall.imm_ptl.core.portal.Mirror;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.global_portals.GlobalPortalStorage;
+import qouteall.imm_ptl.core.render.FrustumCuller;
+import qouteall.imm_ptl.core.render.IPRenderSystem;
 import qouteall.imm_ptl.core.render.MyGameRenderer;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
+import qouteall.imm_ptl.core.render.PortalFogOverlay;
 import qouteall.imm_ptl.core.render.TransformationManager;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
@@ -88,7 +91,7 @@ public abstract class PortalRenderer {
         Supplier<Frustum> frustumSupplier = Helper.cached(() -> {
             Frustum frustum = new Frustum(
                 modelView,
-                RenderSystem.getProjectionMatrix()
+                IPRenderSystem.getProjectionMatrix()
             );
             
             Vec3 cameraPos = client.gameRenderer.getMainCamera().getPosition();
@@ -220,6 +223,9 @@ public abstract class PortalRenderer {
         
         ClientLevel newWorld = ClientWorldLoader.getWorld(portal.getDestDim());
         
+        GpuBufferSlice outerFogSlice = RenderSystem.getShaderFog();
+        PortalFogOverlay.FogState outerFog = PortalFogOverlay.captureRaw();
+        
         PortalRendering.onBeginPortalWorldRendering();
         
         int renderDistance = getPortalRenderDistance(portal);
@@ -239,6 +245,8 @@ public abstract class PortalRenderer {
         );
         
         PortalRendering.onEndPortalWorldRendering();
+        
+        PortalFogOverlay.restoreWorldFog(outerFog, outerFogSlice);
         
         GlStateManager._enableDepthTest();
         

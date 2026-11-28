@@ -110,7 +110,7 @@ public class PlayerChunkLoading {
         }
         
         ServerGamePacketListenerImpl connection = serverPlayer.connection;
-        MinecraftServer server = serverPlayer.server;
+        MinecraftServer server = serverPlayer.getServer();
         
         int maxSendNum = (int) Math.floor(batchQuota);
         Validate.isTrue(maxSendNum != 0);

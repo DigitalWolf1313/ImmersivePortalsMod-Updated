@@ -1,148 +1,120 @@
 package qouteall.imm_ptl.core.mixin.client.render.optimization;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexBuffer;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
-import org.apache.commons.lang3.Validate;
+import net.minecraft.client.CloudStatus;
+import net.minecraft.client.renderer.CloudRenderer;
+import net.minecraft.client.renderer.MappableRingBuffer;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import qouteall.imm_ptl.core.IPGlobal;
-import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
-import qouteall.imm_ptl.core.render.context_management.CloudContext;
-import qouteall.imm_ptl.core.render.context_management.RenderStates;
+import qouteall.imm_ptl.core.render.IPCloudViewStates;
+import qouteall.imm_ptl.core.render.context_management.WorldRenderInfo;
 
-// Optimize cloud rendering by storing the context and
-// avoiding rebuild the cloud mesh every time
-@Mixin(LevelRenderer.class)
+/**
+ * Avoids rebuilding the cloud mesh every time the rendered view switches.
+ * Each portal view swaps its own mesh state into the renderer while it renders, see {@link IPCloudViewStates}.
+ */
+@Mixin(CloudRenderer.class)
 public abstract class MixinLevelRenderer_Clouds {
+    @Shadow
+    private boolean needsRebuild;
     
-    // TODO re-implement
+    @Shadow
+    private int prevCellX;
     
-//    @Shadow
-//    private int prevCloudX;
-//
-//    @Shadow
-//    private int prevCloudY;
-//
-//    @Shadow
-//    private int prevCloudZ;
-//
-//    @Shadow
-//    @Nullable
-//    private VertexBuffer cloudBuffer;
-//
-//    @Shadow
-//    private ClientLevel level;
-//
-//    @Shadow
-//    private boolean generateClouds;
-//
-//    @Shadow
-//    private int ticks;
-//
-//    @Inject(
-//        method = "renderClouds",
-//        at = @At("HEAD")
-//    )
-//    private void onBeginRenderClouds(
-//        PoseStack poseStack, Matrix4f projectionMatrix, Matrix4f frustrumMatrix, float partialTick, double camX, double camY, double camZ, CallbackInfo ci
-//    ) {
-//        if (RenderStates.getRenderedPortalNum() == 0) {
-//            return;
-//        }
-//
-//        if (IPGlobal.cloudOptimization) {
-//            portal_onBeginCloudRendering(partialTick, camX, camY, camZ);
-//        }
-//    }
-//
-//    @Inject(
-//        method = "renderClouds",
-//        at = @At("RETURN")
-//    )
-//    private void onEndRenderClouds(PoseStack poseStack, Matrix4f projectionMatrix, Matrix4f frustrumMatrix, float partialTick, double camX, double camY, double camZ, CallbackInfo ci) {
-//        if (RenderStates.getRenderedPortalNum() == 0) {
-//            return;
-//        }
-//
-//        if (IPGlobal.cloudOptimization) {
-//            portal_onEndCloudRendering();
-//        }
-//    }
-//
-//    private void portal_yieldCloudContext(CloudContext context) {
-//        Vec3 cloudsColor = this.level.getCloudColor(RenderStates.getPartialTick());
-//
-//        context.lastCloudsBlockX = prevCloudX;
-//        context.lastCloudsBlockY = prevCloudY;
-//        context.lastCloudsBlockZ = prevCloudZ;
-//        context.cloudsBuffer = cloudBuffer;
-//        context.dimension = level.dimension();
-//        context.cloudColor = cloudsColor;
-//
-//        cloudBuffer = null;
-//        generateClouds = true;
-//    }
-//
-//    private void portal_loadCloudContext(CloudContext context) {
-//        Validate.isTrue(context.dimension == level.dimension());
-//
-//        prevCloudX = context.lastCloudsBlockX;
-//        prevCloudY = context.lastCloudsBlockY;
-//        prevCloudZ = context.lastCloudsBlockZ;
-//        cloudBuffer = context.cloudsBuffer;
-//
-//        generateClouds = false;
-//    }
-//
-//    /**
-//     * {@link LevelRenderer#renderClouds}
-//     */
-//    @IPVanillaCopy
-//    private void portal_onBeginCloudRendering(
-//        float partialTick, double cameraX, double cameraY, double cameraZ
-//    ) {
-//        float f = this.level.effects().getCloudHeight();
-//        float g = 12.0F;
-//        float h = 4.0F;
-//        double d = 2.0E-4D;
-//        double e = (double) (((float) this.ticks + partialTick) * 0.03F);
-//        double i = (cameraX + e) / 12.0D;
-//        double j = (double) (f - (float) cameraY + 0.33F);
-//        double k = cameraZ / 12.0D + 0.33000001311302185D;
-//        i -= (double) (Mth.floor(i / 2048.0D) * 2048);
-//        k -= (double) (Mth.floor(k / 2048.0D) * 2048);
-//        float l = (float) (i - (double) Mth.floor(i));
-//        float m = (float) (j / 4.0D - (double) Mth.floor(j / 4.0D)) * 4.0F;
-//        float n = (float) (k - (double) Mth.floor(k));
-//        Vec3 cloudsColor = this.level.getCloudColor(partialTick);
-//        int kx = (int) Math.floor(i);
-//        int ky = (int) Math.floor(j / 4.0D);
-//        int kz = (int) Math.floor(k);
-//
-//        @Nullable CloudContext context = CloudContext.findAndTakeContext(
-//            kx, ky, kz, level.dimension(), cloudsColor
-//        );
-//
-//        if (context != null) {
-//            portal_loadCloudContext(context);
-//        }
-//    }
-//
-//    private void portal_onEndCloudRendering() {
-//        if (!generateClouds) {
-//            final CloudContext newContext = new CloudContext();
-//            portal_yieldCloudContext(newContext);
-//
-//            CloudContext.appendContext(newContext);
-//        }
-//    }
+    @Shadow
+    private int prevCellZ;
+    
+    @Shadow
+    private CloudRenderer.RelativeCameraPos prevRelativeCameraPos;
+    
+    @Shadow
+    @Nullable
+    private CloudStatus prevType;
+    
+    @Shadow
+    @Nullable
+    private CloudRenderer.TextureData texture;
+    
+    @Shadow
+    private int quadCount;
+    
+    @Shadow
+    @Nullable
+    private MappableRingBuffer utb;
+    
+    @Unique
+    private IPCloudViewStates.@Nullable State ip_swappedState = null;
+    
+    @Inject(method = "render", at = @At("HEAD"))
+    private void ip_swapInViewState(CallbackInfo ci) {
+        ip_swappedState = null;
+        
+        if (!IPGlobal.cloudOptimization || !WorldRenderInfo.isRendering()) {
+            return;
+        }
+        
+        IPCloudViewStates.State state = IPCloudViewStates.get(WorldRenderInfo.getRenderingDescription());
+        
+        if (state.texture != this.texture) {
+            state.texture = this.texture;
+            state.needsRebuild = true;
+        }
+        
+        ip_swap(state);
+        ip_swappedState = state;
+    }
+    
+    @Inject(method = "render", at = @At("RETURN"))
+    private void ip_swapOutViewState(CallbackInfo ci) {
+        if (ip_swappedState != null) {
+            ip_swap(ip_swappedState);
+            ip_swappedState = null;
+        }
+    }
+    
+    @Inject(method = "markForRebuild", at = @At("HEAD"))
+    private void ip_onMarkForRebuild(CallbackInfo ci) {
+        IPCloudViewStates.markAllForRebuild();
+    }
+    
+    @Inject(method = "close", at = @At("HEAD"))
+    private void ip_onClose(CallbackInfo ci) {
+        IPCloudViewStates.cleanup();
+    }
+    
+    @Unique
+    private void ip_swap(IPCloudViewStates.State state) {
+        boolean tmpNeedsRebuild = this.needsRebuild;
+        this.needsRebuild = state.needsRebuild;
+        state.needsRebuild = tmpNeedsRebuild;
+        
+        int tmpCellX = this.prevCellX;
+        this.prevCellX = state.prevCellX;
+        state.prevCellX = tmpCellX;
+        
+        int tmpCellZ = this.prevCellZ;
+        this.prevCellZ = state.prevCellZ;
+        state.prevCellZ = tmpCellZ;
+        
+        CloudRenderer.RelativeCameraPos tmpRelativePos = this.prevRelativeCameraPos;
+        this.prevRelativeCameraPos = state.prevRelativeCameraPos;
+        state.prevRelativeCameraPos = tmpRelativePos;
+        
+        CloudStatus tmpType = this.prevType;
+        this.prevType = state.prevType;
+        state.prevType = tmpType;
+        
+        int tmpQuadCount = this.quadCount;
+        this.quadCount = state.quadCount;
+        state.quadCount = tmpQuadCount;
+        
+        MappableRingBuffer tmpUtb = this.utb;
+        this.utb = state.utb;
+        state.utb = tmpUtb;
+    }
 }

@@ -27,6 +27,7 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 import qouteall.imm_ptl.core.IPCGlobal;
 import qouteall.imm_ptl.core.IPMcHelper;
@@ -34,6 +35,7 @@ import qouteall.imm_ptl.core.block_manipulation.BlockManipulationServer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class PortalWandItem extends Item {
     public static final PortalWandItem instance = new PortalWandItem(
@@ -115,7 +117,7 @@ public class PortalWandItem extends Item {
         public static final Mode FALLBACK = CREATE_PORTAL;
         
         public static Mode fromTag(CompoundTag tag) {
-            String mode = tag.getString("mode");
+            String mode = tag.getStringOr("mode", "");
             
             return fromStr(mode);
         }
@@ -259,17 +261,17 @@ public class PortalWandItem extends Item {
     @Environment(EnvType.CLIENT)
     @Override
     public void appendHoverText(
-        ItemStack stack, Item.TooltipContext tooltipContext,
-        List<Component> tooltip, TooltipFlag tooltipFlag
+        ItemStack stack, Item.TooltipContext tooltipContext, TooltipDisplay tooltipDisplay,
+        Consumer<Component> tooltip, TooltipFlag tooltipFlag
     ) {
-        super.appendHoverText(stack, tooltipContext, tooltip, tooltipFlag);
+        super.appendHoverText(stack, tooltipContext, tooltipDisplay, tooltip, tooltipFlag);
         
-        tooltip.add(Component.translatable(
+        tooltip.accept(Component.translatable(
             "imm_ptl.wand.item_desc_1",
             Minecraft.getInstance().options.keyShift.getTranslatedKeyMessage(),
             Minecraft.getInstance().options.keyUse.getTranslatedKeyMessage()
         ));
-        tooltip.add(Component.translatable(
+        tooltip.accept(Component.translatable(
             "imm_ptl.wand.item_desc_2",
             Minecraft.getInstance().options.keyShift.getTranslatedKeyMessage(),
             Minecraft.getInstance().options.keyAttack.getTranslatedKeyMessage()

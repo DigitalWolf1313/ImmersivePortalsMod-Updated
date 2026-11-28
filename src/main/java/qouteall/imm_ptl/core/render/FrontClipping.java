@@ -1,17 +1,15 @@
 package qouteall.imm_ptl.core.render;
 
-import com.mojang.blaze3d.shaders.Uniform;
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.opengl.GlProgram;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.CompiledShaderProgram;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
-import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.ARBSeparateShaderObjects;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL41;
 import org.lwjgl.opengl.GLCapabilities;
@@ -21,6 +19,7 @@ import qouteall.imm_ptl.core.IPGlobal;
 import qouteall.imm_ptl.core.ducks.IEShader;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
+import qouteall.imm_ptl.core.render.context_management.RenderStates;
 import qouteall.q_misc_util.my_util.Plane;
 
 public class FrontClipping {
@@ -176,55 +175,47 @@ public class FrontClipping {
         return activeClipPlaneAfterModelView;
     }
     
-    public static void updateClippingEquationUniformForCurrentShader(
-        boolean isRenderingEntities
-    ) {
-        if (!IPGlobal.enableClippingMechanism) {
-            return;
-        }
-        
-        CompiledShaderProgram shader = RenderSystem.getShader();
-        
-        if (shader == null) {
-            return;
-        }
-        
-        int uniformLocation = ((IEShader) shader).ip_getClippingEquationUniformLocation();
-        if (uniformLocation != -1) {
-            if (isClippingEnabled) {
-                double[] equation = activeClipPlaneEquationBeforeModelView;
-//                double[] equation = isRenderingEntities ? activeClipPlaneAfterModelView : activeClipPlaneEquationBeforeModelView;
-//                clippingEquationUniform.set(
-//                    (float) equation[0], (float) equation[1],
-//                    (float) equation[2], (float) equation[3]
-//                );
-                setClippingUniform(
-                    (IEShader) shader, uniformLocation,
-                    (float) equation[0], (float) equation[1],
-                    (float) equation[2], (float) equation[3]
-                );
-            }
-            else {
-                setClippingUniform((IEShader) shader, uniformLocation, 0, 0, 0, 1);
-//                clippingEquationUniform.set(0f, 0f, 0f, 1f);
-            }
-        }
-    }
+    /**
+     * Makes every draw apply the active clipping plane, whatever it draws.
+     * Draws of the portal view area and fog set this.
+     */
+    public static boolean forceApplyClipping = false;
     
-    public static void unsetClippingUniform() {
-        if (!IPGlobal.enableClippingMechanism) {
+    /**
+     * Set while terrain layers are drawn.
+     */
+    public static boolean isRenderingTerrain = false;
+    
+    /**
+     * Called by the command encoder mixin after a program is set up for a draw.
+     * Only some kinds of draws are clipped, as the plane equation is only meaningful in their coordinate space.
+     * The others get an equation that clips nothing.
+     */
+    public static void onProgramSetup(GlProgram program) {
+        IEShader shader = (IEShader) program;
+        int uniformLocation = shader.ip_getClippingEquationUniformLocation();
+        if (uniformLocation == -1) {
             return;
         }
         
-        CompiledShaderProgram shader = RenderSystem.getShader();
+        boolean shouldClip = IPGlobal.enableClippingMechanism && isClippingEnabled && (
+            forceApplyClipping ||
+                isRenderingTerrain ||
+                CrossPortalEntityRenderer.isRenderingEntityNormally ||
+                CrossPortalEntityRenderer.isRenderingEntityProjection ||
+                RenderStates.isRenderingPortalWeather
+        );
         
-        if (shader == null) {
-            return;
+        if (shouldClip && activeClipPlaneEquationBeforeModelView != null) {
+            double[] equation = activeClipPlaneEquationBeforeModelView;
+            setClippingUniform(
+                shader, uniformLocation,
+                (float) equation[0], (float) equation[1],
+                (float) equation[2], (float) equation[3]
+            );
         }
-        
-        int uniformLocation = ((IEShader) shader).ip_getClippingEquationUniformLocation();
-        if (uniformLocation != -1) {
-            setClippingUniform((IEShader) shader, uniformLocation, 0, 0, 0, 1);
+        else {
+            setClippingUniform(shader, uniformLocation, 0, 0, 0, 1);
         }
     }
     

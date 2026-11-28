@@ -458,21 +458,21 @@ public class PortalDebugCommands {
                 ServerLevel world = context.getSource().getLevel();
                 Iterable<ChunkHolder> chunkHolders = ((IEChunkMap_Accessor) world.getChunkSource().chunkMap).ip_getChunks();
                 
-                Object2IntOpenHashMap<TicketType<?>> stat = new Object2IntOpenHashMap<>();
+                Object2IntOpenHashMap<TicketType> stat = new Object2IntOpenHashMap<>();
                 for (ChunkHolder chunkHolder : chunkHolders) {
                     long chunkPos = chunkHolder.getPos().toLong();
-                    SortedArraySet<Ticket<?>> chunkTickets =
+                    List<Ticket> chunkTickets =
                         ((IEDistanceManager) getDistanceManager(world))
                             .portal_getTicketSet(chunkPos);
                     
-                    for (Ticket<?> ticket : chunkTickets) {
+                    for (Ticket ticket : chunkTickets) {
                         stat.addTo(ticket.getType(), 1);
                     }
                 }
                 
                 context.getSource().sendSuccess(() -> Component.literal(""), false);
-                for (Object2IntMap.Entry<TicketType<?>> entry : stat.object2IntEntrySet()) {
-                    TicketType<?> ticketType = entry.getKey();
+                for (Object2IntMap.Entry<TicketType> entry : stat.object2IntEntrySet()) {
+                    TicketType ticketType = entry.getKey();
                     context.getSource().sendSuccess(
                         () -> Component.literal(ticketType.toString() + " " + entry.getIntValue()),
                         false
@@ -729,8 +729,8 @@ public class PortalDebugCommands {
             
             DistanceManager distanceManager =
                 ((IEServerChunkCache) world.getChunkSource()).ip_getDistanceManager();
-            SortedArraySet<Ticket<?>> tickets = ((IEDistanceManager) distanceManager).portal_getTicketSet(longChunkPos);
-            for (Ticket<?> ticket : tickets) {
+            List<Ticket> tickets = ((IEDistanceManager) distanceManager).portal_getTicketSet(longChunkPos);
+            for (Ticket ticket : tickets) {
                 McHelper.serverLog(
                     player,
                     ticket.toString()

@@ -1,6 +1,6 @@
 package qouteall.imm_ptl.core.compat.iris_compatibility;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import net.irisshaders.iris.gl.IrisRenderSystem;
 import net.irisshaders.iris.gl.texture.DepthBufferFormat;
 import net.irisshaders.iris.gl.texture.InternalTextureFormat;
@@ -11,6 +11,7 @@ import net.irisshaders.iris.targets.RenderTarget;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL43C;
+import qouteall.imm_ptl.core.render.IPGlHelper;
 import qouteall.q_misc_util.Helper;
 
 import java.util.ArrayDeque;
@@ -59,9 +60,7 @@ public class ShadowMapSwapper {
         }
         
         private int createColorTexture(InternalTextureFormat format) {
-            int[] textures = new int[1];
-            GlStateManager._genTextures(textures);
-            int texture = textures[0];
+            int texture = GlStateManager._genTexture();
             
             IrisRenderSystem.texImage2D(
                 texture, GL11C.GL_TEXTURE_2D, 0,
@@ -95,9 +94,9 @@ public class ShadowMapSwapper {
             
             ShadowRenderTargets shadowRenderTargets = shadowMapSwapper.shadowRenderTargets;
             
-            copyTexture(shadowRenderTargets.getDepthTexture().getTextureId(), depthTexture.getTextureId());
+            copyTexture(IPGlHelper.glId(shadowRenderTargets.getDepthTexture()), depthTexture.getTextureId());
             copyTexture(
-                shadowRenderTargets.getDepthTextureNoTranslucents().getTextureId(),
+                IPGlHelper.glId(shadowRenderTargets.getDepthTextureNoTranslucents()),
                 noTranslucents.getTextureId()
             );
             
@@ -125,10 +124,10 @@ public class ShadowMapSwapper {
             
             ShadowRenderTargets shadowRenderTargets = shadowMapSwapper.shadowRenderTargets;
             
-            copyTexture(depthTexture.getTextureId(), shadowRenderTargets.getDepthTexture().getTextureId());
+            copyTexture(depthTexture.getTextureId(), IPGlHelper.glId(shadowRenderTargets.getDepthTexture()));
             copyTexture(
                 noTranslucents.getTextureId(),
-                shadowRenderTargets.getDepthTextureNoTranslucents().getTextureId()
+                IPGlHelper.glId(shadowRenderTargets.getDepthTextureNoTranslucents())
             );
             
             for (int i = 0; i < colorTextures.length; i++) {

@@ -1,6 +1,6 @@
 package qouteall.imm_ptl.core.compat.iris_compatibility;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
@@ -19,6 +19,8 @@ import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.portal.PortalRenderInfo;
 import qouteall.imm_ptl.core.render.FrontClipping;
+import qouteall.imm_ptl.core.render.IPGlHelper;
+import qouteall.imm_ptl.core.render.IPRenderSystem;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.PortalFogOverlay;
 import qouteall.imm_ptl.core.render.ViewAreaRenderer;
@@ -91,7 +93,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
             IPPortingLibCompat.setIsStencilEnabled(client.getMainRenderTarget(), true);
         }
         
-        client.getMainRenderTarget().bindWrite(false);
+        IPGlHelper.bindWrite(client.getMainRenderTarget(), false);
         
         GL11.glClearStencil(0);
         GL11.glClear(GL11.GL_STENCIL_BUFFER_BIT);
@@ -110,7 +112,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         Portal portal, Matrix4f modelView,
         int portalStencilValue
     ) {
-        client.getMainRenderTarget().bindWrite(false);
+        IPGlHelper.bindWrite(client.getMainRenderTarget(), false);
         
         setStencilLimitation(portalStencilValue);
         
@@ -121,7 +123,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         ViewAreaRenderer.renderPortalArea(
             portal, Vec3.ZERO,
             modelView,
-            RenderSystem.getProjectionMatrix(),
+            IPRenderSystem.getProjectionMatrix(),
             false,
             false,
             true,
@@ -215,8 +217,8 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
     }
     
     protected void doPortalRendering(Matrix4f modelView) {
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
+        GlStateManager._enableDepthTest();
+        GlStateManager._depthMask(true);
         
         Profiler.get().popPush("render_portal_total");
         renderPortals(modelView);
@@ -373,7 +375,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         ViewAreaRenderer.renderPortalArea(
             portal, Vec3.ZERO,
             modelView,
-            RenderSystem.getProjectionMatrix(),
+            IPRenderSystem.getProjectionMatrix(),
             true,
             false, // don't modify color
             true,
@@ -401,7 +403,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         //the pixel's depth will be 1, which is the furthest
         GL11.glDepthRange(1, 1);
         
-        MyRenderHelper.renderScreenTriangle();
+        MyRenderHelper.renderScreenTriangle(false, true, true);
         
         //retrieve the state
         GL11.glColorMask(true, true, true, true);
@@ -431,7 +433,7 @@ public class ExperimentalIrisPortalRenderer extends PortalRenderer {
         
         GlStateManager._disableDepthTest();
         
-        MyRenderHelper.renderScreenTriangle();
+        MyRenderHelper.renderScreenTriangle(false, false, false);
         
         GL11.glDepthMask(true);
         

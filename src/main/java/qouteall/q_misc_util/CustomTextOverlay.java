@@ -102,7 +102,7 @@ public class CustomTextOverlay {
         Minecraft minecraft = Minecraft.getInstance();
         
         Profiler.get().push("imm_ptl_custom_overlay");
-        guiGraphics.pose().pushPose();
+        guiGraphics.pose().pushMatrix();
         
         int guiScaledWidth = minecraft.getWindow().getGuiScaledWidth();
         int guiScaledHeight = minecraft.getWindow().getGuiScaledHeight();
@@ -127,7 +127,7 @@ public class CustomTextOverlay {
             );
         }
         
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().popMatrix();
         Profiler.get().pop();
         
     }

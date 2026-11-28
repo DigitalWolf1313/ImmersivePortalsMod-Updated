@@ -138,7 +138,7 @@ public class BorderBarrierFiller {
                 ChunkAccess chunk = world.getChunk(columnPos);
                 for (int y = minY; y < maxYEx; y++) {
                     temp1.set(columnPos.getX(), y, columnPos.getZ());
-                    chunk.setBlockState(temp1, Blocks.AIR.defaultBlockState(), false);
+                    chunk.setBlockState(temp1, Blocks.AIR.defaultBlockState(), 0);
                     lightingProvider.checkBlock(temp1);
                 }
                 

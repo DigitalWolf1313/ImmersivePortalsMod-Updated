@@ -134,7 +134,7 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
             // this actually never happens, because the vanilla client will disconnect immediately
             // when receiving the position sync packet that has the extra dimension field
             LOGGER.error("Player move packet is missing dimension info. Maybe the player client doesn't install iPortal");
-            ServerTaskList.of(player.server).addTask(() -> {
+            ServerTaskList.of(player.getServer()).addTask(() -> {
                 player.connection.disconnect(Component.literal(
                     "The client does not have Immersive Portals mod"
                 ));
@@ -161,7 +161,7 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
                     "[ImmPtl] Force move player {} {} {}",
                     player, player.level().dimension().location(), player.position()
                 );
-                ServerTeleportationManager.of(player.server).forceTeleportPlayer(
+                ServerTeleportationManager.of(player.getServer()).forceTeleportPlayer(
                     player, player.level().dimension(), player.position()
                 );
                 ip_wrongMovePacketCount = 0;
@@ -253,29 +253,30 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
     }
     
     @Inject(
-        method = "isPlayerCollidingWithAnythingNew", at = @At("HEAD"), cancellable = true
+        method = "isEntityCollidingWithAnythingNew", at = @At("HEAD"), cancellable = true
     )
-    private void onIsPlayerCollidingWithAnythingNew(
-        LevelReader level, AABB playerBB, double newX, double newY, double newZ, CallbackInfoReturnable<Boolean> cir
+    private void onIsEntityCollidingWithAnythingNew(
+        LevelReader level, Entity entity, AABB entityBB, double newX, double newY, double newZ,
+        CallbackInfoReturnable<Boolean> cir
     ) {
         if (!IPGlobal.crossPortalCollision) {
             return;
         }
         
-        // for this to work, the player's portal collision status must be updated after teleporting
+        // For this to work, the entity's portal collision status must be updated after teleporting.
         
-        AABB activePlayerBB = ((IEEntity) player).ip_getActiveCollisionBox(playerBB);
+        AABB activeEntityBB = ((IEEntity) entity).ip_getActiveCollisionBox(entityBB);
         
-        if (activePlayerBB == null) {
+        if (activeEntityBB == null) {
             cir.setReturnValue(false);
             return;
         }
         
-        AABB newBB = this.player.getBoundingBox().move(
-            newX - this.player.getX(), newY - this.player.getY(), newZ - this.player.getZ()
+        AABB newBB = entity.getBoundingBox().move(
+            newX - entity.getX(), newY - entity.getY(), newZ - entity.getZ()
         );
         
-        AABB activeNewBB = ((IEEntity) player).ip_getActiveCollisionBox(newBB);
+        AABB activeNewBB = ((IEEntity) entity).ip_getActiveCollisionBox(newBB);
         
         if (activeNewBB == null) {
             cir.setReturnValue(false);
@@ -283,14 +284,14 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
         }
         
         Iterable<VoxelShape> newBBCollisions =
-            level.getCollisions(this.player, activeNewBB.deflate(1.0E-5F));
+            level.getCollisions(entity, activeNewBB.deflate(1.0E-5F));
         
-        VoxelShape activePlayerBBShape = Shapes.create(activePlayerBB.deflate(1.0E-5F));
+        VoxelShape activeEntityBBShape = Shapes.create(activeEntityBB.deflate(1.0E-5F));
         
         for (VoxelShape shape : newBBCollisions) {
-            if (!Shapes.joinIsNotEmpty(shape, activePlayerBBShape, BooleanOp.AND)) {
-                // when a new collision box does not intersect with old bounding box
-                // it's considered as colliding with something new
+            if (!Shapes.joinIsNotEmpty(shape, activeEntityBBShape, BooleanOp.AND)) {
+                // A new collision box that does not intersect the old bounding box
+                // counts as colliding with something new.
                 cir.setReturnValue(true);
                 return;
             }
@@ -313,7 +314,7 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
         method = "handleAcceptTeleportPacket",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/server/level/ServerPlayer;absMoveTo(DDDFF)V"
+            target = "Lnet/minecraft/server/level/ServerPlayer;absSnapTo(DDDFF)V"
         )
     )
     private void onHandleAcceptTeleportPacket(
@@ -330,7 +331,7 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
                 ip_dimOfAwaitingPosition, awaitingPositionFromClient
             );
             
-            ServerLevel destWorld = player.server.getLevel(ip_dimOfAwaitingPosition);
+            ServerLevel destWorld = player.getServer().getLevel(ip_dimOfAwaitingPosition);
             
             if (destWorld == null) {
                 LOGGER.error(
@@ -340,7 +341,7 @@ public abstract class MixinServerGamePacketListenerImpl implements IEServerPlayN
                 return;
             }
             
-            ServerTeleportationManager.of(player.server)
+            ServerTeleportationManager.of(player.getServer())
                 .forceTeleportPlayer(
                     player, ip_dimOfAwaitingPosition,
                     awaitingPositionFromClient, false

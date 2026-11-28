@@ -1,6 +1,7 @@
 package qouteall.imm_ptl.core.compat.mixin.sodium;
 
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
+import net.caffeinemc.mods.sodium.client.render.chunk.lists.RenderSectionVisitor;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.GraphDirectionSet;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.OcclusionCuller;
 import net.caffeinemc.mods.sodium.client.render.viewport.Viewport;
@@ -52,7 +53,7 @@ public abstract class MixinSodiumOcclusionCuller {
     )
     boolean modifyUseOcclusionCulling(
         boolean originalValue,
-        OcclusionCuller.Visitor visitor, Viewport viewport, float searchDistance, boolean useOcclusionCulling, int frame
+        RenderSectionVisitor visitor, Viewport viewport, float searchDistance, boolean useOcclusionCulling, int frame
     ) {
         // Portal rendering turns the smart cull setting off when cave culling is not suitable for the portal.
         // The original value is not used there, because Sodium disables culling for a spectator inside a solid block.
@@ -100,7 +101,7 @@ public abstract class MixinSodiumOcclusionCuller {
     // which is valid for rays from the camera.
     @Inject(method = "init", at = @At("HEAD"), cancellable = true, remap = false)
     private void onInit(
-        OcclusionCuller.Visitor visitor, WriteQueue<RenderSection> queue,
+        RenderSectionVisitor visitor, WriteQueue<RenderSection> queue,
         Viewport viewport, float searchDistance, boolean useOcclusionCulling, int frame,
         CallbackInfo ci
     ) {

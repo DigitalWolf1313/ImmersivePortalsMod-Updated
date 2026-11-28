@@ -1,6 +1,5 @@
 package qouteall.imm_ptl.core.render;
 
-import com.mojang.blaze3d.shaders.CompiledShader;
 import com.mojang.logging.LogUtils;
 import me.shedaniel.cloth.clothconfig.shadowed.org.yaml.snakeyaml.Yaml;
 import org.jetbrains.annotations.Nullable;
@@ -19,11 +18,11 @@ public class ShaderCodeTransformation {
         vs, fs
     }
     
-    private static boolean matches(ShaderType me, CompiledShader.Type type) {
-        if (type == CompiledShader.Type.FRAGMENT) {
+    private static boolean matches(ShaderType me, com.mojang.blaze3d.shaders.ShaderType type) {
+        if (type == com.mojang.blaze3d.shaders.ShaderType.FRAGMENT) {
             return me == ShaderType.fs;
         }
-        else if (type == CompiledShader.Type.VERTEX) {
+        else if (type == com.mojang.blaze3d.shaders.ShaderType.VERTEX) {
             return me == ShaderType.vs;
         }
         return false;
@@ -69,7 +68,7 @@ public class ShaderCodeTransformation {
         }
     }
     
-    public static String transform(CompiledShader.Type type, String shaderId, String inputCode) {
+    public static String transform(com.mojang.blaze3d.shaders.ShaderType type, String shaderId, String inputCode) {
         if (configs == null) {
             LOGGER.info("Shader Transform Skipping {}", shaderId);
             return inputCode;
@@ -116,7 +115,7 @@ public class ShaderCodeTransformation {
     }
     
     @Nullable
-    private static Config getConfig(CompiledShader.Type type, String shaderId) {
+    private static Config getConfig(com.mojang.blaze3d.shaders.ShaderType type, String shaderId) {
         String shortId = getShortShaderId(shaderId);
         return configs.stream().filter(
             config -> matches(config.type, type) &&

@@ -1,7 +1,7 @@
 package qouteall.imm_ptl.core.render;
 
-import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.ProjectionType;
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.fabricmc.api.EnvType;
@@ -167,10 +167,11 @@ public class MyGameRenderer {
             ((IESectionRenderDispatcher) worldRenderer.getSectionRenderDispatcher())
                 .ip_getFixedBuffers();
         Frustum oldFrustum = ((IEWorldRenderer) worldRenderer).portal_getFrustum();
+        FrustumCuller oldFrustumCuller = SodiumInterface.frustumCuller;
         
         // the projection matrix contains view bobbing.
         // the view bobbing is related with scale
-        Matrix4f oldProjectionMatrix = RenderSystem.getProjectionMatrix();
+        Matrix4f oldProjectionMatrix = IPRenderSystem.getProjectionMatrix();
         Matrix4fStack oldModelViewStack = IERenderSystem.ip_getModelViewStack();
         
         ObjectArrayList<SectionRenderDispatcher.RenderSection> newChunkInfoList =
@@ -188,7 +189,7 @@ public class MyGameRenderer {
         
         client.getBlockEntityRenderDispatcher().level = newWorld;
         client.player.noPhysics = true;
-        client.gameRenderer.setRenderHand(doRenderHand);
+        ieGameRenderer.ip_setDoRenderHand(doRenderHand);
         
         FogRendererContext.swappingManager.pushSwapping(newDimension);
         ((IEParticleManager) client.particleEngine).ip_setWorld(newWorld);
@@ -256,7 +257,7 @@ public class MyGameRenderer {
             ieGameRenderer.ip_setLightmapTextureManager(oldLightmap);
             client.getBlockEntityRenderDispatcher().level = oldWorld;
             client.player.noPhysics = oldNoClip;
-            client.gameRenderer.setRenderHand(oldDoRenderHand);
+            ieGameRenderer.ip_setDoRenderHand(oldDoRenderHand);
         
             ((IEParticleManager) client.particleEngine).ip_setWorld(oldWorld);
             client.hitResult = oldCrosshairTarget;
@@ -277,8 +278,9 @@ public class MyGameRenderer {
         
             ((IEWorldRenderer) worldRenderer).portal_setFrustum(oldFrustum);
         
-            RenderSystem.setProjectionMatrix(oldProjectionMatrix, ProjectionType.PERSPECTIVE);
+            IPRenderSystem.setProjectionMatrix(oldProjectionMatrix, ProjectionType.PERSPECTIVE);
             IERenderSystem.ip_setModelViewStack(oldModelViewStack);
+            SodiumInterface.frustumCuller = oldFrustumCuller;
         
             IrisInterface.invoker.setPipeline(worldRenderer, irisPipeline);
             // restore the outer pipeline, otherwise hand and GUI use the destination pipeline
@@ -304,12 +306,9 @@ public class MyGameRenderer {
     public static void resetDiffuseLighting() {
         ClientLevel world = client.level;
         assert world != null;
-        if (world.effects().constantAmbientLight()) {
-            Lighting.setupNetherLevel();
-        }
-        else {
-            Lighting.setupLevel();
-        }
+        Lighting lighting = client.gameRenderer.getLighting();
+        lighting.updateLevel(world.effects().constantAmbientLight());
+        lighting.setupFor(Lighting.Entry.LEVEL);
     }
     
     

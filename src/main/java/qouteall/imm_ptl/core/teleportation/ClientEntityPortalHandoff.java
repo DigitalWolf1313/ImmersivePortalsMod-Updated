@@ -9,6 +9,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.Level;
@@ -20,7 +21,7 @@ import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.collision.PortalCollisionHandler;
 import qouteall.imm_ptl.core.ducks.IEEntity;
-import qouteall.imm_ptl.core.ducks.IEEntityInterpolation;
+import qouteall.imm_ptl.core.ducks.IEInterpolationHandler;
 import qouteall.imm_ptl.core.mixin.client.accessor.IELivingEntityInterpolation;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.q_misc_util.Helper;
@@ -210,20 +211,31 @@ public class ClientEntityPortalHandoff {
     }
     
     public static void setInterpolationTarget(Entity entity, Vec3 target, float yaw, float pitch, int steps) {
-        entity.lerpTo(target.x, target.y, target.z, yaw, pitch, steps);
-        if (entity instanceof IEEntityInterpolation interpolation) {
-            // Boats and minecarts use a fixed or adjusted interpolation duration.
-            interpolation.ip_setLerpSteps(steps);
+        InterpolationHandler interpolation = entity.getInterpolation();
+        if (interpolation != null) {
+            ((IEInterpolationHandler) interpolation).ip_interpolateTo(target, yaw, pitch, steps);
         }
     }
     
+    static float getLerpTargetYRot(Entity entity) {
+        InterpolationHandler interpolation = entity.getInterpolation();
+        return interpolation != null ? interpolation.yRot() : entity.getYRot();
+    }
+    
+    static float getLerpTargetXRot(Entity entity) {
+        InterpolationHandler interpolation = entity.getInterpolation();
+        return interpolation != null ? interpolation.xRot() : entity.getXRot();
+    }
+    
     static Vec3 getLerpTarget(Entity entity) {
-        return new Vec3(entity.lerpTargetX(), entity.lerpTargetY(), entity.lerpTargetZ());
+        InterpolationHandler interpolation = entity.getInterpolation();
+        return interpolation != null ? interpolation.position() : entity.position();
     }
     
     static int getRemainingInterpolationSteps(Entity entity) {
-        if (entity instanceof IEEntityInterpolation interpolation) {
-            return interpolation.ip_getLerpSteps();
+        InterpolationHandler interpolation = entity.getInterpolation();
+        if (interpolation != null) {
+            return ((IEInterpolationHandler) interpolation).ip_getRemainingSteps();
         }
         return getLerpTarget(entity).distanceToSqr(entity.position()) > LERP_TARGET_EPSILON_SQR ?
             INTERPOLATION_STEPS : 0;
@@ -281,8 +293,8 @@ public class ClientEntityPortalHandoff {
         Vec3 curPos = entity.position();
         Vec3 lastTickPos = new Vec3(entity.xo, entity.yo, entity.zo);
         Vec3 lerpTarget = getLerpTarget(entity);
-        float lerpYaw = entity.lerpTargetYRot();
-        float lerpPitch = entity.lerpTargetXRot();
+        float lerpYaw = getLerpTargetYRot(entity);
+        float lerpPitch = getLerpTargetXRot(entity);
         Vec3 velocity = entity.getDeltaMovement();
         Vec3 newVelocity = handoff.transformVec().apply(velocity);
         if (newVelocity.length() > MAX_HANDOFF_SPEED) {
@@ -328,7 +340,7 @@ public class ClientEntityPortalHandoff {
         // Restarting it would pull a fast entity toward a stale target after the crossing.
         // A completed interpolation is cleared as well.
         // Its target can equal the current position while a living entity still has steps left.
-        if (entity instanceof IEEntityInterpolation || remainingSteps > 0) {
+        if (entity.getInterpolation() != null || remainingSteps > 0) {
             setInterpolationTarget(
                 entity, handoff.transformPoint().apply(lerpTarget),
                 lerpYaw + deltaYaw, lerpPitch + deltaPitch,

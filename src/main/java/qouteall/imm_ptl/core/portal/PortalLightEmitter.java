@@ -121,11 +121,11 @@ public class PortalLightEmitter {
      */
     public void readFromTag(CompoundTag tag) {
         if (tag.contains("lightLevel")) {
-            setLightLevel(tag.getInt("lightLevel"));
+            setLightLevel(tag.getIntOr("lightLevel", 0));
         }
         else {
-            long[] local = tag.getLongArray("lightCellLocal");
-            int[] levels = tag.getIntArray("lightCellLevels");
+            long[] local = tag.getLongArray("lightCellLocal").orElseGet(() -> new long[0]);
+            int[] levels = tag.getIntArray("lightCellLevels").orElseGet(() -> new int[0]);
             
             List<LightCell> newCells = new ArrayList<>();
             for (int i = 0; i < Math.min(local.length / 3, levels.length); i++) {
@@ -140,7 +140,7 @@ public class PortalLightEmitter {
         }
         
         ownedPositions.clear();
-        for (long pos : tag.getLongArray("lightBlockPositions")) {
+        for (long pos : tag.getLongArray("lightBlockPositions").orElseGet(() -> new long[0])) {
             ownedPositions.add(pos);
         }
     }

@@ -19,7 +19,7 @@ public class MixinLivingEntity {
         }
         if (this_.getLastHurtMob() != null) {
             if (this_.getLastHurtMob().level() != this_.level()) {
-            	this_.setLastHurtByPlayer(null);
+            	this_.setLastHurtByMob(null);
             }
         }
     }

@@ -182,7 +182,7 @@ public abstract class MixinMinecraft implements IEMinecraftClient {
         method = "addInitialScreens",
         at = @At("RETURN")
     )
-    private void onAddInitialScreens(List<Function<Runnable, Screen>> output, CallbackInfo ci) {
+    private void onAddInitialScreens(List<Function<Runnable, Screen>> output, CallbackInfoReturnable<Boolean> cir) {
         IPConfig config = IPConfig.getConfig();
         if (!config.initialScreenShown) {
             output.add(IPortalInitialScreen::new);

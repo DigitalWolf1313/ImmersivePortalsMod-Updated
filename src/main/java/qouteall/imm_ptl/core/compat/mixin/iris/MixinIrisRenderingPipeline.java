@@ -2,20 +2,21 @@ package qouteall.imm_ptl.core.compat.mixin.iris;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import net.irisshaders.iris.gl.texture.DepthBufferFormat;
+import com.mojang.blaze3d.textures.GpuTexture;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
-import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.gl.texture.DepthBufferFormat;
 import net.irisshaders.iris.pipeline.CompositeRenderer;
+import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.shaderpack.properties.PackDirectives;
 import net.irisshaders.iris.shaderpack.properties.PackRenderTargetDirectives;
 import net.irisshaders.iris.shadows.ShadowRenderTargets;
 import net.irisshaders.iris.targets.RenderTargets;
 import net.irisshaders.iris.uniforms.FrameUpdateNotifier;
 import net.irisshaders.iris.uniforms.custom.CustomUniforms;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -86,11 +87,11 @@ public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeli
         method = "<init>",
         at = @At(
             value = "NEW",
-            target = "(IIIILnet/irisshaders/iris/gl/texture/DepthBufferFormat;Ljava/util/Map;Lnet/irisshaders/iris/shaderpack/properties/PackDirectives;)Lnet/irisshaders/iris/targets/RenderTargets;"
+            target = "(IILcom/mojang/blaze3d/textures/GpuTexture;ILnet/irisshaders/iris/gl/texture/DepthBufferFormat;Ljava/util/Map;Lnet/irisshaders/iris/shaderpack/properties/PackDirectives;)Lnet/irisshaders/iris/targets/RenderTargets;"
         )
     )
     private RenderTargets ip_shareRenderTargets(
-        int width, int height, int depthTexture, int depthBufferVersion,
+        int width, int height, GpuTexture depthTexture, int depthBufferVersion,
         DepthBufferFormat depthFormat,
         Map<Integer, PackRenderTargetDirectives.RenderTargetSettings> renderTargetSettings,
         PackDirectives packDirectives,
@@ -122,17 +123,17 @@ public class MixinIrisRenderingPipeline implements IEIrisNewWorldRenderingPipeli
         method = "beginLevelRendering",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/irisshaders/iris/targets/RenderTargets;resizeIfNeeded(IIIILnet/irisshaders/iris/gl/texture/DepthBufferFormat;Lnet/irisshaders/iris/shaderpack/properties/PackDirectives;)Z"
+            target = "Lnet/irisshaders/iris/targets/RenderTargets;resizeIfNeeded(ILcom/mojang/blaze3d/textures/GpuTexture;IILnet/irisshaders/iris/gl/texture/DepthBufferFormat;Lnet/irisshaders/iris/shaderpack/properties/PackDirectives;)Z"
         )
     )
     private boolean ip_reportSharedResize(
         RenderTargets renderTargets,
-        int depthBufferVersion, int depthTextureId, int width, int height,
+        int depthBufferVersion, GpuTexture depthTexture, int width, int height,
         DepthBufferFormat depthFormat, PackDirectives packDirectives,
         Operation<Boolean> original
     ) {
         boolean changed = original.call(
-            renderTargets, depthBufferVersion, depthTextureId, width, height, depthFormat, packDirectives
+            renderTargets, depthBufferVersion, depthTexture, width, height, depthFormat, packDirectives
         );
         
         if (!IrisRenderTargetSharing.isShared(renderTargets)) {

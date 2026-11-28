@@ -109,7 +109,7 @@ public class ExampleGuiPortalRendering {
             if (frameBuffer == null) {
                 // the framebuffer size doesn't matter here
                 // because it will be automatically resized when rendering
-                frameBuffer = new TextureTarget(2, 2, true);
+                frameBuffer = new TextureTarget("imm_ptl_example", 2, 2, true);
             }
             
             Minecraft.getInstance().setScreen(new GuiPortalScreen(dimension, position));

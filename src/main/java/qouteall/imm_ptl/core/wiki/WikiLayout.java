@@ -10,6 +10,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -194,7 +195,7 @@ public class WikiLayout {
             if (span.link() != null) {
                 placeholder = placeholder.withColor(LINK_COLOR)
                     .withUnderlined(true)
-                    .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, span.link()));
+                    .withClickEvent(new ClickEvent.OpenUrl(URI.create(span.link())));
             }
             return Component.literal("[" + (span.text().isBlank() ? "image" : span.text()) + "]")
                 .withStyle(placeholder);
@@ -215,7 +216,7 @@ public class WikiLayout {
         if (span.link() != null) {
             style = style.withColor(LINK_COLOR)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, span.link()));
+                .withClickEvent(new ClickEvent.OpenUrl(URI.create(span.link())));
         }
         return Component.literal(span.text()).withStyle(style);
     }

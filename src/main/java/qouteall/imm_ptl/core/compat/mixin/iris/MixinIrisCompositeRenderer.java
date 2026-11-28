@@ -2,8 +2,7 @@ package qouteall.imm_ptl.core.compat.mixin.iris;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
-import net.irisshaders.iris.pathways.FullScreenQuadRenderer;
+import com.mojang.blaze3d.systems.RenderPass;
 import net.irisshaders.iris.pipeline.CompositeRenderer;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.GL11C;
@@ -18,35 +17,16 @@ import java.nio.IntBuffer;
 
 @Mixin(value = CompositeRenderer.class, remap = false)
 public class MixinIrisCompositeRenderer {
-    // The framebuffers of the begin, prepare, deferred and composite passes have no depth or stencil attachment.
-    // Without one the stencil test never applies, so a pass drawn inside a portal would cover the whole screen.
-    // Attaching the main depth-stencil texture keeps each pass inside the stencil area of its portal.
     @WrapOperation(
         method = "renderAll",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/irisshaders/iris/gl/framebuffer/GlFramebuffer;bind()V"
-        )
-    )
-    private void iPortals$attachStencilBeforeBind(GlFramebuffer framebuffer, Operation<Void> original) {
-        if (IPCGlobal.renderer instanceof ExperimentalIrisPortalRenderer
-            && !framebuffer.hasDepthAttachment()
-        ) {
-            framebuffer.addDepthAttachment(Minecraft.getInstance().getMainRenderTarget().getDepthTextureId());
-        }
-        
-        original.call(framebuffer);
-    }
-
-    @WrapOperation(
-        method = "renderAll",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/irisshaders/iris/pathways/FullScreenQuadRenderer;renderQuad()V"
+            target = "Lcom/mojang/blaze3d/systems/RenderPass;drawIndexed(IIII)V"
         )
     )
     private void iPortals$skipScaledPortalCompositePass(
-        FullScreenQuadRenderer renderer, Operation<Void> original
+        RenderPass renderPass, int firstIndex, int index, int indexCount, int primCount,
+        Operation<Void> original
     ) {
         if (IPCGlobal.renderer instanceof ExperimentalIrisPortalRenderer
             && PortalRendering.isRendering()) {
@@ -59,6 +39,6 @@ public class MixinIrisCompositeRenderer {
                 }
             }
         }
-        original.call(renderer);
+        original.call(renderPass, firstIndex, index, indexCount, primCount);
     }
 }

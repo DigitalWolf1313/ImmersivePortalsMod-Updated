@@ -53,6 +53,7 @@ import qouteall.imm_ptl.core.ducks.IEEntityTrackingSection;
 import qouteall.imm_ptl.core.ducks.IESectionedEntityCache;
 import qouteall.imm_ptl.core.ducks.IEWorld;
 import qouteall.imm_ptl.core.mc_utils.MyNbtTextFormatter;
+import qouteall.imm_ptl.core.mc_utils.NbtBridge;
 import qouteall.imm_ptl.core.mc_utils.ServerTaskList;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
 import qouteall.imm_ptl.core.mixin.common.mc_util.IELevelEntityGetterAdapter;
@@ -65,6 +66,7 @@ import qouteall.q_misc_util.my_util.IntBox;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -319,10 +321,9 @@ public class McHelper {
         // minecarts, boats and LivingEntity use position interpolation
         // don't make interpolate, or it may interpolate into unloaded chunks
         vehicle.setPos(newVehiclePos.x(), newVehiclePos.y(), newVehiclePos.z());
-        vehicle.lerpTo(
-            newVehiclePos.x(), newVehiclePos.y(), newVehiclePos.z(),
-            vehicle.getYRot(), vehicle.getXRot(), 0
-        );
+        if (vehicle.getInterpolation() != null) {
+            vehicle.getInterpolation().cancel();
+        }
         
         McHelper.setPosAndLastTickPos(
             vehicle, newVehiclePos, newVehicleLastTickPos
@@ -401,7 +402,7 @@ public class McHelper {
         
         Validate.notNull(newPortal);
         
-        newPortal.load(portal.saveWithoutId(new CompoundTag()));
+        NbtBridge.loadEntity(newPortal, NbtBridge.saveEntity(portal));
         return newPortal;
     }
     
@@ -423,9 +424,8 @@ public class McHelper {
     
     public static MutableComponent getLinkText(String link) {
         return Component.literal(link).withStyle(
-            style -> style.withClickEvent(new ClickEvent(
-                ClickEvent.Action.OPEN_URL, link
-            )).withUnderlined(true)
+            style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(link
+            ))).withUnderlined(true)
         );
     }
     

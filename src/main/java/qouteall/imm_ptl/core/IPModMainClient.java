@@ -20,6 +20,7 @@ import qouteall.imm_ptl.core.portal.animation.StableClientTimer;
 import qouteall.imm_ptl.core.render.CrossPortalEntityRenderer;
 import qouteall.imm_ptl.core.render.ForceMainThreadRebuild;
 import qouteall.imm_ptl.core.render.GuiPortalRendering;
+import qouteall.imm_ptl.core.render.IPCloudViewStates;
 import qouteall.imm_ptl.core.render.ImmPtlViewArea;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.ShaderCodeTransformation;
@@ -98,6 +99,7 @@ public class IPModMainClient {
         PortalRenderInfo.init();
         
         CloudContext.init();
+        IPCloudViewStates.init();
         
         SharedBlockMeshBuffers.init();
         

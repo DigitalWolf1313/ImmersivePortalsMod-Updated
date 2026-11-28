@@ -1,6 +1,5 @@
 package qouteall.imm_ptl.peripheral.alternate_dimension;
 
-import net.minecraft.world.level.Level;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -11,8 +10,9 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
-import net.minecraft.util.random.WeightedRandomList;
+import net.minecraft.util.random.WeightedList;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
@@ -147,7 +147,7 @@ public abstract class DelegatedChunkGenerator extends ChunkGenerator {
     }
     
     @Override
-    public WeightedRandomList<MobSpawnSettings.SpawnerData> getMobsAt(Holder<Biome> holder, StructureManager structureManager, MobCategory mobCategory, BlockPos blockPos) {
+    public WeightedList<MobSpawnSettings.SpawnerData> getMobsAt(Holder<Biome> holder, StructureManager structureManager, MobCategory mobCategory, BlockPos blockPos) {
         return delegate.getMobsAt(holder, structureManager, mobCategory, blockPos);
     }
     

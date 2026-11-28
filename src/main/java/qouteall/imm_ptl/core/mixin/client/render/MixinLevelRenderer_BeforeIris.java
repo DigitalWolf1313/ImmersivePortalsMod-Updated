@@ -1,12 +1,12 @@
 package qouteall.imm_ptl.core.mixin.client.render;
 
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
 import org.joml.Matrix4f;
+import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,8 +19,9 @@ public class MixinLevelRenderer_BeforeIris {
     @Inject(method = "renderLevel", at = @At(value = "CONSTANT", args = "stringValue=translucent"))
     private void iris$beginTranslucents(
         GraphicsResourceAllocator graphicsResourceAllocator, DeltaTracker deltaTracker, boolean bl,
-        Camera camera, GameRenderer gameRenderer, Matrix4f modelView,
-        Matrix4f matrix4f2, CallbackInfo ci
+        Camera camera, Matrix4f modelView, Matrix4f projection,
+        GpuBufferSlice fogBuffer, Vector4f fogColor, boolean renderSky,
+        CallbackInfo ci
     ) {
         IPCGlobal.renderer.onBeginIrisTranslucentRendering(modelView);
     }

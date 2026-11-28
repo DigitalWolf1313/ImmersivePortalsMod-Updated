@@ -7,8 +7,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -16,15 +16,18 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.Level;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import qouteall.imm_ptl.core.mc_utils.NbtBridge;
 import qouteall.q_misc_util.my_util.IntBox;
 
 public class LoadingIndicatorEntity extends Entity {
@@ -126,12 +129,22 @@ public class LoadingIndicatorEntity extends Entity {
     }
     
     @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {
+    protected final void readAdditionalSaveData(ValueInput input) {
+        readAdditionalSaveData(NbtBridge.readRoot(input));
+    }
+
+    @Override
+    protected final void addAdditionalSaveData(ValueOutput output) {
+        CompoundTag tag = new CompoundTag();
+        addAdditionalSaveData(tag);
+        NbtBridge.writeRoot(output, tag);
+    }
+
+        protected void readAdditionalSaveData(CompoundTag tag) {
     
     }
     
-    @Override
-    protected void addAdditionalSaveData(CompoundTag tag) {
+        protected void addAdditionalSaveData(CompoundTag tag) {
     
     }
     

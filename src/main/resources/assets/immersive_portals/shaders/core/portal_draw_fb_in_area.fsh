@@ -2,17 +2,11 @@
 
 uniform sampler2D DiffuseSampler;
 
-uniform float w;
-uniform float h;
-
 out vec4 fragColor;
 
 void main() {
-    //screen space from -1 to 1
-    //texture from 0 to 1
+    // The sampled framebuffer has the same size as the one being drawn into.
+    vec2 size = vec2(textureSize(DiffuseSampler, 0));
 
-    fragColor = vec4(texture(DiffuseSampler, vec2(gl_FragCoord.x/w, gl_FragCoord.y/h)).xyz, 1.0);
-
-    //vec4 sampled=texture2D(sampler, vec2(gl_FragCoord.x/w, gl_FragCoord.y/h));
-    //gl_FragColor = vec4(1.0,sampled.yz,1.0);
+    fragColor = vec4(texture(DiffuseSampler, gl_FragCoord.xy / size).xyz, 1.0);
 }

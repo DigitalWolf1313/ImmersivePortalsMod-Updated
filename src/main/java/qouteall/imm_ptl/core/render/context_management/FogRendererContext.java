@@ -3,20 +3,21 @@ package qouteall.imm_ptl.core.render.context_management;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.FogRenderer;
+import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector4f;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.ducks.IECamera;
+import qouteall.imm_ptl.core.ducks.IEGameRenderer;
 import qouteall.imm_ptl.core.mixin.client.multiworld_awareness.MixinFogRenderer;
+import qouteall.imm_ptl.core.mixin.client.multiworld_awareness.MixinWaterFogEnvironment;
 import qouteall.imm_ptl.core.portal.Portal;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-
-import org.joml.Vector4f;
 
 /**
  * {@link FogRenderer}
@@ -36,15 +37,15 @@ public class FogRendererContext {
     
     public static void init() {
         copyContextFromObject = context -> {
-            context.targetBiomeFog = MixinFogRenderer.ip_getTargetBiomeFog();
-            context.previousBiomeFog = MixinFogRenderer.ip_getPreviousBiomeFog();
-            context.biomeChangedTime = MixinFogRenderer.ip_getBiomeChangedTime();
+            context.targetBiomeFog = MixinWaterFogEnvironment.ip_getTargetBiomeFog();
+            context.previousBiomeFog = MixinWaterFogEnvironment.ip_getPreviousBiomeFog();
+            context.biomeChangedTime = MixinWaterFogEnvironment.ip_getBiomeChangedTime();
         };
 
         copyContextToObject = context -> {
-            MixinFogRenderer.ip_setTargetBiomeFog(context.targetBiomeFog);
-            MixinFogRenderer.ip_setPreviousBiomeFog(context.previousBiomeFog);
-            MixinFogRenderer.ip_setBiomeChangedTime(context.biomeChangedTime);
+            MixinWaterFogEnvironment.ip_setTargetBiomeFog(context.targetBiomeFog);
+            MixinWaterFogEnvironment.ip_setPreviousBiomeFog(context.previousBiomeFog);
+            MixinWaterFogEnvironment.ip_setBiomeChangedTime(context.biomeChangedTime);
         };
 
         getCurrentFogColor = FogRendererContext::getFogColorForCurrentView;
@@ -142,12 +143,16 @@ public class FogRendererContext {
     private static Vec3 computeFogColor(Camera camera, ClientLevel world) {
         Minecraft client = Minecraft.getInstance();
         float partialTick = RenderStates.getPartialTick();
-        Vector4f color = FogRenderer.computeFogColor(
+        boolean isFoggy = world.effects().isFoggyAt(camera.getBlockPosition().getX(), camera.getBlockPosition().getZ())
+            || client.gui.getBossOverlay().shouldCreateWorldFog();
+        FogRenderer fogRenderer = ((IEGameRenderer) client.gameRenderer).ip_getFogRenderer();
+        Vector4f color = ((MixinFogRenderer) (Object) fogRenderer).ip_computeFogColor(
             camera,
             partialTick,
             world,
             client.options.getEffectiveRenderDistance(),
-            client.gameRenderer.getDarkenWorldAmount(partialTick)
+            client.gameRenderer.getDarkenWorldAmount(partialTick),
+            isFoggy
         );
         return new Vec3(color.x(), color.y(), color.z());
     }
@@ -160,7 +165,7 @@ public class FogRendererContext {
     
     // Makes the underwater fog color adopt the current biome immediately instead of fading.
     public static void snapBiomeTransition() {
-        MixinFogRenderer.ip_setBiomeChangedTime(-1L);
+        MixinWaterFogEnvironment.ip_setBiomeChangedTime(-1L);
     }
     
 }

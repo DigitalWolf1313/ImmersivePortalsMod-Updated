@@ -1,25 +1,19 @@
 package qouteall.imm_ptl.core.render;
 
 import com.mojang.blaze3d.ProjectionType;
+import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.opengl.Uniform;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.buffers.BufferUsage;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexBuffer;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.CompiledShaderProgram;
-import net.minecraft.client.renderer.CoreShaders;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderDefines;
-import net.minecraft.client.renderer.ShaderProgram;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -28,11 +22,11 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 import qouteall.imm_ptl.core.CHelper;
 import qouteall.imm_ptl.core.ClientWorldLoader;
 import qouteall.imm_ptl.core.McHelper;
 import qouteall.imm_ptl.core.miscellaneous.IPVanillaCopy;
-import qouteall.imm_ptl.core.mixin.client.accessor.CoreShadersAccessor;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.context_management.PortalRendering;
 import qouteall.imm_ptl.core.render.context_management.RenderStates;
@@ -66,35 +60,6 @@ public class MyRenderHelper {
     
     public static final Minecraft client = Minecraft.getInstance();
     
-    public static final ShaderProgram BLIT_SCREEN_NOBLEND = registerShader(
-        "blit_screen_noblend",
-        DefaultVertexFormat.BLIT_SCREEN
-    );
-    
-    public static final ShaderProgram PORTAL_AREA = registerShader(
-        "portal_area",
-        DefaultVertexFormat.POSITION_COLOR
-    );
-    
-    public static final ShaderProgram PORTAL_DRAW_FB_IN_AREA = registerShader(
-        "portal_draw_fb_in_area",
-        DefaultVertexFormat.POSITION_COLOR
-    );
-    
-    public static final ShaderProgram PORTAL_FOG = registerShader(
-        "portal_fog",
-        DefaultVertexFormat.POSITION_COLOR
-    );
-
-    private static ShaderProgram registerShader(String name, VertexFormat vertexFormat) {
-        ShaderProgram shaderProgram = new ShaderProgram(
-            ResourceLocation.fromNamespaceAndPath("immersive_portals", "core/" + name),
-            vertexFormat,
-            ShaderDefines.EMPTY
-        );
-        CoreShadersAccessor.getPrograms().add(shaderProgram);
-        return shaderProgram;
-    }
     
 //    public static final SignalBiArged<ResourceProvider, Consumer<ShaderInstance>> loadShaderSignal =
 //        new SignalBiArged<>();
@@ -184,57 +149,35 @@ public class MyRenderHelper {
 //    public static ShaderInstance portalAreaShader;
 //    public static ShaderInstance blitScreenNoBlendShader;
 //
-    @SuppressWarnings("SuspiciousNameCombination")
+    /**
+     * Draws the framebuffer's color into the screen region covered by the portal view area.
+     * The framebuffer must have the same size as the main render target.
+     * Both faces are drawn, as the visibility of the portal has already been decided by an earlier test.
+     */
     public static void drawPortalAreaWithFramebuffer(
         Portal portal,
         RenderTarget textureProvider,
         Matrix4f modelViewMatrix,
         Matrix4f projectionMatrix
     ) {
-
-        GlStateManager._colorMask(true, true, true, true);
-        GlStateManager._enableDepthTest();
-        GlStateManager._depthMask(true);
-        GlStateManager._viewport(0, 0, textureProvider.width, textureProvider.height);
-
-        RenderSystem.setShader(PORTAL_DRAW_FB_IN_AREA);
-        CompiledShaderProgram shader = RenderSystem.getShader();
+        MeshData mesh = ViewAreaRenderer.buildViewAreaMesh(Vec3.ZERO, portal, CHelper.getCurrentCameraPos());
+        if (mesh == null) {
+            return;
+        }
         
-        Objects.requireNonNull(shader, "shader is null")
-            .bindSampler("DiffuseSampler", textureProvider.getColorTextureId());
-        Objects.requireNonNull(shader.getUniform("w"), "no w")
-            .set((float) textureProvider.width);
-        Objects.requireNonNull(shader.getUniform("h"), "no h")
-            .set((float) textureProvider.height);
-
-        if (shader.MODEL_VIEW_MATRIX != null) {
-            shader.MODEL_VIEW_MATRIX.set(modelViewMatrix);
-        }
-
-        if (shader.PROJECTION_MATRIX != null) {
-            shader.PROJECTION_MATRIX.set(projectionMatrix);
-        }
-
-        shader.apply();
-
-        ViewAreaRenderer.buildPortalViewAreaTrianglesBuffer(
-            Vec3.ZERO,//fog
-            portal,
-            CHelper.getCurrentCameraPos(),
-            RenderStates.getPartialTick()
+        PortalDraw.drawMesh(
+            "framebuffer in portal area",
+            PortalPipelines.drawFbInArea(false),
+            mesh, client.getMainRenderTarget(),
+            modelViewMatrix, IPRenderSystem.uploadProjectionMatrix(projectionMatrix),
+            pass -> pass.bindSampler("DiffuseSampler", textureProvider.getColorTextureView()),
+            false, false
         );
-        
-        shader.clear();
-        
-        RenderSystem.clearShader();
-    }
-    
-    public static void renderScreenTriangle() {
-        renderScreenTriangle(255, 255, 255, 255);
     }
     
     public static void renderScreenTriangle(Vec3 color) {
         renderScreenTriangle(
+            true, false, false,
             (int) (color.x * 255),
             (int) (color.y * 255),
             (int) (color.z * 255),
@@ -242,103 +185,29 @@ public class MyRenderHelper {
         );
     }
     
-//    public static void testOneTriangle(int r, int g, int b, int a) {
-//        ShaderInstance shader = GameRenderer.getPositionColorShader();
-//        Validate.notNull(shader);
-//
-//        Matrix4f identityMatrix = new Matrix4f();
-//        identityMatrix.identity();
-//
-//        shader.MODEL_VIEW_MATRIX.set(identityMatrix);
-//        shader.PROJECTION_MATRIX.set(identityMatrix);
-//
-//        shader.apply();
-//
-//        Tesselator tessellator = Tesselator.getInstance();
-//        BufferBuilder bufferBuilder = tessellator
-//            .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-//
-//        // upper triangle
-////        bufferBuilder.addVertex(1, -1, 0).setColor(r, g, b, a)
-////            ;
-////        bufferBuilder.addVertex(1, 1, 0).setColor(r, g, b, a)
-////            ;
-////        bufferBuilder.addVertex(-1, 1, 0).setColor(r, g, b, a)
-////            ;
-//
-//        // down triangle
-//        bufferBuilder.addVertex(-1, 1, 0).setColor(r, g, b, a);
-//        bufferBuilder.addVertex(-1, -1, 0).setColor(r, g, b, a);
-//        bufferBuilder.addVertex(1, -1, 0).setColor(r, g, b, a);
-//
-//        bufferBuilder.addVertex(1, 0, 0).setColor(r, g, b, a);
-//        bufferBuilder.addVertex(0, 1, 0).setColor(r, g, b, a);
-//        bufferBuilder.addVertex(-1, 0, 0).setColor(r, g, b, a);
-//
-//        BufferUploader.draw(bufferBuilder.build());
-//
-//        shader.clear();
-//    }
+    public static void renderScreenTriangle(boolean writeColor, boolean writeDepth, boolean depthTest) {
+        renderScreenTriangle(writeColor, writeDepth, depthTest, 255, 255, 255, 255);
+    }
     
     /**
-     * {@link RenderTarget#blitAndBlendToScreen}
+     * Fills the whole main render target with a triangle in clip space.
+     * The depth range, the stencil state and the cull face mode come from the raw GL state.
      */
-    // One uploaded buffer per color. The fog color changes slowly, so the cache stays small.
-    private static final Int2ObjectOpenHashMap<VertexBuffer> screenTriangleBuffers =
-        new Int2ObjectOpenHashMap<>();
-    private static final int MAX_SCREEN_TRIANGLE_BUFFERS = 16;
-    
-    @IPVanillaCopy
-    public static void renderScreenTriangle(int r, int g, int b, int a) {
-        ShaderProgram shader = CoreShaders.POSITION_COLOR;
-        Validate.notNull(shader, "Position color shader is null");
-        RenderSystem.setShader(shader);
-        CompiledShaderProgram compiledShader = RenderSystem.getShader();
-        Validate.notNull(compiledShader, "Position color shader program is not loaded");
-        
-        Matrix4f identityMatrix = new Matrix4f();
-        identityMatrix.identity();
-
-        Matrix4f oldProjectionMatrix = new Matrix4f(RenderSystem.getProjectionMatrix());
-        ProjectionType oldProjectionType = RenderSystem.getProjectionType();
-
-        RenderSystem.getModelViewStack().pushMatrix();
-        RenderSystem.getModelViewStack().set(identityMatrix);
-        
-        RenderSystem.setProjectionMatrix(identityMatrix, ProjectionType.ORTHOGRAPHIC);
-        
-        int key = ((a & 255) << 24) | ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
-        VertexBuffer buffer = screenTriangleBuffers.get(key);
-        if (buffer == null) {
-            if (screenTriangleBuffers.size() >= MAX_SCREEN_TRIANGLE_BUFFERS) {
-                screenTriangleBuffers.values().forEach(VertexBuffer::close);
-                screenTriangleBuffers.clear();
-            }
-            
-            buffer = new VertexBuffer(BufferUsage.STATIC_WRITE);
-            // The vertex array must be bound before uploading so that the vertex format gets set up on it.
-            buffer.bind();
-            buffer.upload(buildScreenTriangleMesh(r, g, b, a));
-            screenTriangleBuffers.put(key, buffer);
-        }
-        else {
-            buffer.bind();
-        }
-        
-        buffer.drawWithShader(
-            RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), compiledShader
+    public static void renderScreenTriangle(
+        boolean writeColor, boolean writeDepth, boolean depthTest,
+        int r, int g, int b, int a
+    ) {
+        PortalDraw.drawMesh(
+            "screen triangle",
+            PortalPipelines.screenTriangle(writeColor, writeDepth, depthTest),
+            buildScreenTriangleMesh(r, g, b, a), client.getMainRenderTarget(),
+            new Matrix4f(), IPRenderSystem.uploadProjectionMatrix(new Matrix4f()),
+            null, false, false
         );
-        VertexBuffer.unbind();
-        
-        RenderSystem.getModelViewStack().popMatrix();
-        RenderSystem.setProjectionMatrix(oldProjectionMatrix, oldProjectionType);
-        
-        compiledShader.clear();
-        RenderSystem.clearShader();
     }
     
     private static MeshData buildScreenTriangleMesh(int r, int g, int b, int a) {
-        Tesselator tessellator = RenderSystem.renderThreadTesselator();
+        Tesselator tessellator = Tesselator.getInstance();
         BufferBuilder bufferBuilder = tessellator
             .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         
@@ -422,67 +291,64 @@ public class MyRenderHelper {
         RenderTarget textureProvider, boolean doUseAlphaBlend, boolean doEnableModifyAlpha,
         int x, int y, int viewportWidth, int viewportHeight
     ) {
+        drawFramebufferWithCoordinatesAndDimensions(
+            textureProvider, client.getMainRenderTarget(), doUseAlphaBlend, doEnableModifyAlpha,
+            x, y, viewportWidth, viewportHeight
+        );
+    }
+    
+    /**
+     * Draws the whole source framebuffer into the destination framebuffer.
+     * The raw GL stencil state is applied to the destination's stencil attachment.
+     */
+    public static void drawScreenFrameBufferTo(
+        RenderTarget source, RenderTarget destination,
+        boolean doUseAlphaBlend, boolean doEnableModifyAlpha
+    ) {
+        drawFramebufferWithCoordinatesAndDimensions(
+            source, destination, doUseAlphaBlend, doEnableModifyAlpha,
+            0, 0, source.viewWidth, source.viewHeight
+        );
+    }
+    
+    @SuppressWarnings("resource")
+    @IPVanillaCopy
+    public static void drawFramebufferWithCoordinatesAndDimensions(
+        RenderTarget textureProvider, RenderTarget destination,
+        boolean doUseAlphaBlend, boolean doEnableModifyAlpha,
+        int x, int y, int viewportWidth, int viewportHeight
+    ) {
         CHelper.checkGlError();
-
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.viewport(x, textureProvider.viewHeight - viewportHeight - y, viewportWidth, viewportHeight);
         
-        if (doUseAlphaBlend) {
-            RenderSystem.enableBlend();
-            
-            // this is used for rendering a FB onto screen when the FB contains translucent things
-            // the FB should initialize with zero color and zero alpha
-            // MC's default blend func is: color = srcColor * srcAlpha + dstColor * (1-srcAlpha)
-            // then the FB's rendered content would be fbColor = contentColor * contentAlpha
-            // we want the roughtly same effect of rendering the translucent thing directly onto current FB, so we want:
-            // color = contentColor * contentAlpha + dstColor * (1-contentAlpha)
-            // color = fbColor * 1 + dstColor * (1-contentAlpha)
-            RenderSystem.blendFuncSeparate(
-                GlStateManager.SourceFactor.ONE,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-                GlStateManager.SourceFactor.ZERO,
-                GlStateManager.DestFactor.ONE
-            );
-        }
-        else {
-            RenderSystem.disableBlend();
-        }
-        
-        if (doEnableModifyAlpha) {
-            RenderSystem.colorMask(true, true, true, true);
-        }
-        else {
-            RenderSystem.colorMask(true, true, true, false);
-        }
-        
-        ShaderProgram shader = doUseAlphaBlend ?
-            CoreShaders.BLIT_SCREEN : BLIT_SCREEN_NOBLEND;
-        
-        Validate.notNull(shader, "shader is null");
-        
-        RenderSystem.setShader(shader);
-        CompiledShaderProgram compiledShaderProgram = RenderSystem.getShader();
-        Validate.notNull(compiledShaderProgram, "compiledShaderProgram is null");
-        
-        compiledShaderProgram.bindSampler("DiffuseSampler", textureProvider.getColorTextureId());
-        
-        BufferBuilder bufferBuilder = RenderSystem.renderThreadTesselator().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLIT_SCREEN);
+        BufferBuilder bufferBuilder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
         bufferBuilder.addVertex(0.0f, 0.0f, 0.0f);
         bufferBuilder.addVertex(1.0f, 0.0f, 0.0f);
         bufferBuilder.addVertex(1.0f, 1.0f, 0.0f);
         bufferBuilder.addVertex(0.0f, 1.0f, 0.0f);
-        BufferUploader.drawWithShader(bufferBuilder.buildOrThrow());
         
-        compiledShaderProgram.clear();
+        int viewportY = textureProvider.viewHeight - viewportHeight - y;
         
-        RenderSystem.clearShader();
-
-        RenderSystem.depthMask(true);
-        RenderSystem.colorMask(true, true, true, true);
+        // When alpha blending is on, the framebuffer is treated as premultiplied.
+        // The framebuffer should be initialized with zero color and zero alpha.
+        // Then the result equals rendering the translucent content directly onto the target:
+        // color = fbColor * 1 + dstColor * (1 - contentAlpha)
+        PortalDraw.drawMesh(
+            "blit framebuffer",
+            PortalPipelines.blit(doUseAlphaBlend, doEnableModifyAlpha),
+            bufferBuilder.buildOrThrow(), destination,
+            new Matrix4f(), null,
+            pass -> {
+                pass.bindSampler("InSampler", textureProvider.getColorTextureView());
+                GlStateManager._viewport(x, viewportY, viewportWidth, viewportHeight);
+            },
+            false, false
+        );
         
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        GlStateManager._depthMask(true);
+        GlStateManager._colorMask(true, true, true, true);
+        
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(770, 771, 1, 0);
         
         CHelper.checkGlError();
     }
@@ -530,11 +396,11 @@ public class MyRenderHelper {
     }
     
     public static void clearAlphaTo1(RenderTarget mcFrameBuffer) {
-        mcFrameBuffer.bindWrite(true);
-        RenderSystem.colorMask(false, false, false, true);
-        RenderSystem.clearColor(0, 0, 0, 1.0f);
-        RenderSystem.clear(GL_COLOR_BUFFER_BIT);
-        RenderSystem.colorMask(true, true, true, true);
+        IPGlHelper.bindWrite(mcFrameBuffer, true);
+        GlStateManager._colorMask(false, false, false, true);
+        GL11.glClearColor(0, 0, 0, 1.0f);
+        GlStateManager._clear(GL_COLOR_BUFFER_BIT);
+        GlStateManager._colorMask(true, true, true, true);
     }
     
     public static void restoreViewPort() {

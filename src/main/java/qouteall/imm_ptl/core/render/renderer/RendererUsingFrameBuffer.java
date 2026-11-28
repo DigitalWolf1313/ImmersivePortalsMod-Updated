@@ -1,7 +1,7 @@
 package qouteall.imm_ptl.core.render.renderer;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
@@ -14,6 +14,8 @@ import qouteall.imm_ptl.core.compat.IPPortingLibCompat;
 import qouteall.imm_ptl.core.ducks.IEMinecraftClient;
 import qouteall.imm_ptl.core.portal.Portal;
 import qouteall.imm_ptl.core.render.FrontClipping;
+import qouteall.imm_ptl.core.render.IPGlHelper;
+import qouteall.imm_ptl.core.render.IPRenderSystem;
 import qouteall.imm_ptl.core.render.MyRenderHelper;
 import qouteall.imm_ptl.core.render.PortalFogOverlay;
 import qouteall.imm_ptl.core.render.QueryManager;
@@ -73,7 +75,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         
         secondaryFrameBuffers[0].prepare();
         
-        client.getMainRenderTarget().bindWrite(false);
+        IPGlHelper.bindWrite(client.getMainRenderTarget(), false);
         
         GlStateManager._enableDepthTest();
         
@@ -115,10 +117,10 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         secondaryFrameBuffer.prepare();
         
         ((IEMinecraftClient) client).ip_setFrameBuffer(secondaryFrameBuffer.fb);
-        secondaryFrameBuffer.fb.bindWrite(true);
+        IPGlHelper.bindWrite(secondaryFrameBuffer.fb, true);
         
-        GlStateManager._clearColor(1, 0, 1, 1);
-        GlStateManager._clearDepth(1);
+        GL11.glClearColor(1, 0, 1, 1);
+        GL11.glClearDepth(1);
         GlStateManager._clear(
             GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT
         );
@@ -127,7 +129,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
         renderPortalContent(portal);
         
         ((IEMinecraftClient) client).ip_setFrameBuffer(oldFrameBuffer);
-        oldFrameBuffer.bindWrite(true);
+        IPGlHelper.bindWrite(oldFrameBuffer, true);
         
         PortalRendering.popPortalLayer();
         
@@ -159,7 +161,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
             ViewAreaRenderer.renderPortalArea(
                 portal, Vec3.ZERO,
                 modelView,
-                RenderSystem.getProjectionMatrix(),
+                IPRenderSystem.getProjectionMatrix(),
                 true, true,
                 true, true
             );
@@ -173,7 +175,7 @@ public class RendererUsingFrameBuffer extends PortalRenderer {
             portal,
             secondaryFrameBuffer.fb,
             modelView,
-            RenderSystem.getProjectionMatrix()
+            IPRenderSystem.getProjectionMatrix()
         );
     }
     

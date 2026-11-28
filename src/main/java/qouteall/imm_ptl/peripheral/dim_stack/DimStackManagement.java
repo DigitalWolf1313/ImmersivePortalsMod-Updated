@@ -150,7 +150,7 @@ public class DimStackManagement {
                             chunk.setBlockState(
                                 mutable,
                                 replacement,
-                                false
+                                0
                             );
                         }
                     }
@@ -178,7 +178,7 @@ public class DimStackManagement {
     public static void onDimensionStackCommandExecute(
         ServerPlayer player
     ) {
-        List<String> dimIdList = collectDimStackCandidateWhenServerRunning(player.server)
+        List<String> dimIdList = collectDimStackCandidateWhenServerRunning(player.getServer())
             .stream().map(k -> k.location().toString()).toList();
         
         McRemoteProcedureCall.tellClientToInvoke(
